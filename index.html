@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101722">
+  <meta name="description" content="Zyma Systems internal CRM workspace.">
+  <title>Zyma CRM — Internal Workspace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="#dashboard" aria-label="Zyma CRM home">
+        <span class="brand-mark">Z<span class="brand-accent">.</span></span>
+        <span class="brand-copy"><strong>ZYMA</strong><small>CRM WORKSPACE</small></span>
+      </a>
+
+      <div class="workspace-switcher">
+        <span class="workspace-icon">Z</span>
+        <span class="workspace-copy"><strong>Zyma Systems</strong><small>Internal workspace</small></span>
+        <span class="chevron">⌄</span>
+      </div>
+
+      <p class="nav-label">WORKSPACE</p>
+      <nav class="primary-nav" aria-label="Main navigation">
+        <button class="nav-item active" data-view="dashboard"><span class="nav-icon">▦</span><span>Dashboard</span></button>
+        <button class="nav-item" data-view="leads"><span class="nav-icon">◉</span><span>Leads</span><span class="nav-count" id="lead-nav-count">8</span></button>
+        <button class="nav-item" data-view="clients"><span class="nav-icon">♧</span><span>Clients</span></button>
+        <button class="nav-item" data-view="contacts"><span class="nav-icon">◎</span><span>Contacts</span></button>
+        <button class="nav-item" data-view="projects"><span class="nav-icon">▣</span><span>Projects</span></button>
+        <button class="nav-item" data-view="tasks"><span class="nav-icon">☑</span><span>Tasks</span><span class="nav-count" id="task-nav-count">5</span></button>
+      </nav>
+
+      <p class="nav-label nav-label-spaced">RELATIONSHIPS</p>
+      <nav class="primary-nav" aria-label="Relationship navigation">
+        <button class="nav-item" data-view="communications"><span class="nav-icon">▤</span><span>Communications</span></button>
+        <button class="nav-item" data-view="reports"><span class="nav-icon">▥</span><span>Reports</span></button>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <button class="nav-item" data-view="settings"><span class="nav-icon">⚙</span><span>Settings</span></button>
+        <div class="sidebar-help">
+          <span class="help-mark">?</span>
+          <div><strong>Need a hand?</strong><small>View workspace guide</small></div>
+          <span class="chevron">↗</span>
+        </div>
+        <div class="sidebar-user">
+          <div class="avatar avatar-orange">KM</div>
+          <div class="user-copy"><strong>Khutjo Mamabolo</strong><small>Super Admin</small></div>
+          <button class="icon-button user-menu" aria-label="User menu">···</button>
+        </div>
+      </div>
+    </aside>
+
+    <div class="main-column">
+      <header class="topbar">
+        <button class="icon-button mobile-menu" id="mobile-menu" aria-label="Toggle navigation">☰</button>
+        <div class="breadcrumbs"><span>Workspace</span><span class="crumb-slash">/</span><strong id="breadcrumb-current">Dashboard</strong></div>
+        <div class="topbar-actions">
+          <label class="global-search">
+            <span aria-hidden="true">⌕</span>
+            <input id="global-search" type="search" placeholder="Search clients, leads, projects..." autocomplete="off">
+            <kbd>⌘ K</kbd>
+          </label>
+          <button class="icon-button notification-button" id="notifications-button" aria-label="Notifications">
+            ♧<span class="notification-dot"></span>
+          </button>
+          <span class="topbar-divider"></span>
+          <button class="profile-button" id="profile-button">
+            <span class="avatar avatar-blue">KM</span>
+            <span class="profile-copy"><strong>Khutjo Mamabolo</strong><small>Zyma Systems</small></span>
+            <span class="chevron">⌄</span>
+          </button>
+        </div>
+      </header>
+
+      <main class="content" id="main-content">
+        <section class="view-section active" id="view-dashboard" data-title="Dashboard">
+          <div class="page-heading">
+            <div><p class="eyebrow">MONDAY, 15 OCTOBER 2026</p><h1>Good afternoon, Khutjo <span class="wave">✳</span></h1><p class="page-subtitle">Here’s what’s happening across Zyma Systems today.</p></div>
+            <div class="heading-actions"><button class="button button-secondary" data-action="export">↧ <span>Export overview</span></button><button class="button button-primary" data-action="new-lead">＋ <span>New lead</span></button></div>
+          </div>
+
+          <div class="metric-grid">
+            <article class="metric-card"><div class="metric-top"><span class="metric-label">Total clients</span><span class="metric-icon icon-violet">♧</span></div><div class="metric-value" id="metric-clients">04</div><div class="metric-foot"><span class="metric-neutral">Active relationships</span><span class="metric-symbol">↗</span></div></article>
+            <article class="metric-card"><div class="metric-top"><span class="metric-label">Active projects</span><span class="metric-icon icon-blue">▣</span></div><div class="metric-value" id="metric-projects">03</div><div class="metric-foot"><span class="metric-positive"><span>↑</span> In delivery</span><span class="metric-caption">Across clients</span></div></article>
+            <article class="metric-card"><div class="metric-top"><span class="metric-label">Open leads</span><span class="metric-icon icon-orange">◎</span></div><div class="metric-value" id="metric-leads">08</div><div class="metric-foot"><span class="metric-neutral">In the pipeline</span><button class="text-link" data-view-link="leads">View pipeline ↗</button></div></article>
+            <article class="metric-card"><div class="metric-top"><span class="metric-label">Open tasks</span><span class="metric-icon icon-green">☑</span></div><div class="metric-value" id="metric-tasks">05</div><div class="metric-foot"><span class="metric-warning">Needs attention</span><button class="text-link" data-view-link="tasks">View tasks ↗</button></div></article>
+          </div>
+
+          <div class="dashboard-grid">
+            <section class="panel project-panel">
+              <div class="panel-heading"><div><h2>Project overview</h2><p>Keep track of work in delivery</p></div><button class="text-link" data-view-link="projects">All projects <span>↗</span></button></div>
+              <div class="project-list" id="dashboard-projects"></div>
+            </section>
+            <section class="panel tasks-panel">
+              <div class="panel-heading"><div><h2>Priority tasks</h2><p>Your next actions</p></div><button class="text-link" data-view-link="tasks">View all <span>↗</span></button></div>
+              <div class="priority-list" id="dashboard-tasks"></div>
+            </section>
+            <section class="panel activity-panel">
+              <div class="panel-heading"><div><h2>Recent activity</h2><p>Latest updates from your workspace</p></div><button class="icon-button small-icon" aria-label="Activity options">···</button></div>
+              <div class="activity-list" id="dashboard-activity"></div>
+            </section>
+            <section class="panel pipeline-panel">
+              <div class="panel-heading"><div><h2>Lead pipeline</h2><p>Opportunities by stage</p></div><button class="text-link" data-view-link="leads">Open pipeline <span>↗</span></button></div>
+              <div class="pipeline-summary" id="pipeline-summary"></div>
+            </section>
+          </div>
+          <p class="demo-note"><span>ⓘ</span> Preview mode — the records shown are sample data. Backend integration will be connected in a later step.</p>
+        </section>
+
+        <section class="view-section" id="view-leads" data-title="Leads">
+          <div class="page-heading"><div><p class="eyebrow">GROWTH & OPPORTUNITIES</p><h1>Leads</h1><p class="page-subtitle">Manage prospects and move opportunities forward.</p></div><div class="heading-actions"><button class="button button-secondary" data-action="export">↧ Export</button><button class="button button-primary" data-action="new-lead">＋ New lead</button></div></div>
+          <div class="metric-grid compact-metrics">
+            <article class="metric-card"><span class="metric-label">Open opportunities</span><div class="metric-value" id="lead-total">08</div><span class="metric-caption">Across all stages</span></article>
+            <article class="metric-card"><span class="metric-label">Discovery</span><div class="metric-value" id="lead-discovery">02</div><span class="metric-caption">Needs qualification</span></article>
+            <article class="metric-card"><span class="metric-label">Proposals sent</span><div class="metric-value" id="lead-proposal">02</div><span class="metric-caption">Awaiting response</span></article>
+            <article class="metric-card"><span class="metric-label">Won this quarter</span><div class="metric-value" id="lead-won">02</div><span class="metric-caption">Sample records</span></article>
+          </div>
+          <section class="panel table-panel"><div class="table-toolbar"><div class="table-tabs" id="lead-filters"><button class="filter-tab active" data-filter="all">All leads <span id="all-lead-count">8</span></button><button class="filter-tab" data-filter="New">New</button><button class="filter-tab" data-filter="Discovery">Discovery</button><button class="filter-tab" data-filter="Proposal">Proposal</button><button class="filter-tab" data-filter="Negotiation">Negotiation</button></div><label class="table-search">⌕ <input id="lead-search" placeholder="Search leads..." type="search"></label></div><div class="table-wrap"><table><thead><tr><th>Lead / Company</th><th>Service interest</th><th>Stage</th><th>Owner</th><th>Next follow-up</th><th></th></tr></thead><tbody id="leads-table"></tbody></table></div><div class="table-footer"><span id="lead-table-count">Showing 8 leads</span><span class="muted">Sample data · Local preview</span></div></section>
+        </section>
+
+        <section class="view-section" id="view-clients" data-title="Clients">
+          <div class="page-heading"><div><p class="eyebrow">RELATIONSHIP MANAGEMENT</p><h1>Clients</h1><p class="page-subtitle">Your client organizations, all in one place.</p></div><div class="heading-actions"><button class="button button-secondary" data-action="export">↧ Export</button><button class="button button-primary" data-action="new-client">＋ Add client</button></div></div>
+          <div class="metric-grid compact-metrics">
+            <article class="metric-card"><span class="metric-label">All clients</span><div class="metric-value" id="client-total">04</div><span class="metric-caption">Organizations</span></article>
+            <article class="metric-card"><span class="metric-label">Active projects</span><div class="metric-value">03</div><span class="metric-caption">Currently in delivery</span></article>
+            <article class="metric-card"><span class="metric-label">Needs follow-up</span><div class="metric-value">02</div><span class="metric-caption">Sample reminders</span></article>
+            <article class="metric-card"><span class="metric-label">New this month</span><div class="metric-value">01</div><span class="metric-caption">Sample records</span></article>
+          </div>
+          <section class="panel table-panel"><div class="table-toolbar"><div><h2 class="toolbar-title">Client directory</h2><p class="muted">Manage organizations and their relationship details.</p></div><label class="table-search">⌕ <input id="client-search" placeholder="Search clients..." type="search"></label></div><div class="client-grid" id="client-grid"></div></section>
+        </section>
+
+        <section class="view-section" id="view-contacts" data-title="Contacts">
+          <div class="page-heading"><div><p class="eyebrow">PEOPLE & ORGANIZATIONS</p><h1>Contacts</h1><p class="page-subtitle">Keep track of the people behind every client relationship.</p></div><div class="heading-actions"><button class="button button-primary" data-action="new-contact">＋ Add contact</button></div></div>
+          <section class="panel table-panel"><div class="table-toolbar"><div><h2 class="toolbar-title">Contact directory</h2><p class="muted">Contacts linked to client organizations.</p></div><label class="table-search">⌕ <input id="contact-search" placeholder="Search contacts..." type="search"></label></div><div class="table-wrap"><table><thead><tr><th>Name</th><th>Organization</th><th>Email</th><th>Phone</th><th>Relationship</th><th></th></tr></thead><tbody id="contacts-table"></tbody></table></div></section>
+        </section>
+
+        <section class="view-section" id="view-projects" data-title="Projects">
+          <div class="page-heading"><div><p class="eyebrow">DELIVERY & EXECUTION</p><h1>Projects</h1><p class="page-subtitle">Monitor project status, delivery progress and next milestones.</p></div><div class="heading-actions"><button class="button button-secondary" data-action="export">↧ Export</button><button class="button button-primary" data-action="new-project">＋ New project</button></div></div>
+          <div class="metric-grid compact-metrics"><article class="metric-card"><span class="metric-label">All projects</span><div class="metric-value" id="project-total">03</div></article><article class="metric-card"><span class="metric-label">In progress</span><div class="metric-value">02</div></article><article class="metric-card"><span class="metric-label">Planning</span><div class="metric-value">01</div></article><article class="metric-card"><span class="metric-label">At risk</span><div class="metric-value">01</div></article></div>
+          <section class="panel table-panel"><div class="table-toolbar"><div class="table-tabs" id="project-filters"><button class="filter-tab active" data-filter="all">All projects</button><button class="filter-tab" data-filter="In progress">In progress</button><button class="filter-tab" data-filter="Planning">Planning</button><button class="filter-tab" data-filter="On hold">On hold</button></div><label class="table-search">⌕ <input id="project-search" placeholder="Search projects..." type="search"></label></div><div class="table-wrap"><table><thead><tr><th>Project</th><th>Client</th><th>Status</th><th>Progress</th><th>Target date</th><th>Lead</th></tr></thead><tbody id="projects-table"></tbody></table></div></section>
+        </section>
+
+        <section class="view-section" id="view-tasks" data-title="Tasks">
+          <div class="page-heading"><div><p class="eyebrow">WORK MANAGEMENT</p><h1>Tasks</h1><p class="page-subtitle">Keep the team aligned on what needs to happen next.</p></div><div class="heading-actions"><button class="button button-primary" data-action="new-task">＋ New task</button></div></div>
+          <section class="panel table-panel"><div class="table-toolbar"><div class="table-tabs" id="task-filters"><button class="filter-tab active" data-filter="all">All tasks</button><button class="filter-tab" data-filter="High">High priority</button><button class="filter-tab" data-filter="In progress">In progress</button><button class="filter-tab" data-filter="To do">To do</button></div><label class="table-search">⌕ <input id="task-search" placeholder="Search tasks..." type="search"></label></div><div class="table-wrap"><table><thead><tr><th>Task</th><th>Project</th><th>Assignee</th><th>Priority</th><th>Status</th><th>Due date</th><th></th></tr></thead><tbody id="tasks-table"></tbody></table></div></section>
+        </section>
+
+        <section class="view-section" id="view-communications" data-title="Communications">
+          <div class="page-heading"><div><p class="eyebrow">CLIENT RELATIONSHIPS</p><h1>Communications</h1><p class="page-subtitle">A central place for client conversations and project updates.</p></div></div>
+          <section class="panel empty-state"><div class="empty-icon">▤</div><h2>Communication history</h2><p>Project discussions, meeting notes and client-facing updates will appear here once the communications module is implemented.</p><button class="button button-secondary" data-view-link="projects">Browse projects</button></section>
+        </section>
+
+        <section class="view-section" id="view-reports" data-title="Reports">
+          <div class="page-heading"><div><p class="eyebrow">BUSINESS OVERVIEW</p><h1>Reports</h1><p class="page-subtitle">Understand your client relationships and delivery workload.</p></div><button class="button button-secondary" data-action="export">↧ Export sample report</button></div>
+          <div class="metric-grid compact-metrics"><article class="metric-card"><span class="metric-label">Client organizations</span><div class="metric-value" id="report-clients">04</div></article><article class="metric-card"><span class="metric-label">Open leads</span><div class="metric-value" id="report-leads">08</div></article><article class="metric-card"><span class="metric-label">Active projects</span><div class="metric-value">03</div></article><article class="metric-card"><span class="metric-label">Open tasks</span><div class="metric-value">05</div></article></div>
+          <section class="panel empty-state"><div class="empty-icon">▥</div><h2>Operational reporting</h2><p>Lead conversion, overdue work, project delivery and feedback reports will be connected to live data after the backend modules are ready.</p></section>
+        </section>
+
+        <section class="view-section" id="view-settings" data-title="Settings">
+          <div class="page-heading"><div><p class="eyebrow">WORKSPACE CONFIGURATION</p><h1>Settings</h1><p class="page-subtitle">Configure the CRM workspace and personal preferences.</p></div></div>
+          <section class="panel settings-list"><div class="setting-row"><div><strong>Workspace profile</strong><p>Organization name and workspace identity</p></div><span class="setting-status">Preview</span></div><div class="setting-row"><div><strong>Users and permissions</strong><p>Manage staff access and role-based permissions</p></div><span class="setting-status">Planned</span></div><div class="setting-row"><div><strong>Client portal</strong><p>Client access, project visibility and invitations</p></div><span class="setting-status">Planned</span></div><div class="setting-row"><div><strong>Notifications</strong><p>Email and in-app notification preferences</p></div><span class="setting-status">Planned</span></div></section>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
+
+  <dialog class="modal" id="record-modal">
+    <form method="dialog" class="modal-card" id="record-form">
+      <div class="modal-header"><div><p class="eyebrow" id="modal-eyebrow">NEW RECORD</p><h2 id="modal-title">Add record</h2></div><button type="button" class="icon-button" id="modal-close" aria-label="Close dialog">×</button></div>
+      <div id="modal-fields" class="modal-fields"></div>
+      <p class="modal-note">Preview mode: records are saved in this browser session only. API persistence will be added later.</p>
+      <div class="modal-actions"><button type="button" class="button button-secondary" id="modal-cancel">Cancel</button><button type="submit" class="button button-primary">Save record</button></div>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
