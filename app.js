@@ -91,6 +91,122 @@ function currentActorName() {
   try { const user = JSON.parse(sessionStorage.getItem("zymaCrmAuthenticatedUser") || "null"); return user?.name || user?.email || "Workspace user"; }
   catch { return "Workspace user"; }
 }
+
+// Leads are API-backed when the authenticated CRM session is available.
+// Other CRM modules remain browser-local until their backend endpoints are implemented.
+const LEADS_API_ENABLED = Boolean(window.ZymaCrmApi && window.ZymaCrmApi.getToken());
+const LEAD_EXTRAS_KEY = "zyma-crm-lead-extras-v1";
+const API_LEAD_FIELDS = new Set([
+  "id", "company", "contact", "email", "phone", "industry", "service",
+  "stage", "owner", "followUp", "initials", "color", "apiBacked"
+]);
+
+function readLeadExtras() {
+  try {
+    const value = JSON.parse(localStorage.getItem(LEAD_EXTRAS_KEY) || "{}");
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveLeadExtras(lead) {
+  if (!lead || !lead.id) return;
+  const extras = readLeadExtras();
+  extras[String(lead.id)] = Object.fromEntries(
+    Object.entries(lead).filter(([key]) => !API_LEAD_FIELDS.has(key))
+  );
+  try { localStorage.setItem(LEAD_EXTRAS_KEY, JSON.stringify(extras)); }
+  catch { toast("Extended lead details could not be saved in this browser."); }
+}
+
+function removeLeadExtras(id) {
+  const extras = readLeadExtras();
+  delete extras[String(id)];
+  try { localStorage.setItem(LEAD_EXTRAS_KEY, JSON.stringify(extras)); } catch {}
+}
+
+function mapApiLead(apiLead) {
+  const deadline = apiLead.deadlineUtc || apiLead.DeadlineUtc || null;
+  const deadlineDate = deadline ? String(deadline).slice(0, 10) : "";
+  const parsedDeadline = deadlineDate ? parseDisplayDate(deadlineDate) : null;
+  const id = String(apiLead.id || apiLead.Id);
+  const company = apiLead.companyName || apiLead.CompanyName || "";
+  return {
+    ...readLeadExtras()[id],
+    id,
+    company,
+    contact: apiLead.contactPerson || apiLead.ContactPerson || "",
+    email: apiLead.email || apiLead.Email || "",
+    phone: apiLead.phone || apiLead.Phone || "",
+    industry: apiLead.industry || apiLead.Industry || "",
+    service: apiLead.requirements || apiLead.Requirements || "",
+    estimatedValue: apiLead.estimatedValue ?? apiLead.EstimatedValue ?? null,
+    assignedToUserId: apiLead.assignedToUserId || apiLead.AssignedToUserId || null,
+    stage: apiLead.stage || apiLead.Stage || "New",
+    owner: "Unassigned",
+    followUp: parsedDeadline
+      ? parsedDeadline.toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" })
+      : "Not set",
+    initials: initials(company),
+    color: "orange",
+    apiBacked: true
+  };
+}
+
+function toApiLeadPayload(lead) {
+  const parsedDate = parseDisplayDate(lead.followUp);
+  return {
+    companyName: String(lead.company || "").trim(),
+    contactPerson: String(lead.contact || "").trim() || null,
+    email: String(lead.email || "").trim(),
+    phone: String(lead.phone || "").trim() || null,
+    industry: String(lead.industry || "").trim() || null,
+    stage: String(lead.stage || "New").trim() || "New",
+    requirements: String(lead.service || "").trim() || null,
+    estimatedValue: lead.estimatedValue == null || lead.estimatedValue === "" ? null : Number(lead.estimatedValue),
+    deadlineUtc: parsedDate
+      ? new Date(Date.UTC(parsedDate.getFullYear(), parsedDate.getMonth(), parsedDate.getDate())).toISOString()
+      : null,
+    assignedToUserId: lead.assignedToUserId || null
+  };
+}
+
+async function loadApiLeads() {
+  if (!LEADS_API_ENABLED) return;
+  try {
+    const response = await window.ZymaCrmApi.request("/leads");
+    if (!Array.isArray(response)) throw new Error("The Leads API returned an unexpected response.");
+    state.leads = response.map(mapApiLead);
+    renderAll();
+  } catch (error) {
+    console.error("Unable to load API-backed leads.", error);
+    toast(`Could not load leads from the API. ${error.message || "Please try again."}`);
+  }
+}
+
+async function createApiLead(lead) {
+  const response = await window.ZymaCrmApi.request("/leads", {
+    method: "POST",
+    body: JSON.stringify(toApiLeadPayload(lead))
+  });
+  return mapApiLead(response);
+}
+
+async function updateApiLead(lead) {
+  const response = await window.ZymaCrmApi.request(`/leads/${encodeURIComponent(lead.id)}`, {
+    method: "PUT",
+    body: JSON.stringify(toApiLeadPayload(lead))
+  });
+  return response;
+}
+
+async function deleteApiLead(lead) {
+  return window.ZymaCrmApi.request(`/leads/${encodeURIComponent(lead.id)}`, {
+    method: "DELETE"
+  });
+}
+
 function calculatedProjectProgress(project) {
   const relatedTasks = state.tasks.filter(task => String(task.projectId ?? "") === String(project.id) || String(task.project || "").trim().toLowerCase() === String(project.name || "").trim().toLowerCase());
   if (!relatedTasks.length) return Math.max(0, Math.min(100, Number(project.progress) || 0));
@@ -330,15 +446,23 @@ function renderLeadBoard(leads) {
   }).join("");
 }
 
-function moveLead(id, stage) {
+async function moveLead(id, stage) {
   const lead = state.leads.find(item => String(item.id) === String(id));
   if (!lead || !LEAD_STAGES.some(item => item.name === stage) || lead.stage === stage) return false;
   const previous = lead.stage;
-  lead.stage = stage;
-  state.activities.unshift({ icon: "↗", color: stage === "Won" ? "green" : stage === "Lost" ? "orange" : "blue", text: `<strong>Lead moved to ${esc(stage)}</strong> — ${esc(lead.company)} (was ${esc(previous)})`, by: currentActorName(), time: "Just now" });
-  persistState(); renderAll();
-  toast(`${lead.company} moved to ${stage}.`);
-  return true;
+  const nextLead = { ...lead, stage };
+  try {
+    if (LEADS_API_ENABLED && lead.apiBacked) await updateApiLead(nextLead);
+    lead.stage = stage;
+    state.activities.unshift({ icon: "↗", color: stage === "Won" ? "green" : stage === "Lost" ? "orange" : "blue", text: `<strong>Lead moved to ${esc(stage)}</strong> — ${esc(lead.company)} (was ${esc(previous)})`, by: currentActorName(), time: "Just now" });
+    persistState(); renderAll();
+    toast(`${lead.company} moved to ${stage}${LEADS_API_ENABLED && lead.apiBacked ? " and saved to the CRM database." : "."}`);
+    return true;
+  } catch (error) {
+    toast(`Could not update lead stage. ${error.message || "Please try again."}`);
+    renderLeads();
+    return false;
+  }
 }
 
 function renderLeads() {
@@ -1045,17 +1169,33 @@ const modalDefinitions = {
     fields: [
       { name: "company", label: "Company name", required: true, full: true, placeholder: "e.g. Example Company" },
       { name: "contact", label: "Contact person", required: true, placeholder: "Full name" },
-      { name: "email", label: "Email address", type: "email", placeholder: "name@company.co.za" },
+      { name: "email", label: "Email address", type: "email", required: true, placeholder: "name@company.co.za" },
       { name: "service", label: "Service interest", required: true, full: true, placeholder: "e.g. Workflow automation" },
       { name: "stage", label: "Pipeline stage", type: "select", options: [{value:"New",label:"New"},{value:"Discovery",label:"Discovery"},{value:"Follow-up",label:"Follow-up meeting"},{value:"Requirements",label:"Requirements & scoping"},{value:"Proposal",label:"Proposal"},{value:"Negotiation",label:"Negotiation"},{value:"Agreement",label:"Agreement & deposit"},{value:"Won",label:"Won / converted"},{value:"Lost",label:"Lost"}] },
       { name: "followUp", label: "Next follow-up", type: "date" }
     ],
-    save(data) {
-      const id = Math.max(0, ...state.leads.map(item => item.id)) + 1;
+    async save(data) {
       const date = data.followUp ? new Date(`${data.followUp}T12:00:00`) : null;
-      state.leads.unshift({ id, company: data.company, contact: data.contact, email: data.email || "", service: data.service, stage: data.stage, owner: currentActorName(), followUp: date ? date.toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" }) : "Not set", initials: initials(data.company), color: "orange" });
-      state.activities.unshift({ icon: "＋", color: "orange", text: `<strong>New lead added</strong> — ${esc(data.company)}`, by: currentActorName(), time: "Just now" });
-      persistState(); renderAll(); setView("leads"); toast("Lead saved in this browser preview.");
+      const draft = {
+        company: data.company, contact: data.contact, email: data.email || "",
+        service: data.service, stage: data.stage || "New", owner: currentActorName(),
+        followUp: date ? date.toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" }) : "Not set",
+        initials: initials(data.company), color: "orange"
+      };
+      try {
+        if (LEADS_API_ENABLED) {
+          const created = await createApiLead(draft);
+          state.leads.unshift(created);
+        } else {
+          draft.id = Math.max(0, ...state.leads.map(item => Number(item.id) || 0)) + 1;
+          state.leads.unshift(draft);
+        }
+        state.activities.unshift({ icon: "＋", color: "orange", text: `<strong>New lead added</strong> — ${esc(data.company)}`, by: currentActorName(), time: "Just now" });
+        persistState(); renderAll(); setView("leads");
+        toast(LEADS_API_ENABLED ? "Lead saved to the CRM database." : "Lead saved in this browser preview.");
+      } catch (error) {
+        toast(`Lead was not saved. ${error.message || "Please try again."}`);
+      }
     }
   },
   "new-meeting": {
@@ -1331,7 +1471,7 @@ function exportDiscoveryPDF() {
   win.document.close();
 }
 
-document.addEventListener("click", event => {
+document.addEventListener("click", async event => {
   const leadViewTab = event.target.closest("[data-lead-view]");
   if (leadViewTab) {
     state.leadView = leadViewTab.dataset.leadView === "table" ? "table" : "board";
@@ -1365,8 +1505,13 @@ document.addEventListener("click", event => {
     if (!lead) return toast("Lead not found.");
     const existing = state.clients.find(client => String(client.name).toLowerCase() === String(lead.company).toLowerCase());
     if (existing) {
-      lead.stage = "Won"; persistState(); renderAll(); openRecordDetail("client", existing.id);
-      return toast("An existing client record was linked to this lead.");
+      try {
+        if (LEADS_API_ENABLED && lead.apiBacked) await updateApiLead({ ...lead, stage: "Won" });
+        lead.stage = "Won"; persistState(); renderAll(); openRecordDetail("client", existing.id);
+        return toast("An existing client record was linked to this lead.");
+      } catch (error) {
+        return toast(`Could not update the lead in the CRM database. ${error.message || ""}`);
+      }
     }
     const client = {
       id: nextId(state.clients), name: lead.company, short: initials(lead.company),
@@ -1381,6 +1526,13 @@ document.addEventListener("click", event => {
       organization: lead.company, email: lead.email || "", phone: "",
       relationship: "Client contact", sourceLeadId: lead.id
     });
+    try {
+      if (LEADS_API_ENABLED && lead.apiBacked) await updateApiLead({ ...lead, stage: "Won" });
+    } catch (error) {
+      state.clients = state.clients.filter(item => item.id !== client.id);
+      state.contacts = state.contacts.filter(item => item.sourceLeadId !== lead.id);
+      return toast(`Client preview record was not retained because the lead could not be updated in the database. ${error.message || ""}`);
+    }
     lead.stage = "Won";
     state.activities.unshift({ icon: "✓", color: "green", text: `<strong>Lead converted to client</strong> — ${esc(lead.company)}`, by: currentActorName(), time: "Just now" });
     persistState(); renderAll(); openRecordDetail("client", client.id);
@@ -1445,10 +1597,19 @@ document.addEventListener("click", event => {
     if (index < 0) return;
     const record = collection[index];
     const label = record.name || record.company || record.title || record.code || "this record";
-    if (!window.confirm(`Delete ${label}? This cannot be undone in this browser preview.`)) return;
-    collection.splice(index, 1);
-    if (type === "client") state.contacts = state.contacts.filter(item => item.organization !== record.name);
-    persistState(); renderAll(); toast("Record deleted from this browser preview.");
+    if (!window.confirm(`Delete ${label}? This cannot be undone.`)) return;
+    try {
+      if (type === "lead" && LEADS_API_ENABLED && record.apiBacked) await deleteApiLead(record);
+      collection.splice(index, 1);
+      if (type === "lead" && record.apiBacked) removeLeadExtras(record.id);
+      if (type === "client") state.contacts = state.contacts.filter(item => item.organization !== record.name);
+      persistState(); renderAll();
+      toast(type === "lead" && LEADS_API_ENABLED && record.apiBacked
+        ? "Lead deleted from the CRM database."
+        : "Record deleted from this browser preview.");
+    } catch (error) {
+      toast(`Could not delete the record. ${error.message || "Please try again."}`);
+    }
     return;
   }
 
@@ -1485,13 +1646,14 @@ document.addEventListener("submit", event => {
     else lead[key] = ["developmentFee","minimumDepositPercent","depositPaid","monthlyFee","freeMonths","zohoSeats","zohoMonthlyFee"].includes(key) ? (value === "" ? "" : Number(value)) : value;
   });
   const required = Number(lead.developmentFee || 0) * Number(lead.minimumDepositPercent || 0) / 100;
-  if (Number(lead.depositPaid || 0) > Number(lead.developmentFee || 0)) toast("Workspace saved. Note: deposit received exceeds the development fee; please verify the amount.");
-  else if (required > Number(lead.depositPaid || 0)) toast("Lead workspace saved. Minimum deposit is not yet fully received.");
-  else toast("Lead workspace saved in this browser preview.");
+  if (lead.apiBacked) saveLeadExtras(lead);
+  if (Number(lead.depositPaid || 0) > Number(lead.developmentFee || 0)) toast("Workspace saved in this browser only. Note: deposit received exceeds the development fee; please verify the amount.");
+  else if (required > Number(lead.depositPaid || 0)) toast("Workspace saved in this browser only. Minimum deposit is not yet fully received.");
+  else toast("Extended discovery, pricing and payment details are saved in this browser only; the current API schema does not yet store these fields.");
   persistState(); renderAll(); openRecordDetail("lead", lead.id);
 });
 
-$("#record-form").addEventListener("submit", event => {
+$("#record-form").addEventListener("submit", async event => {
   event.preventDefault();
   const key = event.currentTarget.dataset.modalKey;
   const definition = modalDefinitions[key];
@@ -1506,14 +1668,31 @@ $("#record-form").addEventListener("submit", event => {
     const record = collectionName && state[collectionName].find(item => String(item.id) === editId);
     if (record) {
       const previousName = record.name;
-      Object.entries(data).forEach(([field, value]) => { if (field in record && value !== "") record[field] = value; });
+      const changes = Object.fromEntries(Object.entries(data).filter(([field, value]) => field in record && value !== ""));
+      if (type === "lead" && LEADS_API_ENABLED && record.apiBacked) {
+        const candidate = { ...record, ...changes };
+        try {
+          await updateApiLead(candidate);
+          Object.assign(record, changes);
+          record.initials = initials(record.company);
+          record.apiBacked = true;
+        } catch (error) {
+          toast(`Lead was not updated. ${error.message || "Please try again."}`);
+          return;
+        }
+      } else {
+        Object.assign(record, changes);
+      }
       if (type === "lead") record.initials = initials(record.company);
       if (type === "meeting") { record.leadId = state.leads.find(l => l.company.toLowerCase() === String(record.lead).toLowerCase())?.id || record.leadId || ""; }
       if (type === "client") { const oldName = record.name; record.short = initials(record.name); state.contacts.filter(item => item.organization === oldName).forEach(contact => { contact.organization = record.name; }); const contact = state.contacts.find(item => item.organization === record.name); if (contact) contact.email = record.email; state.projects.filter(project => project.client === oldName).forEach(project => { project.client = record.name; }); }
       if (type === "project") { record.code = (record.code || "").toUpperCase(); record.progress = Math.max(0, Math.min(100, Number(record.progress) || 0)); state.tasks.filter(task => task.project === previousName).forEach(task => { task.project = record.name; }); }
       if (type === "task") { record.done = record.status === "Done"; }
-      state.activities.unshift({ icon: "✎", color: "orange", text: `<strong>Record updated</strong> — ${esc(record.name || record.company || record.title || record.code || "CRM record")}`, by: "Current user (preview)", time: "Just now" });
-      persistState(); renderAll(); toast("Record updated in this browser preview.");
+      state.activities.unshift({ icon: "✎", color: "orange", text: `<strong>Record updated</strong> — ${esc(record.name || record.company || record.title || record.code || "CRM record")}`, by: currentActorName(), time: "Just now" });
+      persistState(); renderAll();
+      toast(type === "lead" && LEADS_API_ENABLED && record.apiBacked
+        ? "Lead updated in the CRM database."
+        : "Record updated in this browser preview.");
     }
   } else definition.save(data);
   closeModal();
@@ -1706,6 +1885,9 @@ $$('[data-settings-nav]').forEach(link => link.addEventListener("click", event =
 populateSettings();
 
 renderAll();
+if (LEADS_API_ENABLED) {
+  loadApiLeads();
+}
 const initialView = window.location.hash.replace("#", "");
 const [hashType, hashId] = initialView.split("/");
 if (hashId && recordCollections[hashType]) openRecordDetail(hashType, decodeURIComponent(hashId));

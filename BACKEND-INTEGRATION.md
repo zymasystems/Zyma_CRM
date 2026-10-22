@@ -14,7 +14,7 @@ This package is the standalone internal CRM frontend. It does not include Zyma P
 
 ## Important preview limitation
 
-The current persistence is browser-local only. It is not authentication, authorization, shared storage, or a substitute for PostgreSQL. Do not put confidential production client records in the preview. The API request helper is a foundation only; API mode must not be enabled until the corresponding endpoints and authentication/CSRF behavior have been implemented and tested.
+The current persistence is browser-local only. It is not authentication, authorization, shared storage, or a substitute for PostgreSQL. Do not put confidential production client records in the preview. The authenticated request helper is used for Leads CRUD against the implemented ASP.NET Core endpoints. Clients, contacts, projects, tasks, meetings, communications and extended lead workspace fields remain browser-local until matching backend endpoints and fields are implemented and tested.
 
 ## Recommended API contract
 
@@ -48,6 +48,15 @@ Use stable server-generated IDs (UUIDs recommended) and ISO 8601 dates (`YYYY-MM
 - Enforce RBAC and organization-level authorization in the API on every request; frontend visibility is not access control.
 - Validate and normalize all data on the server, enforce unique constraints, rate-limit authentication, and audit privileged changes.
 - Keep secrets out of this static repository. Configure backups and test restores before production use.
+
+## Current integration status
+
+- `GET /api/crm/leads` loads the shared lead pipeline after a staff JWT is present.
+- `POST /api/crm/leads`, `PUT /api/crm/leads/{id}`, and `DELETE /api/crm/leads/{id}` are used for lead create, update/stage changes, and delete.
+- The frontend maps company, contact, email, phone, industry, stage, service interest (`Requirements` in the current API model), and follow-up date (`DeadlineUtc`) to the backend.
+- The current backend model does not persist the extended discovery, pricing, deposit, Zoho subscription, meeting, or activity fields shown in the lead workspace. Those fields remain browser-local and are explicitly labelled as such in the UI.
+- Other CRM modules remain browser-local. Do not interpret the successful Leads integration as full CRM API integration.
+- Browser testing from `https://crm.zyma.co.za` is still required to verify CORS, session expiry handling, and create/edit/stage/delete behavior.
 
 ## Deployment
 
