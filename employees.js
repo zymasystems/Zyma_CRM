@@ -1,12 +1,12 @@
 (() => {
   const $ = selector => document.querySelector(selector);
   const rows = $('#employee-rows'), message = $('#employee-message'), modal = $('#employee-modal'), form = $('#employee-form'), save = $('#save-employee');
-  const USERS_KEY = 'zymaCrmDemoEmployees', CURRENT_KEY = 'zymaCrmDemoUser';
+  const USERS_KEY = 'zymaCrmDemoEmployees', CURRENT_KEY = 'zymaCrmAuthenticatedUser', TOKEN_KEY = 'zymaCrmAccessToken';
   let employees = [];
   const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   const roleNames = {super_admin:'Super admin', employee:'Employee', sales:'Sales & client relations', project_manager:'Project manager', viewer:'Read-only'};
   const notify = (target, text, type='') => { target.textContent = text; target.className = `auth-message ${type}`.trim(); };
-  function getCurrentUser() { try { return JSON.parse(localStorage.getItem(CURRENT_KEY) || 'null'); } catch (_) { return null; } }
+  function getCurrentUser() { try { return JSON.parse(sessionStorage.getItem(CURRENT_KEY) || 'null'); } catch (_) { return null; } }
   function loadStored() { try { employees = JSON.parse(localStorage.getItem(USERS_KEY) || '[]'); if (!Array.isArray(employees)) employees = []; } catch (_) { employees = []; } }
   function saveStored() { localStorage.setItem(USERS_KEY, JSON.stringify(employees)); }
   function render() {
@@ -28,7 +28,7 @@
   modal.addEventListener('click', event => { if (event.target === modal) closeModal(); });
   document.addEventListener('keydown', event => { if (event.key === 'Escape' && !modal.hidden) closeModal(); });
   $('#employee-search').addEventListener('input', render);
-  $('#sign-out').addEventListener('click', () => { localStorage.removeItem(CURRENT_KEY); window.location.assign('index.html'); });
+  $('#sign-out').addEventListener('click', () => { sessionStorage.removeItem(CURRENT_KEY); sessionStorage.removeItem(TOKEN_KEY); window.location.assign('index.html'); });
   form.addEventListener('submit', event => {
     event.preventDefault(); if (!form.reportValidity()) return;
     const email = $('#employee-email').value.trim().toLowerCase();
