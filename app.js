@@ -92,9 +92,10 @@ function currentActorName() {
   catch { return "Workspace user"; }
 }
 
-// Leads are API-backed when the authenticated CRM session is available.
-// Other CRM modules remain browser-local until their backend endpoints are implemented.
+// Leads and clients are API-backed when the authenticated CRM session is available.
+// Contacts remain browser-local until a contacts endpoint is implemented.
 const LEADS_API_ENABLED = Boolean(window.ZymaCrmApi && window.ZymaCrmApi.getToken());
+const CLIENTS_API_ENABLED = LEADS_API_ENABLED;
 const LEAD_EXTRAS_KEY = "zyma-crm-lead-extras-v1";
 const API_LEAD_FIELDS = new Set([
   "id", "company", "contact", "email", "phone", "industry", "service",
@@ -205,6 +206,69 @@ async function deleteApiLead(lead) {
   return window.ZymaCrmApi.request(`/leads/${encodeURIComponent(lead.id)}`, {
     method: "DELETE"
   });
+}
+
+function mapApiClient(apiClient) {
+  const id = String(apiClient.id || apiClient.Id);
+  const name = apiClient.companyName || apiClient.CompanyName || "";
+  const createdAt = apiClient.createdAtUtc || apiClient.CreatedAtUtc;
+  const createdDate = createdAt ? new Date(createdAt) : null;
+  return {
+    id,
+    name,
+    short: initials(name),
+    industry: apiClient.industry || apiClient.Industry || "Not specified",
+    email: apiClient.email || apiClient.Email || "",
+    contact: apiClient.contactPerson || apiClient.ContactPerson || "",
+    phone: apiClient.phone || apiClient.Phone || "",
+    status: apiClient.status || apiClient.Status || "Active",
+    projects: 0,
+    since: createdDate && !Number.isNaN(createdDate.getTime())
+      ? createdDate.toLocaleDateString("en-ZA", { month: "short", year: "numeric" })
+      : "—",
+    color: "orange",
+    apiBacked: true,
+    sourceLeadId: apiClient.sourceLeadId || apiClient.SourceLeadId || null
+  };
+}
+
+async function loadApiClients() {
+  if (!CLIENTS_API_ENABLED) return;
+  try {
+    const response = await window.ZymaCrmApi.request("/clients");
+    if (!Array.isArray(response)) throw new Error("The Clients API returned an unexpected response.");
+    state.clients = response.map(mapApiClient);
+    renderAll();
+  } catch (error) {
+    console.error("Unable to load API-backed clients.", error);
+    toast(`Could not load clients from the API. ${error.message || "Please try again."}`);
+  }
+}
+
+async function convertApiLeadToClient(lead) {
+  const response = await window.ZymaCrmApi.request(`/leads/${encodeURIComponent(lead.id)}/convert`, {
+    method: "POST",
+    body: JSON.stringify({})
+  });
+  if (!response || !(response.id || response.Id)) {
+    throw new Error("The conversion endpoint did not return a client record.");
+  }
+  return mapApiClient(response);
+}
+
+async function createApiClient(client) {
+  const response = await window.ZymaCrmApi.request("/clients", {
+    method: "POST",
+    body: JSON.stringify({
+      companyName: client.name,
+      contactPerson: client.contact || null,
+      email: client.email,
+      phone: client.phone || null,
+      industry: client.industry || null,
+      status: client.status || "Active"
+    })
+  });
+  return mapApiClient(response);
 }
 
 function calculatedProjectProgress(project) {
@@ -1229,11 +1293,18 @@ const modalDefinitions = {
       { name: "email", label: "Main email", type: "email", required: true, placeholder: "contact@company.co.za" },
       { name: "contact", label: "Primary contact", full: true, placeholder: "Contact person or department" }
     ],
-    save(data) {
-      state.clients.push({ id: Math.max(0, ...state.clients.map(item => item.id)) + 1, name: data.name, short: initials(data.name), industry: data.industry, email: data.email, contact: data.contact || "Not specified", status: "Active", projects: 0, since: new Date().toLocaleDateString("en-ZA", { month: "short", year: "numeric" }), color: "orange" });
-      state.contacts.push({ id: nextId(state.contacts), name: data.contact || "Primary contact", organization: data.name, email: data.email, phone: "—", relationship: "Client contact" });
-      state.activities.unshift({ icon: "＋", color: "green", text: `<strong>Client added</strong> — ${esc(data.name)}`, by: currentActorName(), time: "Just now" });
-      persistState(); renderAll(); setView("clients"); toast("Client created. You can now create a project for this client.");
+    async save(data) {
+      const draft = { name: data.name, industry: data.industry, email: data.email, contact: data.contact || "Not specified", status: "Active", phone: "", projects: 0, since: new Date().toLocaleDateString("en-ZA", { month: "short", year: "numeric" }), color: "orange" };
+      try {
+        const client = CLIENTS_API_ENABLED ? await createApiClient(draft) : { id: nextId(state.clients), ...draft };
+        state.clients.unshift(client);
+        if (!CLIENTS_API_ENABLED) state.contacts.push({ id: nextId(state.contacts), name: data.contact || "Primary contact", organization: data.name, email: data.email, phone: "—", relationship: "Client contact" });
+        state.activities.unshift({ icon: "＋", color: "green", text: `<strong>Client added</strong> — ${esc(data.name)}`, by: currentActorName(), time: "Just now" });
+        persistState(); renderAll(); setView("clients");
+        toast(CLIENTS_API_ENABLED ? "Client saved to the CRM database." : "Client created in this browser preview.");
+      } catch (error) {
+        toast(`Client was not saved. ${error.message || "Please try again."}`);
+      }
     }
   },
   "new-contact": {
@@ -1503,40 +1574,50 @@ document.addEventListener("click", async event => {
   if (convertButton) {
     const lead = state.leads.find(item => String(item.id) === convertButton.dataset.convertLead);
     if (!lead) return toast("Lead not found.");
-    const existing = state.clients.find(client => String(client.name).toLowerCase() === String(lead.company).toLowerCase());
-    if (existing) {
-      try {
-        if (LEADS_API_ENABLED && lead.apiBacked) await updateApiLead({ ...lead, stage: "Won" });
-        lead.stage = "Won"; persistState(); renderAll(); openRecordDetail("client", existing.id);
-        return toast("An existing client record was linked to this lead.");
-      } catch (error) {
-        return toast(`Could not update the lead in the CRM database. ${error.message || ""}`);
-      }
-    }
-    const client = {
-      id: nextId(state.clients), name: lead.company, short: initials(lead.company),
-      industry: lead.industry || "Not specified", email: lead.email || "",
-      contact: lead.contact || "", status: "Active", projects: 0,
-      since: new Date().toLocaleDateString("en-ZA", { month: "short", year: "numeric" }),
-      color: "orange", sourceLeadId: lead.id
-    };
-    state.clients.push(client);
-    if (lead.contact || lead.email) state.contacts.push({
-      id: nextId(state.contacts), name: lead.contact || lead.company,
-      organization: lead.company, email: lead.email || "", phone: "",
-      relationship: "Client contact", sourceLeadId: lead.id
-    });
+    if (convertButton.dataset.busy === "true") return;
+    convertButton.dataset.busy = "true";
+    convertButton.disabled = true;
     try {
-      if (LEADS_API_ENABLED && lead.apiBacked) await updateApiLead({ ...lead, stage: "Won" });
+      let client;
+      if (LEADS_API_ENABLED && lead.apiBacked) {
+        client = await convertApiLeadToClient(lead);
+        lead.stage = "Won";
+        lead.convertedClientId = client.id;
+        state.clients = state.clients.filter(item => String(item.id) !== String(client.id));
+        state.clients.unshift(client);
+        // The API conversion is authoritative; reload to reconcile any existing linked client.
+        await loadApiClients();
+      } else {
+        const existing = state.clients.find(item => String(item.name).toLowerCase() === String(lead.company).toLowerCase());
+        if (existing) {
+          lead.stage = "Won";
+          client = existing;
+        } else {
+          client = {
+            id: nextId(state.clients), name: lead.company, short: initials(lead.company),
+            industry: lead.industry || "Not specified", email: lead.email || "",
+            contact: lead.contact || "", phone: lead.phone || "", status: "Active", projects: 0,
+            since: new Date().toLocaleDateString("en-ZA", { month: "short", year: "numeric" }),
+            color: "orange", sourceLeadId: lead.id
+          };
+          state.clients.push(client);
+          if (lead.contact || lead.email) state.contacts.push({
+            id: nextId(state.contacts), name: lead.contact || lead.company,
+            organization: lead.company, email: lead.email || "", phone: lead.phone || "",
+            relationship: "Client contact", sourceLeadId: lead.id
+          });
+          lead.stage = "Won";
+        }
+      }
+      state.activities.unshift({ icon: "✓", color: "green", text: `<strong>Lead converted to client</strong> — ${esc(lead.company)}`, by: currentActorName(), time: "Just now" });
+      persistState(); renderAll(); openRecordDetail("client", client.id);
+      toast("Lead converted and client saved. You can now create a project from the client profile.");
     } catch (error) {
-      state.clients = state.clients.filter(item => item.id !== client.id);
-      state.contacts = state.contacts.filter(item => item.sourceLeadId !== lead.id);
-      return toast(`Client preview record was not retained because the lead could not be updated in the database. ${error.message || ""}`);
+      toast(`Could not convert this lead. ${error.message || "Please try again."}`);
+    } finally {
+      convertButton.disabled = false;
+      delete convertButton.dataset.busy;
     }
-    lead.stage = "Won";
-    state.activities.unshift({ icon: "✓", color: "green", text: `<strong>Lead converted to client</strong> — ${esc(lead.company)}`, by: currentActorName(), time: "Just now" });
-    persistState(); renderAll(); openRecordDetail("client", client.id);
-    toast("Lead converted. Create a project from the client profile when ready.");
     return;
   }
 
@@ -1887,6 +1968,7 @@ populateSettings();
 renderAll();
 if (LEADS_API_ENABLED) {
   loadApiLeads();
+  loadApiClients();
 }
 const initialView = window.location.hash.replace("#", "");
 const [hashType, hashId] = initialView.split("/");
