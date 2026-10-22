@@ -88,7 +88,7 @@ function persistState() { crmRepository.save(state); }
 crmRepository.save(state);
 function nextId(items) { return Math.max(0, ...items.map(item => Number(item.id) || 0)) + 1; }
 function currentActorName() {
-  try { const user = JSON.parse(localStorage.getItem("zymaCrmDemoUser") || "null"); return user?.name || user?.email || "Workspace user"; }
+  try { const user = JSON.parse(sessionStorage.getItem("zymaCrmAuthenticatedUser") || "null"); return user?.name || user?.email || "Workspace user"; }
   catch { return "Workspace user"; }
 }
 function calculatedProjectProgress(project) {
@@ -798,7 +798,7 @@ function renderDashboardCharts() {
   const greeting = $("#dashboard-greeting");
   if (greeting) {
     const salutation = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
-    let currentUser = null; try { currentUser = JSON.parse(localStorage.getItem("zymaCrmDemoUser") || "null"); } catch {} const firstName = (currentUser?.name || currentUser?.email || "there").trim().split(/\s+/)[0]; greeting.innerHTML = `${salutation}, ${esc(firstName)} <span class="wave">✳</span>`;
+    let currentUser = null; try { currentUser = JSON.parse(sessionStorage.getItem("zymaCrmAuthenticatedUser") || "null"); } catch {} const firstName = (currentUser?.name || currentUser?.email || "there").trim().split(/\s+/)[0]; greeting.innerHTML = `${salutation}, ${esc(firstName)} <span class="wave">✳</span>`;
   }
 }
 
@@ -1527,7 +1527,7 @@ $("#record-modal").addEventListener("click", event => {
 });
 $("#mobile-menu").addEventListener("click", () => $("#sidebar").classList.toggle("open"));
 $("#notifications-button").addEventListener("click", () => toast("You're all caught up. Notification delivery will be connected to the backend later."));
-$("#profile-button").addEventListener("click", () => { let user = null; try { user = JSON.parse(localStorage.getItem("zymaCrmDemoUser") || "null"); } catch {} const name = user?.name || user?.email || "Unknown user"; const role = ({super_admin:"Super Admin",employee:"Employee",sales:"Sales & Client Relations",project_manager:"Project Manager",viewer:"Read-only"})[user?.role] || user?.role || "User"; toast(`Signed in as ${name} · ${role}.`); });
+$("#profile-button").addEventListener("click", () => { let user = null; try { user = JSON.parse(sessionStorage.getItem("zymaCrmAuthenticatedUser") || "null"); } catch {} const name = user?.name || user?.email || "Unknown user"; const role = ({super_admin:"Super Admin",employee:"Employee",sales:"Sales & Client Relations",project_manager:"Project Manager",viewer:"Read-only"})[user?.role] || user?.role || "User"; toast(`Signed in as ${name} · ${role}.`); });
 $("#theme-toggle").addEventListener("click", () => {
   const nextTheme = document.documentElement.dataset.theme === "light" ? "dark" : "light";
   applyTheme(nextTheme);

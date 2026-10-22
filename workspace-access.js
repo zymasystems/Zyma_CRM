@@ -1,9 +1,9 @@
-/* Demo identity display. Backend authentication will replace this client-side preview. */
+/* Display identity from the API-authenticated browser session. API authorization remains server-side. */
 (() => {
   const adminLink = document.querySelector('#employee-management-link');
   const portalPreviewLink = document.querySelector('#client-portal-link');
   const adminLabel = document.querySelector('#admin-nav-label');
-  const currentKey = 'zymaCrmDemoUser';
+  const currentKey = 'zymaCrmAuthenticatedUser';
   const labels = { super_admin: 'Super Admin', employee: 'Employee', sales: 'Sales & Client Relations', project_manager: 'Project Manager', viewer: 'Read-only' };
   const initialsFor = value => String(value || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'U';
   function hydrate(user) {
@@ -27,12 +27,8 @@
     if (user.role === 'super_admin') { if (adminLink) adminLink.hidden = false; if (portalPreviewLink) portalPreviewLink.hidden = false; if (adminLabel) adminLabel.hidden = false; }
   }
   try {
-    const user = JSON.parse(localStorage.getItem(currentKey) || 'null');
+    const user = JSON.parse(sessionStorage.getItem(currentKey) || 'null');
     if (user) { hydrate(user); return; }
   } catch (_) {}
-  // Optional backend fallback for when API authentication is added.
-  fetch('/api/auth/me', { credentials: 'include', headers: { Accept: 'application/json' } })
-    .then(response => response.ok ? response.json() : null)
-    .then(result => { if (result) hydrate(result.user || result); })
-    .catch(() => {});
+  // No client-side identity fallback: sign in through the API to establish a session.
 })();

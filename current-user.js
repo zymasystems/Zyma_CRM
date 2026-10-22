@@ -1,7 +1,7 @@
-/* Populate shared profile labels from the active demo session. Frontend-only demo logic. */
+/* Populate shared profile labels from the API-authenticated browser session. */
 (() => {
   let user;
-  try { user = JSON.parse(localStorage.getItem('zymaCrmDemoUser') || 'null'); } catch (_) { user = null; }
+  try { user = JSON.parse(sessionStorage.getItem('zymaCrmAuthenticatedUser') || 'null'); } catch (_) { user = null; }
   if (!user) return;
   const name = user.name || user.email || 'User';
   const firstName = name.trim().split(/\s+/)[0];

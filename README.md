@@ -27,3 +27,13 @@ CRM records are kept in browser storage until API integration. A new storage nam
 Default API base: `https://api.zyma.co.za`. The host is a planned integration target and must be configured when the API is deployed. The API adapter and authenticated bootstrap are not complete. Do not enable `apiMode` until record loading, writes, authentication and CSRF behavior are implemented and tested. The default CRM workspace currently uses browser-local preview storage.
 
 See `BACKEND-INTEGRATION.md`, `AUTHENTICATION-SETUP.md` and `SHARED-API-ARCHITECTURE.md` for proposed API contracts and security requirements.
+
+
+## API authentication integration (current)
+
+- Staff sign-in now calls `POST https://api.zyma.co.za/api/crm/auth/login`.
+- The returned JWT is held in `sessionStorage` for the current browser tab session, not `localStorage`.
+- `auth-session.js` guards the internal workspace, tasks and employee pages against unauthenticated navigation and checks JWT expiry.
+- `crm-api.js` provides `window.ZymaCrmApi.request(path, options)` to send the Bearer token to implemented CRM API routes and return users to sign-in after a `401`.
+- The current known protected route is `GET /clients` (public URL: `/api/crm/clients`). This frontend update does **not** claim that leads, contacts, projects, tasks, meetings, employee administration, password recovery, or client CRUD are API-backed yet. Those require implemented backend routes and DTOs, then explicit wiring and tests.
+- Browser sign-in requires the API to allow CORS from `https://crm.zyma.co.za`. Do not enable local preview/demo login as a fallback for production.
