@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101722">
+  <link rel="icon" type="image/png" href="assets/zyma-symbol.png">
+  <link rel="apple-touch-icon" href="assets/zyma-symbol.png">
+  <meta name="description" content="Zyma Systems internal CRM workspace.">
+  <title>Zyma CRM — Internal Workspace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="#dashboard" aria-label="Zyma CRM home">
+        <span class="brand-mark"><img src="assets/zyma-symbol.png" alt="" aria-hidden="true"></span>
+        <span class="brand-copy"><strong>ZYMA</strong><small>CRM WORKSPACE</small></span>
+      </a>
+
+      <div class="workspace-switcher">
+        <span class="workspace-icon"><img src="assets/zyma-symbol.png" alt="Zyma Systems symbol"></span>
+        <span class="workspace-copy"><strong>Zyma Systems</strong><small>Internal workspace</small></span>
+        <span class="chevron">⌄</span>
+      </div>
+
+      <p class="nav-label">WORKSPACE</p>
+      <nav class="primary-nav" aria-label="Main navigation">
+        <button class="nav-item active" data-view="dashboard"><span class="nav-icon">▦</span><span>Dashboard</span></button>
+        <button class="nav-item" data-view="leads"><span class="nav-icon">◉</span><span>Leads</span><span class="nav-count" id="lead-nav-count">0</span></button>
+        <button class="nav-item" data-view="meetings"><span class="nav-icon">▦</span><span>Meetings</span><span class="nav-count" id="meeting-nav-count">0</span></button>
+        <button class="nav-item" data-view="clients"><span class="nav-icon">♧</span><span>Clients</span></button>
+        <button class="nav-item" data-view="contacts"><span class="nav-icon">◎</span><span>Contacts</span></button>
+        <button class="nav-item" data-view="projects"><span class="nav-icon">▣</span><span>Projects</span></button>
+        <a class="nav-item" href="tasks.html"><span class="nav-icon">☑</span><span>Tasks & milestones</span><span class="nav-count" id="task-nav-count">0</span></a>
+      </nav>
+
+      <p class="nav-label nav-label-spaced">RELATIONSHIPS</p>
+      <nav class="primary-nav" aria-label="Relationship navigation">
+        <button class="nav-item" data-view="communications"><span class="nav-icon">▤</span><span>Communications</span></button>
+        <button class="nav-item" data-view="reports"><span class="nav-icon">▥</span><span>Reports</span></button>
+      </nav>
+
+      <p class="nav-label nav-label-spaced" id="admin-nav-label" hidden>ADMINISTRATION</p>
+      <nav class="primary-nav" aria-label="Administration navigation">
+        <a class="nav-item" id="employee-management-link" href="employees.html" hidden><span class="nav-icon">♙</span><span>Employee management</span></a>
+        <a class="nav-item" id="client-portal-link" href="https://portal.zyma.co.za/" target="_blank" rel="noopener noreferrer" hidden><span class="nav-icon">↗</span><span>Client Portal</span></a>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <button class="nav-item" data-view="settings"><span class="nav-icon">⚙</span><span>Settings</span></button>
+        <div class="sidebar-help">
+          <span class="help-mark">?</span>
+          <div><strong>Need a hand?</strong><small>View workspace guide</small></div>
+          <span class="chevron">↗</span>
+        </div>
+        <div class="sidebar-user">
+          <div class="avatar avatar-orange">U</div>
+          <div class="user-copy"><strong>Signed-in user</strong><small>Workspace user</small></div>
+          <button class="icon-button user-menu" aria-label="User menu">···</button>
+        </div>
+      </div>
+    </aside>
+
+    <div class="main-column">
+      <header class="topbar">
+        <button class="icon-button mobile-menu" id="mobile-menu" aria-label="Toggle navigation">☰</button>
+        <div class="breadcrumbs"><span>Workspace</span><span class="crumb-slash">/</span><strong id="breadcrumb-current">Dashboard</strong></div>
+        <div class="topbar-actions">
+          <label class="global-search">
+            <span aria-hidden="true">⌕</span>
+            <input id="global-search" type="search" placeholder="Search clients, leads, projects..." autocomplete="off">
+            <kbd>⌘ K</kbd>
+          </label>
+          <button class="icon-button theme-toggle" id="theme-toggle" type="button" aria-label="Switch to light theme" title="Switch theme">☼</button>
+          <button class="icon-button notification-button" id="notifications-button" aria-label="Notifications">
+            ♧<span class="notification-dot"></span>
+          </button>
+          <span class="topbar-divider"></span>
+          <button class="profile-button" id="profile-button">
+            <span class="avatar avatar-blue">U</span>
+            <span class="profile-copy"><strong>Signed-in user</strong><small>Workspace user</small></span>
+            <span class="chevron">⌄</span>
+          </button>
+        </div>
+      </header>
+
+      <main class="content" id="main-content">
+        <section class="view-section active" id="view-dashboard" data-title="Dashboard">
+          <div class="page-heading">
+            <div><p class="eyebrow" id="dashboard-date"></p><h1 id="dashboard-greeting">Welcome to your workspace</h1><p class="page-subtitle">Here’s what’s happening across Zyma Systems today.</p></div>
+            <div class="heading-actions"><button class="button button-secondary" data-action="export">↧ <span>Export overview</span></button><button class="button button-primary" data-action="new-lead">＋ <span>New lead</span></button></div>
+          </div>
+
+          <div class="metric-grid">
+            <article class="metric-card"><div class="metric-top"><span class="metric-label">Total clients</span><span class="metric-top-right"><span class="metric-change" id="metric-clients-change" aria-label="Change versus previous week">—</span><span class="metric-icon icon-violet">♧</span></span></div><div class="metric-value" id="metric-clients">00</div><div class="metric-foot"><span class="metric-neutral">Active relationships</span><span class="metric-symbol">↗</span></div></article>
+            <article class="metric-card"><div class="metric-top"><span class="metric-label">Active projects</span><span class="metric-top-right"><span class="metric-change" id="metric-projects-change" aria-label="Change versus previous week">—</span><span class="metric-icon icon-blue">▣</span></span></div><div class="metric-value" id="metric-projects">03</div><div class="metric-foot"><span class="metric-positive"><span>↑</span> In delivery</span><span class="metric-caption">Across clients</span></div></article>
+            <article class="metric-card"><div class="metric-top"><span class="metric-label">Open leads</span><span class="metric-top-right"><span class="metric-change" id="metric-leads-change" aria-label="Change versus previous week">—</span><span class="metric-icon icon-orange">◎</span></span></div><div class="metric-value" id="metric-leads">08</div><div class="metric-foot"><span class="metric-neutral">In the pipeline</span><button class="text-link" data-view-link="leads">View pipeline ↗</button></div></article>
+            <article class="metric-card"><div class="metric-top"><span class="metric-label">Open tasks</span><span class="metric-top-right"><span class="metric-change" id="metric-tasks-change" aria-label="Change versus previous week">—</span><span class="metric-icon icon-green">☑</span></span></div><div class="metric-value" id="metric-tasks">05</div><div class="metric-foot"><span class="metric-warning">Needs attention</span><button class="text-link" data-view-link="tasks">View tasks ↗</button></div></article>
+          </div>
+
+          <section class="analytics-section" aria-label="Workspace analytics">
+            <div class="analytics-heading"><div><p class="eyebrow">PERFORMANCE SNAPSHOT</p><h2>Workspace analytics</h2><p class="page-subtitle">Live breakdowns from the records currently saved in this CRM preview.</p></div><span class="analytics-live"><span></span> Updates with CRM data</span></div>
+            <div class="analytics-grid">
+              <article class="panel chart-panel"><div class="panel-heading"><div><h2>Lead pipeline by stage</h2><p>Number of leads at each stage</p></div><span class="chart-kicker">LEADS</span></div><div id="chart-lead-stages" class="chart-content"></div></article>
+              <article class="panel chart-panel"><div class="panel-heading"><div><h2>Project delivery progress</h2><p>Recorded completion percentage per project</p></div><span class="chart-kicker">PROJECTS</span></div><div id="chart-project-progress" class="chart-content"></div></article>
+              <article class="panel chart-panel"><div class="panel-heading"><div><h2>Task status mix</h2><p>Open work versus completed tasks</p></div><span class="chart-kicker">TASKS</span></div><div id="chart-task-status" class="chart-content"></div></article>
+              <article class="panel chart-panel"><div class="panel-heading"><div><h2>Task priority distribution</h2><p>Where the team's attention is needed</p></div><span class="chart-kicker">PRIORITY</span></div><div id="chart-task-priority" class="chart-content"></div></article>
+              <article class="panel chart-panel chart-panel-wide"><div class="panel-heading"><div><h2>Lead growth trend</h2><p>Weekly lead totals tracked by this CRM, showing whether the pipeline is growing or shrinking</p></div><span class="chart-kicker">LAST 12 WEEKS</span></div><div id="chart-lead-trend" class="chart-content"></div></article>
+              <article class="panel chart-panel"><div class="panel-heading"><div><h2>Sales funnel health</h2><p>Pie chart of open opportunities, won leads and lost leads</p></div><span class="chart-kicker">CONVERSION</span></div><div id="chart-sales-funnel" class="chart-content"></div></article>
+              <article class="panel chart-panel"><div class="panel-heading"><div><h2>Client portfolio by industry</h2><p>How current client relationships are distributed</p></div><span class="chart-kicker">CLIENTS</span></div><div id="chart-client-industries" class="chart-content"></div></article>
+              <article class="panel chart-panel"><div class="panel-heading"><div><h2>Meeting status</h2><p>Scheduled versus completed meetings</p></div><span class="chart-kicker">MEETINGS</span></div><div id="chart-meeting-status" class="chart-content"></div></article>
+            </div>
+          </section>
+
+          <div class="dashboard-grid">
+            <section class="panel project-panel">
+              <div class="panel-heading"><div><h2>Project overview</h2><p>Keep track of work in delivery</p></div><button class="text-link" data-view-link="projects">All projects <span>↗</span></button></div>
+              <div class="project-list" id="dashboard-projects"></div>
+            </section>
+            <section class="panel tasks-panel">
+              <div class="panel-heading"><div><h2>Priority tasks</h2><p>Your next actions</p></div><button class="text-link" data-view-link="tasks">View all <span>↗</span></button></div>
+              <div class="priority-list" id="dashboard-tasks"></div>
+            </section>
+            <section class="panel activity-panel">
+              <div class="panel-heading"><div><h2>Recent activity</h2><p>Latest updates from your workspace</p></div><button class="icon-button small-icon" aria-label="Activity options">···</button></div>
+              <div class="activity-list" id="dashboard-activity"></div>
+            </section>
+            <section class="panel pipeline-panel">
+              <div class="panel-heading"><div><h2>Lead pipeline</h2><p>Opportunities by stage</p></div><button class="text-link" data-view-link="leads">Open pipeline <span>↗</span></button></div>
+              <div class="pipeline-summary" id="pipeline-summary"></div>
+            </section>
+          </div>
+          <p class="demo-note"><span>ⓘ</span> Workspace records are currently stored in this browser. Shared storage will be connected through the Zyma API.</p>
+        </section>
+
+        <section class="view-section" id="view-leads" data-title="Leads">
+          <div class="page-heading"><div><p class="eyebrow">GROWTH & OPPORTUNITIES</p><h1>Leads</h1><p class="page-subtitle">Drag leads between stages to move opportunities forward.</p></div><div class="heading-actions"><button class="button button-secondary" data-action="export">↧ Export</button><button class="button button-primary" data-action="new-lead">＋ New lead</button></div></div>
+          <div class="metric-grid compact-metrics">
+            <article class="metric-card"><span class="metric-label">Open opportunities</span><div class="metric-value" id="lead-total">08</div><span class="metric-caption">Across all stages</span></article>
+            <article class="metric-card"><span class="metric-label">Discovery</span><div class="metric-value" id="lead-discovery">00</div><span class="metric-caption">Needs qualification</span></article>
+            <article class="metric-card"><span class="metric-label">Proposals sent</span><div class="metric-value" id="lead-proposal">00</div><span class="metric-caption">Awaiting response</span></article>
+            <article class="metric-card"><span class="metric-label">Won this quarter</span><div class="metric-value" id="lead-won">00</div><span class="metric-caption">Won opportunities</span></article>
+          </div>
+          <div class="leads-toolbar"><div class="table-tabs view-switch" id="lead-view-tabs"><button class="filter-tab active" data-lead-view="board">▦ Board</button><button class="filter-tab" data-lead-view="table">☷ Table</button></div><label class="table-search">⌕ <input id="lead-search" placeholder="Search leads..." type="search"></label></div>
+          <section class="leads-board" id="leads-board" aria-label="Lead pipeline board"></section>
+          <section class="panel table-panel is-hidden" id="leads-table-panel"><div class="table-toolbar"><div class="table-tabs" id="lead-filters"><button class="filter-tab active" data-filter="all">All leads <span id="all-lead-count">0</span></button><button class="filter-tab" data-filter="New">New</button><button class="filter-tab" data-filter="Discovery">Discovery</button><button class="filter-tab" data-filter="Follow-up">Follow-up</button><button class="filter-tab" data-filter="Requirements">Requirements</button><button class="filter-tab" data-filter="Proposal">Proposal</button><button class="filter-tab" data-filter="Negotiation">Negotiation</button><button class="filter-tab" data-filter="Agreement">Agreement</button><button class="filter-tab" data-filter="Won">Won</button><button class="filter-tab" data-filter="Lost">Lost</button></div></div><div class="table-wrap"><table><thead><tr><th>Lead / Company</th><th>Service interest</th><th>Stage</th><th>Owner</th><th>Next follow-up</th><th></th></tr></thead><tbody id="leads-table"></tbody></table></div><div class="table-footer"><span id="lead-table-count">Showing 0 leads</span><span class="muted">No leads recorded yet</span></div></section>
+        </section>
+
+        <section class="view-section" id="view-meetings" data-title="Meetings">
+          <div class="page-heading"><div><p class="eyebrow">DISCOVERY & FOLLOW-UP</p><h1>Meetings</h1><p class="page-subtitle">Schedule the two client meetings: Discovery first, then Financial to present payment options. Meetings are held on Microsoft Teams.</p></div><div class="heading-actions"><button class="button button-primary" data-action="new-meeting">＋ Schedule meeting</button></div></div>
+          <div class="metric-grid compact-metrics"><article class="metric-card"><span class="metric-label">All meetings</span><div class="metric-value" id="meeting-total">00</div><span class="metric-caption">Recorded in CRM</span></article><article class="metric-card"><span class="metric-label">Upcoming</span><div class="metric-value" id="meeting-upcoming">00</div><span class="metric-caption">Scheduled sessions</span></article><article class="metric-card"><span class="metric-label">Completed</span><div class="metric-value" id="meeting-completed">00</div><span class="metric-caption">With notes and outcomes</span></article><article class="metric-card"><span class="metric-label">Needs follow-up</span><div class="metric-value" id="meeting-followup">00</div><span class="metric-caption">Next actions required</span></article></div>
+          <section class="meeting-intro-grid" aria-label="Meeting workflow">
+            <article class="meeting-workflow-card"><span class="meeting-step">01</span><div><h2>Discovery meeting</h2><p>Understand the client's process, requirements, goals and constraints.</p></div><span class="meeting-step-icon">◎</span></article>
+            <article class="meeting-workflow-card"><span class="meeting-step">00</span><div><h2>Financial meeting</h2><p>Present pricing, deposit options, payment dates and commercial terms.</p></div><span class="meeting-step-icon">R</span></article>
+          </section>
+          <section class="panel table-panel meeting-table-panel"><div class="table-toolbar"><div><h2 class="toolbar-title">Meeting schedule</h2><p class="muted">Select a meeting title or View to open its full details, notes and Microsoft Teams link.</p></div><label class="table-search">⌕ <input id="meeting-search" placeholder="Search meetings..." type="search"></label></div><div class="table-wrap"><table><thead><tr><th>Meeting</th><th>Lead / Client</th><th>Date & time</th><th>Type</th><th>Status</th><th>Next action</th><th>Actions</th></tr></thead><tbody id="meetings-table"></tbody></table></div></section>
+        </section>
+
+        <section class="view-section" id="view-clients" data-title="Clients">
+          <div class="page-heading clients-page-heading"><div><p class="eyebrow">RELATIONSHIP MANAGEMENT</p><h1>Clients <span class="heading-count" id="client-heading-count">0</span></h1><p class="page-subtitle">A clear view of every relationship, active project and client contact.</p></div><div class="heading-actions"><button class="button button-secondary" data-action="export">↧ Export</button><button class="button button-primary" data-action="new-client">＋ Add client</button></div></div>
+          <div class="metric-grid compact-metrics clients-metrics">
+            <article class="metric-card client-summary-card"><div class="client-summary-top"><span class="metric-label">Total clients</span><span class="client-summary-icon violet">♧</span></div><div class="metric-value" id="client-total">00</div><div class="client-summary-foot"><span class="summary-dot violet-dot"></span><span>Client organizations</span></div></article>
+            <article class="metric-card client-summary-card"><div class="client-summary-top"><span class="metric-label">Active relationships</span><span class="client-summary-icon green">↗</span></div><div class="metric-value" id="client-active-count">00</div><div class="client-summary-foot"><span class="summary-dot green-dot"></span><span>Currently active</span></div></article>
+            <article class="metric-card client-summary-card"><div class="client-summary-top"><span class="metric-label">Active projects</span><span class="client-summary-icon blue">▣</span></div><div class="metric-value" id="client-active-projects">03</div><div class="client-summary-foot"><span class="summary-dot blue-dot"></span><span>Across all clients</span></div></article>
+            <article class="metric-card client-summary-card"><div class="client-summary-top"><span class="metric-label">Industries served</span><span class="client-summary-icon orange">◈</span></div><div class="metric-value" id="client-industry-count">00</div><div class="client-summary-foot"><span class="summary-dot orange-dot"></span><span>Portfolio diversity</span></div></article>
+          </div>
+          <section class="panel client-directory-panel"><div class="client-directory-toolbar"><div><p class="eyebrow">YOUR PORTFOLIO</p><h2>Client directory</h2><p class="muted">Open a client to view its contacts, projects and relationship details.</p></div><label class="table-search client-search-box">⌕ <input id="client-search" placeholder="Search clients or industries..." type="search"></label></div><div class="client-directory-controls"><div class="filter-tabs" id="client-filters"><button type="button" class="filter-tab active" data-client-filter="all">All clients <span id="client-filter-all-count">00</span></button><button type="button" class="filter-tab" data-client-filter="Active">Active <span id="client-filter-active-count">00</span></button><button type="button" class="filter-tab" data-client-filter="Inactive">Inactive <span id="client-filter-inactive-count">00</span></button></div><span class="client-results-count" id="client-results-count">4 clients</span></div><div class="client-grid" id="client-grid"></div></section>
+        </section>
+
+        <section class="view-section" id="view-contacts" data-title="Contacts">
+          <div class="page-heading contacts-page-heading"><div><p class="eyebrow">PEOPLE & ORGANIZATIONS</p><h1>Contacts <span class="heading-count" id="contact-heading-count">0</span></h1><p class="page-subtitle">Build a complete picture of the people behind every business relationship.</p></div><div class="heading-actions"><button class="button button-secondary" data-action="export">↧ Export</button><button class="button button-primary" data-action="new-contact">＋ Add contact</button></div></div>
+          <div class="metric-grid compact-metrics contacts-metrics">
+            <article class="metric-card contact-summary-card"><div class="client-summary-top"><span class="metric-label">Total contacts</span><span class="client-summary-icon violet">◎</span></div><div class="metric-value" id="contact-total">00</div><div class="client-summary-foot"><span class="summary-dot violet-dot"></span><span>People in your directory</span></div></article>
+            <article class="metric-card contact-summary-card"><div class="client-summary-top"><span class="metric-label">Organizations</span><span class="client-summary-icon blue">▦</span></div><div class="metric-value" id="contact-org-count">00</div><div class="client-summary-foot"><span class="summary-dot blue-dot"></span><span>Businesses represented</span></div></article>
+            <article class="metric-card contact-summary-card"><div class="client-summary-top"><span class="metric-label">Decision makers</span><span class="client-summary-icon orange">◇</span></div><div class="metric-value" id="contact-decision-count">01</div><div class="client-summary-foot"><span class="summary-dot orange-dot"></span><span>Key business contacts</span></div></article>
+            <article class="metric-card contact-summary-card"><div class="client-summary-top"><span class="metric-label">Project contacts</span><span class="client-summary-icon green">↗</span></div><div class="metric-value" id="contact-project-count">01</div><div class="client-summary-foot"><span class="summary-dot green-dot"></span><span>Connected to delivery</span></div></article>
+          </div>
+          <section class="panel contact-directory-panel">
+            <div class="contact-directory-toolbar"><div><p class="eyebrow">RELATIONSHIP DIRECTORY</p><h2>All contacts</h2><p class="muted">Select a person to view their profile and relationship details.</p></div><label class="table-search contact-search-box">⌕ <input id="contact-search" placeholder="Search people, companies, email..." type="search"></label></div>
+            <div class="contact-directory-controls"><div class="filter-tabs" id="contact-filters"><button type="button" class="filter-tab active" data-contact-filter="all">All contacts <span id="contact-filter-all-count">00</span></button><button type="button" class="filter-tab" data-contact-filter="Decision maker">Decision makers <span id="contact-filter-decision-count">01</span></button><button type="button" class="filter-tab" data-contact-filter="Project contact">Project contacts <span id="contact-filter-project-count">01</span></button><button type="button" class="filter-tab" data-contact-filter="Client contact">Client contacts <span id="contact-filter-client-count">00</span></button></div><span class="client-results-count" id="contact-results-count">4 contacts</span></div>
+            <div class="contact-card-grid" id="contact-card-grid"></div>
+          </section>
+        </section>
+
+        <section class="view-section" id="view-projects" data-title="Projects">
+          <div class="page-heading"><div><p class="eyebrow">DELIVERY & EXECUTION</p><h1>Projects</h1><p class="page-subtitle">Monitor project status, delivery progress and next milestones.</p></div><div class="heading-actions"><button class="button button-secondary" data-action="export">↧ Export</button><button class="button button-primary" data-action="new-project">＋ New project</button></div></div>
+          <div class="metric-grid compact-metrics"><article class="metric-card"><span class="metric-label">All projects</span><div class="metric-value" id="project-total">03</div></article><article class="metric-card"><span class="metric-label">In progress</span><div class="metric-value">00</div></article><article class="metric-card"><span class="metric-label">Planning</span><div class="metric-value">01</div></article><article class="metric-card"><span class="metric-label">At risk</span><div class="metric-value">01</div></article></div>
+          <section class="panel table-panel"><div class="table-toolbar"><div class="table-tabs" id="project-filters"><button class="filter-tab active" data-filter="all">All projects</button><button class="filter-tab" data-filter="In progress">In progress</button><button class="filter-tab" data-filter="Planning">Planning</button><button class="filter-tab" data-filter="On hold">On hold</button></div><label class="table-search">⌕ <input id="project-search" placeholder="Search projects..." type="search"></label></div><div class="table-wrap"><table><thead><tr><th>Project</th><th>Client</th><th>Status</th><th>Progress</th><th>Target date</th><th>Project manager</th><th>Actions</th></tr></thead><tbody id="projects-table"></tbody></table></div></section>
+        </section>
+
+        <section class="view-section" id="view-tasks" data-title="Tasks">
+          <div class="page-heading"><div><p class="eyebrow">WORK MANAGEMENT</p><h1>Tasks</h1><p class="page-subtitle">Keep the team aligned on what needs to happen next.</p></div><div class="heading-actions"><button class="button button-primary" data-action="new-task">＋ New task</button></div></div>
+          <section class="panel table-panel"><div class="table-toolbar"><div class="table-tabs" id="task-filters"><button class="filter-tab active" data-filter="all">All tasks</button><button class="filter-tab" data-filter="High">High priority</button><button class="filter-tab" data-filter="In progress">In progress</button><button class="filter-tab" data-filter="To do">To do</button></div><label class="table-search">⌕ <input id="task-search" placeholder="Search tasks..." type="search"></label></div><div class="table-wrap"><table><thead><tr><th>Task</th><th>Project</th><th>Assignee</th><th>Priority</th><th>Status</th><th>Due date</th><th></th></tr></thead><tbody id="tasks-table"></tbody></table></div></section>
+        </section>
+
+        <section class="view-section" id="view-communications" data-title="Communications">
+          <div class="page-heading"><div><p class="eyebrow">CLIENT RELATIONSHIPS</p><h1>Communications</h1><p class="page-subtitle">Log client conversations, meeting outcomes and the next action in one place.</p></div><div class="heading-actions"><button class="button button-secondary" data-action="export-communications">↧ Export log</button><button class="button button-primary" data-action="new-communication">＋ Log communication</button></div></div>
+          <div class="metric-grid communications-metrics">
+            <article class="metric-card"><div class="metric-top"><span class="metric-label">Total interactions</span><span class="metric-icon icon-orange">▤</span></div><div class="metric-value" id="comm-total">00</div><div class="metric-foot"><span class="metric-neutral">Recorded in this workspace</span></div></article>
+            <article class="metric-card"><div class="metric-top"><span class="metric-label">Follow-ups due</span><span class="metric-icon icon-violet">◷</span></div><div class="metric-value" id="comm-followups">00</div><div class="metric-foot"><span class="metric-warning">Requires attention</span></div></article>
+            <article class="metric-card"><div class="metric-top"><span class="metric-label">Awaiting response</span><span class="metric-icon icon-blue">↩</span></div><div class="metric-value" id="comm-awaiting">00</div><div class="metric-foot"><span class="metric-neutral">Waiting on another party</span></div></article>
+            <article class="metric-card"><div class="metric-top"><span class="metric-label">Meetings this week</span><span class="metric-icon icon-green">▦</span></div><div class="metric-value" id="comm-meetings">00</div><div class="metric-foot"><span class="metric-neutral">Scheduled in the CRM</span></div></article>
+          </div>
+          <section class="panel communications-panel">
+            <div class="communications-toolbar"><div><h2>Communication activity</h2><p class="muted">A searchable timeline of conversations and follow-up actions.</p></div><label class="table-search">⌕ <input id="communication-search" type="search" placeholder="Search client, project, notes..."></label></div>
+            <div class="communications-controls"><div class="filter-tabs" id="communication-filters"><button type="button" class="filter-tab active" data-communication-filter="all">All activity <span id="comm-count-all">00</span></button><button type="button" class="filter-tab" data-communication-filter="Follow-up required">Follow-up required <span id="comm-count-followup">00</span></button><button type="button" class="filter-tab" data-communication-filter="Awaiting response">Awaiting response <span id="comm-count-awaiting">00</span></button><button type="button" class="filter-tab" data-communication-filter="Resolved">Resolved</button></div><span class="client-results-count" id="communication-results-count">0 interactions</span></div>
+            <div class="communication-list" id="communication-list" aria-live="polite"></div>
+          </section>
+          <p class="communications-note">Development preview: Entries are stored in this browser until API integration. External messages are not sent from this page yet.</p>
+        </section>
+
+        <section class="view-section" id="view-reports" data-title="Reports">
+          <div class="page-heading reports-page-heading">
+            <div><p class="eyebrow">BUSINESS INTELLIGENCE</p><h1>Reports & analytics</h1><p class="page-subtitle">Measure growth, delivery performance and client relationships.</p></div>
+            <div class="heading-actions"><label class="reports-period"><span>Reporting period</span><select id="reports-period" class="control-select"><option value="4">Last 4 weeks</option><option value="12" selected>Last 12 weeks</option></select></label><button class="button button-primary" data-report-export="summary">↧ Export report</button></div>
+          </div>
+          <div class="metric-grid compact-metrics reports-metrics">
+            <article class="metric-card report-metric"><span class="metric-label">Client organizations</span><div class="metric-value" id="report-clients">00</div><span class="metric-caption">Current client directory</span></article>
+            <article class="metric-card report-metric"><span class="metric-label">Open leads</span><div class="metric-value" id="report-leads">00</div><span class="metric-caption">Active sales pipeline</span></article>
+            <article class="metric-card report-metric"><span class="metric-label">Active projects</span><div class="metric-value" id="report-projects">00</div><span class="metric-caption">In progress or planning</span></article>
+            <article class="metric-card report-metric"><span class="metric-label">Open tasks</span><div class="metric-value" id="report-tasks">00</div><span class="metric-caption" id="report-task-caption">Tasks not completed</span></article>
+          </div>
+          <div class="reports-section-heading"><div><p class="eyebrow">SALES PERFORMANCE</p><h2>Lead generation & conversion</h2></div><button class="button button-secondary button-small" data-report-export="leads">Export lead report</button></div>
+          <div class="reports-chart-grid">
+            <section class="panel chart-panel report-chart-panel report-chart-wide"><div class="panel-heading"><div><h2>Lead growth</h2><p>Weekly lead totals recorded by this CRM</p></div><span class="chart-kicker" id="report-trend-period">12 WEEKS</span></div><div class="chart-content" id="report-lead-trend"></div></section>
+            <section class="panel chart-panel report-chart-panel"><div class="panel-heading"><div><h2>Pipeline by stage</h2><p>Current lead distribution</p></div><span class="chart-kicker">CURRENT</span></div><div class="chart-content" id="report-lead-stages"></div></section>
+            <section class="panel chart-panel report-chart-panel"><div class="panel-heading"><div><h2>Conversion snapshot</h2><p>Won leads as a share of all recorded leads</p></div><span class="chart-kicker">ALL TIME</span></div><div id="report-conversion"></div></section>
+          </div>
+          <div class="reports-section-heading"><div><p class="eyebrow">DELIVERY PERFORMANCE</p><h2>Projects & workload</h2></div><button class="button button-secondary button-small" data-report-export="projects">Export delivery report</button></div>
+          <div class="reports-chart-grid">
+            <section class="panel chart-panel report-chart-panel"><div class="panel-heading"><div><h2>Project progress</h2><p>Progress reported on each project</p></div><span class="chart-kicker">LIVE RECORDS</span></div><div class="chart-content" id="report-project-progress"></div></section>
+            <section class="panel chart-panel report-chart-panel"><div class="panel-heading"><div><h2>Task status</h2><p>Open work versus completed tasks</p></div><span class="chart-kicker">LIVE RECORDS</span></div><div class="chart-content" id="report-task-status"></div></section>
+            <section class="panel chart-panel report-chart-panel report-chart-wide"><div class="panel-heading"><div><h2>Needs attention</h2><p>Projects with low progress or tasks past their due date</p></div><button class="button button-secondary button-small" data-report-export="attention">Export attention list</button></div><div class="table-wrap report-table-wrap"><table><thead><tr><th>Item</th><th>Client / project</th><th>Issue</th><th>Owner</th><th>Target date</th></tr></thead><tbody id="report-attention-table"></tbody></table></div></section>
+          </div>
+          <div class="reports-section-heading"><div><p class="eyebrow">CLIENT RELATIONSHIPS</p><h2>Engagement activity</h2></div><button class="button button-secondary button-small" data-report-export="activity">Export activity report</button></div>
+          <div class="reports-chart-grid reports-bottom-grid">
+            <section class="panel chart-panel report-chart-panel"><div class="panel-heading"><div><h2>Meetings</h2><p>Current meeting status</p></div><span class="chart-kicker">CRM RECORDS</span></div><div class="chart-content" id="report-meetings"></div></section>
+            <section class="panel chart-panel report-chart-panel"><div class="panel-heading"><div><h2>Client portfolio</h2><p>Clients by industry</p></div><span class="chart-kicker">CLIENTS</span></div><div class="chart-content" id="report-client-industries"></div></section>
+          </div>
+          <p class="reports-disclaimer">Reports are calculated from the records currently available in this workspace. Weekly lead history starts when tracking is enabled; no earlier history is invented. Financial reporting will be added after the Zyma Pay integration is connected.</p>
+        </section>
+
+        <section class="view-section" id="view-settings" data-title="Settings">
+          <div class="page-heading settings-page-heading"><div><p class="eyebrow">WORKSPACE CONFIGURATION</p><h1>Settings</h1><p class="page-subtitle">Manage your workspace identity, personal preferences and connected services.</p></div><span class="settings-saved-indicator"><span class="settings-live-dot"></span> Saved in this browser</span></div>
+          <div class="settings-layout">
+            <aside class="panel settings-nav" aria-label="Settings sections">
+              <a href="#settings-workspace" class="settings-nav-item active" data-settings-nav="workspace"><span class="settings-nav-icon">▦</span><span><strong>Workspace profile</strong><small>Company identity and defaults</small></span></a>
+              <a href="#settings-preferences" class="settings-nav-item" data-settings-nav="preferences"><span class="settings-nav-icon">☼</span><span><strong>Personal preferences</strong><small>Appearance and locale</small></span></a>
+              <a href="#settings-notifications" class="settings-nav-item" data-settings-nav="notifications"><span class="settings-nav-icon">♧</span><span><strong>Notifications</strong><small>Reminders and activity</small></span></a>
+              <a href="#settings-integrations" class="settings-nav-item" data-settings-nav="integrations"><span class="settings-nav-icon">⌘</span><span><strong>Integrations</strong><small>Connected services</small></span></a>
+              <a href="#settings-access" class="settings-nav-item" data-settings-nav="access"><span class="settings-nav-icon">♙</span><span><strong>Access & security</strong><small>Roles and data handling</small></span></a>
+            </aside>
+            <div class="settings-content">
+              <section class="panel settings-section" id="settings-workspace">
+                <div class="settings-section-heading"><div><p class="eyebrow">ORGANIZATION</p><h2>Workspace profile</h2><p>These details identify your Zyma CRM workspace.</p></div><span class="settings-section-symbol">▦</span></div>
+                <div class="workspace-brand-preview"><div class="workspace-brand-preview-top"><span>OFFICIAL BRAND ASSETS</span><span>Transparent PNG</span></div><div class="workspace-brand-preview-logo"><img src="assets/zyma-systems-logo-full.png" alt="Zyma Systems — Shaping ideas, Driving growth"></div><div class="workspace-brand-preview-footer"><div><strong>Zyma Systems (Pty) Ltd</strong><small>Primary company wordmark</small></div><div class="workspace-symbol-preview"><img src="assets/zyma-symbol.png" alt="Zyma Systems symbol"><span><strong>App / favicon symbol</strong><small>For compact spaces</small></span></div></div></div>
+                <form id="workspace-settings-form" class="settings-form">
+                  <div class="settings-form-grid">
+                    <label class="field"><span>Workspace name</span><input name="workspaceName" id="setting-workspace-name" maxlength="80" value="Zyma Systems" required></label>
+                    <label class="field"><span>Company website</span><input name="website" id="setting-workspace-website" type="url" placeholder="https://zyma.co.za" value="https://zyma.co.za"></label>
+                    <label class="field"><span>Default currency</span><select name="currency" id="setting-currency"><option value="ZAR">ZAR — South African Rand</option><option value="USD">USD — US Dollar</option><option value="GBP">GBP — British Pound</option><option value="EUR">EUR — Euro</option></select></label>
+                    <label class="field"><span>Time zone</span><select name="timezone" id="setting-timezone"><option value="Africa/Johannesburg">South Africa (SAST, UTC+2)</option><option value="UTC">UTC</option><option value="Europe/London">London</option><option value="America/New_York">New York</option></select></label>
+                  </div>
+                  <div class="settings-form-footer"><p>Changes apply to this browser preview only until the CRM backend is connected.</p><button class="button button-primary" type="submit">Save workspace</button></div>
+                </form>
+              </section>
+              <section class="panel settings-section" id="settings-preferences">
+                <div class="settings-section-heading"><div><p class="eyebrow">YOUR WORKSPACE</p><h2>Personal preferences</h2><p>Choose how Zyma CRM appears and formats information.</p></div><span class="settings-section-symbol">☼</span></div>
+                <div class="settings-option-row"><div><strong>Colour theme</strong><p>Switch between the dark and light CRM interface.</p></div><div class="settings-theme-control"><button type="button" class="button button-secondary button-small" data-setting-theme="dark">Dark</button><button type="button" class="button button-secondary button-small" data-setting-theme="light">Light</button></div></div>
+                <div class="settings-option-row"><div><strong>Date format</strong><p>Choose how dates appear across CRM pages.</p></div><select id="setting-date-format" class="settings-inline-select"><option value="DD MMM YYYY">22 Oct 2026</option><option value="YYYY-MM-DD">2026-10-22</option><option value="DD/MM/YYYY">22/10/2026</option></select></div>
+                <div class="settings-option-row"><div><strong>Compact tables</strong><p>Use denser rows in lists where supported.</p></div><label class="settings-switch"><input type="checkbox" id="setting-compact-tables"><span></span></label></div>
+                <div class="settings-section-footer"><span>Preferences are saved locally in this browser.</span><button type="button" class="button button-secondary" id="save-preferences">Save preferences</button></div>
+              </section>
+              <section class="panel settings-section" id="settings-notifications">
+                <div class="settings-section-heading"><div><p class="eyebrow">KEEP ON TOP OF WORK</p><h2>Notifications</h2><p>Choose which reminders the CRM should prepare for you.</p></div><span class="settings-section-symbol">♧</span></div>
+                <div class="settings-option-row"><div><strong>Follow-up reminders</strong><p>Remind me about client follow-ups and overdue actions.</p></div><label class="settings-switch"><input type="checkbox" id="setting-followups" checked><span></span></label></div>
+                <div class="settings-option-row"><div><strong>Meeting reminders</strong><p>Highlight upcoming meetings in the workspace.</p></div><label class="settings-switch"><input type="checkbox" id="setting-meetings" checked><span></span></label></div>
+                <div class="settings-option-row"><div><strong>Project and task alerts</strong><p>Flag overdue tasks and projects that need attention.</p></div><label class="settings-switch"><input type="checkbox" id="setting-project-alerts" checked><span></span></label></div>
+                <div class="settings-option-row"><div><strong>Email delivery</strong><p>Email notifications require a configured backend and mail provider.</p></div><span class="settings-status-pill">Not connected</span></div>
+                <div class="settings-section-footer"><span>Notification switches currently save preferences only; no emails are sent.</span><button type="button" class="button button-secondary" id="save-notifications">Save notifications</button></div>
+              </section>
+              <section class="panel settings-section" id="settings-integrations">
+                <div class="settings-section-heading"><div><p class="eyebrow">CONNECTED SERVICES</p><h2>Integrations</h2><p>Review planned connections for your CRM workspace.</p></div><span class="settings-section-symbol">⌘</span></div>
+                <div class="integration-row"><div class="integration-brand integration-brand-zyma">Z</div><div class="integration-copy"><strong>Zyma Pay</strong><p>Invoice and payment status visibility from your payment system.</p><small>Target service: payment.zyma.co.za</small></div><span class="settings-status-pill settings-status-planned">Planned</span></div>
+                <div class="integration-row"><div class="integration-brand">✉</div><div class="integration-copy"><strong>Email provider</strong><p>Send and receive client correspondence from the CRM.</p><small>Requires provider credentials and backend configuration.</small></div><span class="settings-status-pill">Not connected</span></div>
+                <div class="integration-row"><div class="integration-brand">◷</div><div class="integration-copy"><strong>Microsoft Teams</strong><p>Store meeting links and associate meetings with CRM records.</p><small>Meeting links can be recorded; automatic calendar sync is not enabled.</small></div><span class="settings-status-pill settings-status-planned">Manual links</span></div>
+                <p class="settings-info-note"><span>i</span> Integrations are informational in this preview. No credentials or API keys should be entered here until secure backend settings are available.</p>
+              </section>
+              <section class="panel settings-section" id="settings-access">
+                <div class="settings-section-heading"><div><p class="eyebrow">ACCOUNT SAFETY</p><h2>Access & security</h2><p>Understand how access and data are handled in this development preview.</p></div><span class="settings-section-symbol">♙</span></div>
+                <div class="security-summary"><span class="security-summary-icon">ⓘ</span><div><strong>Single-browser preview mode</strong><p>CRM records and these settings are stored in this browser. Staff accounts, role-based access, audit logs and shared PostgreSQL storage are not enabled in this frontend preview.</p></div></div>
+                <div class="settings-option-row"><div><strong>Team access management</strong><p>Invite staff and assign roles once authentication is implemented.</p></div><span class="settings-status-pill settings-status-planned">Planned</span></div>
+                <div class="settings-option-row"><div><strong>Shared database</strong><p>Connect settings and CRM records to the authenticated backend.</p></div><span class="settings-status-pill settings-status-planned">Planned</span></div>
+              </section>
+            </div>
+          </div>
+        </section>
+        <section class="view-section" id="view-record-detail" data-title="Record details" aria-live="polite"></section>
+      </main>
+    </div>
+  </div>
+
+  <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
+
+  <dialog class="modal" id="record-modal">
+    <form method="dialog" class="modal-card" id="record-form">
+      <div class="modal-header"><div><p class="eyebrow" id="modal-eyebrow">NEW RECORD</p><h2 id="modal-title">Add record</h2></div><button type="button" class="icon-button" id="modal-close" aria-label="Close dialog">×</button></div>
+      <div id="modal-fields" class="modal-fields"></div>
+      <p class="modal-note">Changes are currently stored in this browser. Shared access and PostgreSQL persistence will be connected through the Zyma API.</p>
+      <div class="modal-actions"><button type="button" class="button button-secondary" id="modal-cancel">Cancel</button><button type="submit" class="button button-primary">Save record</button></div>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+  <script src="workspace-access.js"></script>
+  <script src="current-user.js"></script>
+</body>
+</html>

@@ -1,0 +1,133 @@
+/* Tasks & milestones — page-specific components only.
+   Design tokens, app shell, sidebar, topbar, buttons, metric cards, panels, tabs,
+   pills, modals and light/dark themes all come from styles.css so both pages stay identical. */
+
+.hidden { display: none !important; }
+.back-row { margin-bottom: 18px; }
+a.text-link { color: var(--orange); font-size: 10px; }
+a.text-link:hover { color: #ffb16d; }
+:root[data-theme="light"] a.text-link:hover { color: #9a4b08; }
+
+/* Project picker */
+.picker-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 0 0 14px; }
+.picker-toolbar .toolbar-title { margin: 0 0 4px; }
+.picker-toolbar p { margin: 0; font-size: 10px; }
+.project-picker-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: stretch; }
+.project-choice { display: flex; flex-direction: column; gap: 14px; min-width: 0; padding: 18px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); transition: transform .16s, border-color .16s, box-shadow .16s; }
+.project-choice:hover { transform: translateY(-2px); border-color: var(--orange); box-shadow: var(--shadow); }
+.project-choice-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.project-choice-id { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+.project-choice-id .company-mark { width: 36px; height: 36px; font-size: 11px; }
+.project-choice h2 { margin: 0 0 4px; font: 700 14px/1.35 Manrope, sans-serif; letter-spacing: -.02em; }
+.project-choice-client { color: var(--muted); font-size: 11px; }
+.project-code { padding: 4px 7px; border-radius: 6px; background: var(--orange-soft); color: var(--orange); font-size: 9px; font-weight: 700; white-space: nowrap; }
+.project-choice-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.project-choice-stat { min-width: 0; padding: 10px; border: 1px solid var(--border-soft); border-radius: 9px; background: var(--surface-raised); }
+.project-choice-stat b { display: block; margin-bottom: 3px; font: 700 20px Manrope, sans-serif; }
+.project-choice-stat span { color: var(--muted); font-size: 10px; }
+.project-choice-progress { display: grid; gap: 7px; font-size: 10px; }
+.project-choice-progress > div:first-child { display: flex; justify-content: space-between; gap: 8px; }
+.project-choice-progress > div:first-child span { color: var(--muted); }
+.project-choice-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: auto; padding-top: 13px; border-top: 1px solid var(--border-soft); }
+.project-choice-footer small { color: var(--muted); font-size: 10px; }
+.picker-empty { grid-column: 1 / -1; padding: 40px 20px; border: 1px dashed var(--border); border-radius: 12px; color: var(--muted); font-size: 12px; text-align: center; line-height: 1.7; }
+.picker-empty a { color: var(--orange); font-weight: 600; }
+
+/* Workspace */
+.project-strip { display: flex; align-items: center; gap: 24px; margin-bottom: 16px; padding: 14px 18px; }
+.strip-field { display: grid; gap: 7px; min-width: 220px; }
+.strip-label { color: var(--muted-2); font-size: 9px; font-weight: 700; letter-spacing: .12em; }
+.control-select { padding: 9px 10px; border: 1px solid var(--control-border); border-radius: 8px; background: var(--control-bg); color: var(--control-text); font-size: 11px; }
+.control-select:hover, .control-select:focus { border-color: var(--orange); outline: none; }
+.progress-wrap { flex: 1; min-width: 100px; }
+.progress-wrap > div:first-child { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 8px; font-size: 10px; }
+.progress-wrap span { color: var(--muted); }
+.toolbar-plain { padding: 0; min-height: 0; margin-bottom: 14px; border-bottom: 0; }
+.tools { display: flex; align-items: center; gap: 8px; }
+
+/* Board */
+.board { display: grid; grid-template-columns: repeat(4, minmax(220px, 1fr)); gap: 12px; align-items: start; overflow-x: auto; padding-bottom: 8px; }
+.column { min-width: 0; min-height: 340px; padding: 11px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-raised); }
+.column.drop-target { border-color: var(--orange); }
+.column-head { display: flex; align-items: center; justify-content: space-between; padding: 3px 3px 12px; font-size: 11px; font-weight: 700; }
+.column-head small { margin-left: 6px; padding: 3px 6px; border-radius: 6px; background: var(--surface-hover); color: var(--muted); font-size: 10px; }
+.column-head button { border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 18px; cursor: pointer; }
+.column-head button:hover { background: var(--surface-hover); color: var(--orange); }
+.stack { display: grid; gap: 9px; min-height: 270px; align-content: start; }
+.task { padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); cursor: grab; }
+.task:hover { border-color: var(--muted-2); box-shadow: var(--shadow); }
+.task.dragging { opacity: .4; }
+.task-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 9px; }
+.project-tag { overflow: hidden; color: var(--muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.task h3 { margin: 0 0 6px; font-size: 11px; line-height: 1.45; }
+.task p { margin: 0 0 9px; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.milestone-tag { display: inline-block; margin-bottom: 9px; padding: 4px 7px; border-radius: 5px; background: var(--violet-soft); color: var(--violet); font-size: 9px; }
+.task-foot { display: flex; align-items: center; justify-content: space-between; gap: 7px; padding-top: 9px; border-top: 1px solid var(--border-soft); color: var(--muted); font-size: 10px; }
+.task-foot .overdue, td.overdue { color: var(--red); font-weight: 700; }
+.empty { padding: 24px 8px; border: 1px dashed var(--border); border-radius: 8px; color: var(--muted); font-size: 11px; text-align: center; }
+
+/* List + milestones */
+.record-link.task-link { font-size: 10px; }
+.status-blocked { color: var(--red); background: var(--red-soft); }
+.milestone-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 18px; }
+.milestone { display: grid; gap: 10px; padding: 16px; border: 1px solid var(--border-soft); border-radius: 11px; background: var(--surface-raised); }
+.milestone h3 { margin: 0; font-size: 12px; }
+.milestone p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.55; }
+.milestone-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.milestone .record-actions { justify-content: flex-end; }
+
+/* Dialogs */
+.detail-summary { margin: 12px 0 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.detail-meta { margin: 6px 0 0; color: var(--muted-2); font-size: 10px; }
+
+@media (max-width: 1200px) {
+  .project-picker-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .project-strip { flex-wrap: wrap; }
+  .strip-field { flex: 1; }
+}
+@media (max-width: 820px) {
+  .picker-toolbar, .toolbar-plain { align-items: stretch; flex-direction: column; }
+  .tools { flex-wrap: wrap; }
+  .milestone-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 650px) {
+  .project-picker-grid { grid-template-columns: 1fr; }
+  .strip-field { min-width: 100%; }
+  .project-strip { align-items: stretch; gap: 13px; }
+  .board { grid-template-columns: repeat(4, minmax(240px, 1fr)); }
+      }
+
+/* Keep the official transparent Zyma symbol aligned with the shared CRM sidebar. */
+.brand-mark img { width: 34px; height: 34px; object-fit: contain; }
+.workspace-icon img { width: 27px; height: 27px; object-fit: contain; }
+
+/* Shared motion language for the project task board and milestone views. */
+.project-choice, .task, .milestone, .column, .milestone-grid > * { transition: transform 200ms cubic-bezier(.2,.75,.25,1), border-color 180ms ease, box-shadow 200ms ease, background-color 180ms ease; }
+.task:hover { transform: translateY(-2px); }
+.milestone:hover { transform: translateY(-2px); border-color: var(--orange); box-shadow: var(--shadow); }
+.column.drop-target { transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease; }
+.project-picker-grid > .project-choice { animation: zyma-fade-up 380ms cubic-bezier(.2,.75,.25,1) both; }
+.project-picker-grid > .project-choice:nth-child(2) { animation-delay: 40ms; }
+.project-picker-grid > .project-choice:nth-child(3) { animation-delay: 80ms; }
+
+
+/* Scroll-triggered reveals and chart entrance animations. */
+@keyframes zyma-reveal-up { from { opacity:0; transform:translate3d(0,22px,0) scale(.99); } to { opacity:1; transform:translate3d(0,0,0) scale(1); } }
+@keyframes zyma-chart-bar-grow { from { transform:scaleX(.015); filter:saturate(.65); } to { transform:scaleX(1); filter:saturate(1); } }
+@keyframes zyma-donut-pop { from { opacity:.25; transform:rotate(-24deg) scale(.82); } to { opacity:1; transform:rotate(0) scale(1); } }
+@keyframes zyma-chart-point-pop { 0% { opacity:0; transform:scale(.35); } 75% { opacity:1; transform:scale(1.12); } 100% { transform:scale(1); } }
+.scroll-reveal { opacity:0; transform:translate3d(0,22px,0); transition:opacity 620ms cubic-bezier(.2,.75,.25,1), transform 620ms cubic-bezier(.2,.75,.25,1); }
+.scroll-reveal.is-visible { opacity:1; transform:translate3d(0,0,0); }
+.chart-content .chart-bar, .chart-content .report-conversion-donut, .chart-content .donut-chart { transform-origin:left center; }
+.chart-content.is-chart-visible .chart-bar { animation:zyma-chart-bar-grow 950ms cubic-bezier(.16,1,.3,1) both; }
+.chart-content.is-chart-visible .donut-chart, .chart-content.is-chart-visible .report-conversion-donut { transform-origin:center; animation:zyma-donut-pop 780ms cubic-bezier(.16,1,.3,1) both; }
+.chart-content.is-chart-visible .trend-line, .chart-content.is-chart-visible .report-trend-line { animation:zyma-fade-in 900ms ease both; }
+.chart-content.is-chart-visible .trend-area { animation:zyma-fade-in 1100ms ease both; }
+.chart-content.is-chart-visible .trend-point, .chart-content.is-chart-visible circle { animation:zyma-chart-point-pop 480ms cubic-bezier(.16,1,.3,1) both; }
+.chart-content.is-chart-visible .chart-bar-row:nth-child(2) .chart-bar { animation-delay:70ms; }
+.chart-content.is-chart-visible .chart-bar-row:nth-child(3) .chart-bar { animation-delay:140ms; }
+.chart-content.is-chart-visible .chart-bar-row:nth-child(4) .chart-bar { animation-delay:210ms; }
+.chart-content.is-chart-visible .chart-bar-row:nth-child(5) .chart-bar { animation-delay:280ms; }
+.chart-content.is-chart-visible .chart-bar-row:nth-child(6) .chart-bar { animation-delay:350ms; }
+.chart-content.is-chart-visible .chart-bar-row:nth-child(n+7) .chart-bar { animation-delay:420ms; }
+@media (prefers-reduced-motion: reduce) { .scroll-reveal { opacity:1 !important; transform:none !important; } .chart-content.is-chart-visible .chart-bar, .chart-content.is-chart-visible .donut-chart, .chart-content.is-chart-visible .report-conversion-donut, .chart-content.is-chart-visible .trend-point, .chart-content.is-chart-visible circle { animation:none !important; } }

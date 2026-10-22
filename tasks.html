@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101722">
+  <link rel="icon" type="image/png" href="assets/zyma-symbol.png">
+  <link rel="apple-touch-icon" href="assets/zyma-symbol.png">
+  <meta name="description" content="Zyma Systems internal CRM — tasks and milestones.">
+  <title>Tasks & Milestones | Zyma CRM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="tasks.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="workspace.html#dashboard" aria-label="Zyma CRM home">
+        <span class="brand-mark"><img src="assets/zyma-symbol.png" alt="" aria-hidden="true"></span>
+        <span class="brand-copy"><strong>ZYMA</strong><small>CRM WORKSPACE</small></span>
+      </a>
+
+      <div class="workspace-switcher">
+        <span class="workspace-icon"><img src="assets/zyma-symbol.png" alt="Zyma Systems symbol"></span>
+        <span class="workspace-copy"><strong>Zyma Systems</strong><small>Internal workspace</small></span>
+        <span class="chevron">⌄</span>
+      </div>
+
+      <p class="nav-label">WORKSPACE</p>
+      <nav class="primary-nav" aria-label="Main navigation">
+        <a class="nav-item" href="workspace.html#dashboard"><span class="nav-icon">▦</span><span>Dashboard</span></a>
+        <a class="nav-item" href="workspace.html#leads"><span class="nav-icon">◉</span><span>Leads</span><span class="nav-count" id="lead-nav-count">0</span></a>
+        <a class="nav-item" href="workspace.html#meetings"><span class="nav-icon">▦</span><span>Meetings</span><span class="nav-count" id="meeting-nav-count">0</span></a>
+        <a class="nav-item" href="workspace.html#clients"><span class="nav-icon">♧</span><span>Clients</span></a>
+        <a class="nav-item" href="workspace.html#contacts"><span class="nav-icon">◎</span><span>Contacts</span></a>
+        <a class="nav-item" href="workspace.html#projects"><span class="nav-icon">▣</span><span>Projects</span></a>
+        <a class="nav-item active" href="tasks.html" aria-current="page"><span class="nav-icon">☑</span><span>Tasks & milestones</span><span class="nav-count" id="task-nav-count">0</span></a>
+      </nav>
+
+      <p class="nav-label nav-label-spaced">RELATIONSHIPS</p>
+      <nav class="primary-nav" aria-label="Relationship navigation">
+        <a class="nav-item" href="workspace.html#communications"><span class="nav-icon">▤</span><span>Communications</span></a>
+        <a class="nav-item" href="workspace.html#reports"><span class="nav-icon">▥</span><span>Reports</span></a>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <a class="nav-item" href="workspace.html#settings"><span class="nav-icon">⚙</span><span>Settings</span></a>
+        <div class="sidebar-help">
+          <span class="help-mark">?</span>
+          <div><strong>Need a hand?</strong><small>View workspace guide</small></div>
+          <span class="chevron">↗</span>
+        </div>
+        <div class="sidebar-user">
+          <div class="avatar avatar-orange">U</div>
+          <div class="user-copy"><strong>Signed-in user</strong><small>Workspace user</small></div>
+          <button class="icon-button user-menu" aria-label="User menu">···</button>
+        </div>
+      </div>
+    </aside>
+
+    <div class="main-column">
+      <header class="topbar">
+        <button class="icon-button mobile-menu" id="mobile-menu" aria-label="Toggle navigation">☰</button>
+        <div class="breadcrumbs"><span>Workspace</span><span class="crumb-slash">/</span><strong id="breadcrumb-current">Tasks & milestones</strong></div>
+        <div class="topbar-actions">
+          <label class="global-search">
+            <span aria-hidden="true">⌕</span>
+            <input id="global-search" type="search" placeholder="Search projects, tasks..." autocomplete="off">
+            <kbd>⌘ K</kbd>
+          </label>
+          <button class="icon-button theme-toggle" id="theme-toggle" type="button" aria-label="Switch to light theme" title="Switch theme">☼</button>
+          <button class="icon-button notification-button" id="notifications-button" aria-label="Notifications">
+            ♧<span class="notification-dot"></span>
+          </button>
+          <span class="topbar-divider"></span>
+          <button class="profile-button" id="profile-button">
+            <span class="avatar avatar-blue">U</span>
+            <span class="profile-copy"><strong>Signed-in user</strong><small>Workspace account</small></span>
+            <span class="chevron">⌄</span>
+          </button>
+        </div>
+      </header>
+
+      <main class="content" id="main-content">
+
+        <!-- ============ Step 1: choose a project ============ -->
+        <section id="project-picker-view">
+          <div class="page-heading">
+            <div>
+              <p class="eyebrow">PROJECT DELIVERY</p>
+              <h1>Tasks & milestones</h1>
+              <p class="page-subtitle">Choose a project to open its task board, milestones and delivery metrics.</p>
+            </div>
+          </div>
+
+          <div class="metric-grid" id="picker-metrics"></div>
+
+
+          <div class="picker-toolbar">
+            <div><h2 class="toolbar-title">Projects</h2><p class="muted" id="project-picker-count"></p></div>
+            <label class="table-search">⌕ <input id="project-picker-search" type="search" placeholder="Search projects..."></label>
+          </div>
+          <div id="project-picker-grid" class="project-picker-grid" aria-live="polite"></div>
+          <p class="demo-note" id="data-note"></p>
+        </section>
+
+        <!-- ============ Step 2: project workspace ============ -->
+        <section id="project-workspace-view" class="hidden">
+          <button type="button" class="button button-secondary back-row" id="back-to-projects">← All projects</button>
+
+          <div class="page-heading">
+            <div>
+              <p class="eyebrow" id="ws-eyebrow">PROJECT DELIVERY</p>
+              <h1 id="ws-title">Tasks & milestones</h1>
+              <p class="page-subtitle" id="ws-sub"></p>
+            </div>
+            <div class="heading-actions">
+              <button class="button button-secondary" id="new-milestone" type="button">＋ New milestone</button>
+              <button class="button button-primary" id="new-task" type="button">＋ New task</button>
+            </div>
+          </div>
+
+          <div class="metric-grid compact-metrics">
+            <article class="metric-card"><span class="metric-label">Open tasks</span><div class="metric-value" id="metric-open">00</div><span class="metric-caption">Tasks not completed</span></article>
+            <article class="metric-card"><span class="metric-label">In progress</span><div class="metric-value" id="metric-progress">00</div><span class="metric-caption">Currently being worked on</span></article>
+            <article class="metric-card"><span class="metric-label">Overdue</span><div class="metric-value" id="metric-overdue">00</div><span class="metric-caption">Past their due date</span></article>
+            <article class="metric-card"><span class="metric-label">Milestones</span><div class="metric-value" id="metric-milestones">0/0</div><span class="metric-caption">Milestones completed</span></article>
+          </div>
+
+          <section class="panel project-strip">
+            <label class="strip-field"><span class="strip-label">PROJECT WORKSPACE</span><select id="project-filter" class="control-select"></select></label>
+            <div class="progress-wrap">
+              <div><span id="progress-label">Overall project progress</span><b id="progress-value">0%</b></div>
+              <div class="progress-track"><div class="progress-fill" id="progress-bar" style="width:0%"></div></div>
+            </div>
+            <div class="table-tabs" id="view-tabs">
+              <button type="button" class="filter-tab active" data-tab="board">▦ Board</button>
+              <button type="button" class="filter-tab" data-tab="list">☷ List</button>
+              <button type="button" class="filter-tab" data-tab="milestones">⚑ Milestones</button>
+            </div>
+          </section>
+
+          <div class="table-toolbar toolbar-plain">
+            <div class="table-tabs" id="filters">
+              <button type="button" class="filter-tab active" data-status="all">All tasks <span id="all-count">0</span></button>
+              <button type="button" class="filter-tab" data-status="To do">To do</button>
+              <button type="button" class="filter-tab" data-status="In progress">In progress</button>
+              <button type="button" class="filter-tab" data-status="In review">In review</button>
+              <button type="button" class="filter-tab" data-status="Done">Done</button>
+            </div>
+            <div class="tools">
+              <select id="priority-filter" class="control-select" aria-label="Filter by priority"><option value="all">All priorities</option><option>High</option><option>Medium</option><option>Low</option></select>
+              <label class="table-search">⌕ <input id="task-search" type="search" placeholder="Search this project..."></label>
+            </div>
+          </div>
+
+          <section id="board" class="board"></section>
+          <section id="list" class="panel table-panel hidden"></section>
+          <section id="milestones" class="panel table-panel hidden"></section>
+
+          
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
+
+  <dialog class="modal" id="task-modal">
+    <form class="modal-card" id="task-form">
+      <div class="modal-header"><div><p class="eyebrow">WORK ITEM</p><h2 id="task-form-title">Create task</h2></div><button type="button" class="icon-button" data-close="task-modal" aria-label="Close dialog">×</button></div>
+      <input id="task-id" type="hidden">
+      <div class="modal-fields">
+        <div class="form-field full"><label for="task-title">Task title</label><input id="task-title" required placeholder="e.g. Complete responsive layout"></div>
+        <div class="form-field"><label for="task-project">Project</label><select id="task-project" required></select></div>
+        <div class="form-field"><label for="task-milestone">Milestone</label><select id="task-milestone"><option value="">No milestone</option></select></div>
+        <div class="form-field"><label for="task-assignee">Assignee</label><input id="task-assignee" placeholder="Team member"></div>
+        <div class="form-field"><label for="task-status">Status</label><select id="task-status"><option>To do</option><option>In progress</option><option>In review</option><option>Done</option></select></div>
+        <div class="form-field"><label for="task-priority">Priority</label><select id="task-priority"><option>High</option><option selected>Medium</option><option>Low</option></select></div>
+        <div class="form-field"><label for="task-due">Due date</label><input id="task-due" type="date"></div>
+        <div class="form-field full"><label for="task-description">Description / acceptance criteria</label><textarea id="task-description" rows="3" placeholder="What needs to be done and how will completion be verified?"></textarea></div>
+      </div>
+      <div class="modal-actions"><button type="button" class="button button-secondary" data-close="task-modal">Cancel</button><button class="button button-primary" type="submit">Save task</button></div>
+    </form>
+  </dialog>
+
+  <dialog class="modal" id="milestone-modal">
+    <form class="modal-card" id="milestone-form">
+      <div class="modal-header"><div><p class="eyebrow">PROJECT DELIVERY</p><h2 id="milestone-form-title">Create milestone</h2></div><button type="button" class="icon-button" data-close="milestone-modal" aria-label="Close dialog">×</button></div>
+      <input id="milestone-id" type="hidden">
+      <div class="modal-fields">
+        <div class="form-field full"><label for="milestone-title">Milestone name</label><input id="milestone-title" required placeholder="e.g. Design approved"></div>
+        <div class="form-field"><label for="milestone-project">Project</label><select id="milestone-project" required></select></div>
+        <div class="form-field"><label for="milestone-due">Target date</label><input id="milestone-due" type="date"></div>
+        <div class="form-field"><label for="milestone-status">Status</label><select id="milestone-status"><option>Planned</option><option>In progress</option><option>Completed</option><option>Blocked</option></select></div>
+        <div class="form-field full"><label for="milestone-description">Deliverable / completion criteria</label><textarea id="milestone-description" rows="3"></textarea></div>
+      </div>
+      <div class="modal-actions"><button type="button" class="button button-secondary" data-close="milestone-modal">Cancel</button><button class="button button-primary" type="submit">Save milestone</button></div>
+    </form>
+  </dialog>
+
+  <dialog class="modal" id="detail-modal"></dialog>
+
+  <script src="tasks.js?v=20261022-projects-only"></script>
+  <script src="current-user.js"></script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7f6f3"><title>Sign in · Zyma CRM</title>
+  <link rel="icon" type="image/png" href="assets/zyma-symbol.png"><link rel="stylesheet" href="auth.css">
+</head>
+<body class="auth-page">
+  <main class="auth-shell">
+    <section class="auth-story" aria-label="Zyma Systems">
+      <img class="auth-full-logo" src="assets/zyma-systems-logo-full.png" alt="Zyma Systems — Shaping ideas, Driving growth">
+      <div class="story-copy"><span class="eyebrow">ZYMA CRM WORKSPACE</span><h1>Good work starts with a clear view.</h1><p>Manage client relationships, track delivery and keep your team moving in one workspace.</p></div>
+      <div class="story-foot"><span>Client relationships</span><span>·</span><span>Project delivery</span><span>·</span><span>Business insight</span></div>
+    </section>
+    <section class="auth-panel">
+      <div class="auth-panel-inner">
+        <img class="auth-symbol" src="assets/zyma-symbol.png" alt="Zyma Systems symbol">
+        <span class="eyebrow">WELCOME BACK</span><h2>Sign in to Zyma CRM</h2><p class="muted">Use your company account to access your workspace.</p>
+        <form id="login-form" novalidate>
+          <label for="email">Work email</label><input id="email" name="email" type="email" autocomplete="username" placeholder="you@zyma.co.za" required>
+          <div class="label-row"><label for="password">Password</label><a href="forgot-password.html" id="forgot-link">Forgot password?</a></div>
+          <div class="password-wrap"><input id="password" name="password" type="password" autocomplete="current-password" placeholder="Enter your password" required><button class="show-password" type="button" id="toggle-password" aria-label="Show password">Show</button></div>
+          <div class="auth-message" id="login-message" role="status" aria-live="polite"></div>
+          <button class="primary-btn" type="submit" id="login-submit"><span>Sign in</span><span aria-hidden="true">→</span></button>
+        </form>
+        <p class="auth-help">New to the team? Ask your Zyma Systems super admin to create your employee account.</p>
+        <div class="auth-secure"><span class="secure-dot"></span> Company workspace · Secure access</div>
+      </div>
+    </section>
+  </main>
+  <script src="login.js"></script>
+</body></html>
