@@ -16,7 +16,7 @@
     if(password.length<12){message('activation-message','Use a password with at least 12 characters.');return;}
     if(password!==confirm){message('activation-message','The passwords do not match.');return;}
     const submit=activation.querySelector('[type="submit"]');submit.disabled=true;
-    try{await api('/api/auth/accept-invitation',{method:'POST',body:JSON.stringify({token,password})});message('activation-message','Your account is activated. You can now sign in.',true);activation.reset();setTimeout(()=>location.href='index.html',900);}
+    try{await api('/api/crm/auth/activate',{method:'POST',body:JSON.stringify({token,password})});message('activation-message','Your account is activated. You can now sign in.',true);activation.reset();setTimeout(()=>location.href='index.html',900);}
     catch(error){message('activation-message',error.message||'Account activation could not be completed.');}
     finally{submit.disabled=false;}
   });
