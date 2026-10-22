@@ -2,9 +2,15 @@
   'use strict';
   const API_BASE = String(window.ZYMA_CRM_CONFIG?.apiBaseUrl || 'https://api.zyma.co.za').replace(/\/$/, '');
   const api = async (path, options = {}) => {
-    const response = await fetch(`${API_BASE}${path}`, { credentials:'include', headers:{Accept:'application/json', ...(options.body?{'Content-Type':'application/json'}:{})}, ...options });
-    if (!response.ok) { const error = new Error(response.status===404?'This account service is not connected yet.':response.status===401?'The link is invalid or has expired.':'The request could not be completed.'); error.status=response.status; throw error; }
-    return response.status===204?null:response.json();
+    const response = await fetch(`${API_BASE}${path}`, { credentials:'omit', headers:{Accept:'application/json', ...(options.body?{'Content-Type':'application/json'}:{})}, ...options });
+    const contentType = response.headers.get('content-type') || '';
+    const payload = response.status === 204 ? null : contentType.includes('application/json') ? await response.json() : await response.text();
+    if (!response.ok) {
+      const detail = payload && typeof payload === 'object' ? (payload.message || payload.title || Object.values(payload.errors || {}).flat().join(' ')) : payload;
+      const error = new Error(detail || (response.status===404?'This account service is not connected yet.':response.status===401?'The link is invalid or has expired.':`The request could not be completed (${response.status}).`));
+      error.status=response.status; throw error;
+    }
+    return payload;
   };
   const message=(id,text,success=false)=>{const el=document.getElementById(id);if(el){el.textContent=text;el.classList.toggle('success',success);}};
   document.querySelectorAll('[data-toggle-password]').forEach(button=>button.addEventListener('click',()=>{const input=document.getElementById(button.dataset.togglePassword);if(!input)return;input.type=input.type==='password'?'text':'password';button.textContent=input.type==='password'?'Show':'Hide';}));
