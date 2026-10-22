@@ -78,12 +78,20 @@
       }
 
       const claims = decodeJwtPayload(token);
-      const email = claims.email || emailInput.value.trim().toLowerCase();
+      const apiUser = result.user || {};
+
+      const email =
+        apiUser.email ||
+        claims.email ||
+        emailInput.value.trim().toLowerCase();
+
       const user = {
-        id: claims.sub || "",
+        id: apiUser.id || claims.sub || "",
         email,
-        name: claims.name || email,
-        role: normalizeRole(claims),
+        name: apiUser.name || claims.name || email,
+        role: normalizeRole(
+          apiUser.role ? { role: apiUser.role } : claims
+        ),
         status: "active"
       };
 
