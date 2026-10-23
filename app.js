@@ -971,6 +971,24 @@ function renderDashboardCharts() {
     industries.innerHTML = items.length ? items.map(item=>`<div class="chart-bar-row"><span class="chart-axis-label" title="${esc(item.name)}">${esc(item.name)}</span><div class="chart-bar-track"><div class="chart-bar" style="--bar-color:${item.color};width:${item.value/max*100}%"></div></div><strong class="chart-value">${item.value}</strong></div>`).join("") : `<p class="chart-empty">Add clients to see your portfolio mix.</p>`;
   }
 
+  // Client and contact analytics use the same in-memory records as their respective pages.
+  const renderCategoryBars = (selector, entries, emptyMessage) => {
+    const element = $(selector);
+    if (!element) return;
+    const palette = ["#f58220", "#6aa9ff", "#52c69a", "#b09aff", "#e7b65c", "#ff7b83"];
+    const items = entries.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 8);
+    const max = Math.max(1, ...items.map(([, count]) => count));
+    element.innerHTML = items.length ? items.map(([name, count], index) => `<div class="chart-bar-row"><span class="chart-axis-label" title="${esc(name)}">${esc(name)}</span><div class="chart-bar-track"><div class="chart-bar" style="--bar-color:${palette[index % palette.length]};width:${count / max * 100}%"></div></div><strong class="chart-value">${count}</strong></div>`).join("") : `<p class="chart-empty">${emptyMessage}</p>`;
+  };
+  const groupedCounts = (records, field, fallback) => Object.entries(records.reduce((acc, record) => {
+    const key = String(record[field] || "").trim() || fallback;
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {}));
+  renderCategoryBars("#chart-client-status", groupedCounts(state.clients, "status", "Unspecified"), "Add clients to view relationship statuses.");
+  renderCategoryBars("#chart-contact-types", groupedCounts(state.contacts, "relationship", "Unspecified"), "Add contacts to view relationship types.");
+  renderCategoryBars("#chart-contacts-organisations", groupedCounts(state.contacts, "organization", "Unassigned"), "Add contacts to view their organisations.");
+
   const meetingChart = $("#chart-meeting-status");
   if (meetingChart) {
     const statuses = [{name:"Scheduled",value:state.meetings.filter(m=>!['Completed','Cancelled'].includes(m.status)).length,color:"#6aa9ff"},{name:"Completed",value:state.meetings.filter(m=>m.status==='Completed').length,color:"#52c69a"},{name:"Cancelled",value:state.meetings.filter(m=>m.status==='Cancelled').length,color:"#ff7b83"}];
