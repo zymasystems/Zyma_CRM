@@ -471,3 +471,60 @@ dialog#project-plan-modal #project-plan-approve { margin-left: auto; }
   dialog#project-plan-modal .project-plan-task { padding: 10px; }
   dialog#project-plan-modal .modal-header h2 { font-size: 18px; }
 }
+
+/* Final responsive layout safeguards for the project workspace.
+   Use grid instead of flex here so the selector, progress and view tabs can
+   never compete for the same row or overflow their container. */
+.project-strip {
+  display: grid !important;
+  grid-template-columns: minmax(220px, 1.05fr) minmax(180px, 1.4fr) auto;
+  align-items: end;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
+}
+.project-strip > * { min-width: 0; max-width: 100%; }
+.project-strip .strip-field { width: 100%; min-width: 0; }
+.project-strip .control-select { width: 100%; min-width: 0; }
+.project-strip .progress-wrap { width: 100%; min-width: 0; align-self: center; }
+.project-strip .progress-wrap > div:first-child { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.project-strip #progress-label { min-width: 0; overflow-wrap: anywhere; }
+.project-strip #progress-value { flex: 0 0 auto; white-space: nowrap; }
+.project-strip .progress-track { display: block; width: 100%; min-width: 0; overflow: hidden; }
+.project-strip .progress-fill { display: block; max-width: 100%; }
+.project-strip #view-tabs { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 4px; min-width: 0; }
+.project-strip #view-tabs .filter-tab { position: static; flex: 0 0 auto; white-space: nowrap; }
+
+/* Keep the compact mobile header usable: breadcrumbs truncate, while search,
+   theme, notifications and profile controls remain in normal document flow. */
+@media (max-width: 820px) {
+  body:has(#project-workspace-view) .topbar { display: flex; flex-wrap: nowrap; align-items: center; gap: 7px; min-width: 0; padding: 0 10px; }
+  body:has(#project-workspace-view) .breadcrumbs { flex: 1 1 auto; min-width: 0; overflow: hidden; gap: 6px; }
+  body:has(#project-workspace-view) .breadcrumbs > span:first-child,
+  body:has(#project-workspace-view) .breadcrumbs .crumb-slash { flex: 0 0 auto; }
+  body:has(#project-workspace-view) .breadcrumbs strong { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  body:has(#project-workspace-view) .topbar-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 5px; min-width: 0; }
+  body:has(#project-workspace-view) .topbar-actions .theme-toggle,
+  body:has(#project-workspace-view) .topbar-actions .notification-button,
+  body:has(#project-workspace-view) .topbar-actions .profile-button { flex: 0 0 auto; }
+  body:has(#project-workspace-view) .topbar-actions .theme-toggle { display: inline-grid; width: 32px; min-width: 32px; height: 34px; }
+  body:has(#project-workspace-view) .topbar-actions .profile-button { padding: 0; }
+  body:has(#project-workspace-view) .topbar-actions .profile-button .avatar { width: 30px; height: 30px; }
+  .project-strip { grid-template-columns: minmax(0, 1fr); align-items: stretch; gap: 13px; padding: 14px; }
+  .project-strip .strip-field,
+  .project-strip .progress-wrap,
+  .project-strip #view-tabs { width: 100%; min-width: 0; }
+  .project-strip #view-tabs { justify-content: flex-start; }
+  .project-strip #view-tabs .filter-tab { flex: 0 0 auto; }
+  .project-strip .progress-wrap > div:first-child { align-items: flex-start; }
+}
+@media (max-width: 380px) {
+  body:has(#project-workspace-view) .topbar { gap: 4px; padding: 0 7px; }
+  body:has(#project-workspace-view) .breadcrumbs { gap: 4px; font-size: 10px; }
+  body:has(#project-workspace-view) .topbar-actions { gap: 2px; }
+  body:has(#project-workspace-view) .topbar-actions .theme-toggle { width: 29px; min-width: 29px; }
+  body:has(#project-workspace-view) .topbar-actions .notification-button { width: 27px; }
+  .project-strip { padding: 12px; }
+  .project-strip #view-tabs { gap: 3px; }
+  .project-strip #view-tabs .filter-tab { padding: 8px 7px; font-size: 10px; }
+}
