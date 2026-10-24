@@ -2335,9 +2335,33 @@ $$('[data-settings-nav]').forEach(link => link.addEventListener("click", event =
 populateSettings();
 
 renderAll();
+
+// Keep API-backed dashboard metrics, charts, lists and reports in sync with changes
+// made by this user or another authorised staff member. Successful CRUD handlers
+// already call renderAll(); this refresh catches changes made in other sessions.
+let apiRefreshInProgress = false;
+async function refreshApiBackedData() {
+  if (!LEADS_API_ENABLED || apiRefreshInProgress || document.visibilityState === "hidden") return;
+  apiRefreshInProgress = true;
+  try {
+    await Promise.all([loadApiLeads(), loadApiClients()]);
+    await loadApiContacts();
+    // Recompute all dashboard and report visuals from the latest shared API state.
+    renderAll();
+  } finally {
+    apiRefreshInProgress = false;
+  }
+}
+
 if (LEADS_API_ENABLED) {
-  loadApiLeads();
-  loadApiClients().then(() => loadApiContacts());
+  refreshApiBackedData();
+  // Poll while the CRM tab is visible so changes from other staff appear automatically.
+  window.setInterval(refreshApiBackedData, 60000);
+  // Refresh promptly when returning to the tab after another user/session may have changed data.
+  window.addEventListener("focus", refreshApiBackedData);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") refreshApiBackedData();
+  });
 }
 const initialView = window.location.hash.replace("#", "");
 const [hashType, hashId] = initialView.split("/");
