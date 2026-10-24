@@ -299,25 +299,43 @@ function saveContactExtras(contactId, data) {
 
 function mapApiContact(apiContact) {
   const id = String(apiContact.id || apiContact.Id);
-  const extras = readContactExtras()[id] || {};
+  const legacy = readContactExtras()[id] || {};
   const clientId = apiContact.clientId || apiContact.ClientId || apiContact.client?.id || apiContact.Client?.Id || null;
   const linkedClient = state.clients.find(client => String(client.id) === String(clientId));
   const companyName = apiContact.companyName || apiContact.CompanyName || apiContact.client?.companyName || apiContact.Client?.CompanyName || linkedClient?.name || "";
-  const isPrimary = Boolean(apiContact.isPrimary ?? apiContact.IsPrimary ?? false);
+  const field = (camel, pascal) => (apiContact[camel] ?? apiContact[pascal]) || legacy[camel] || "";
   return {
-    ...extras,
     id,
     name: apiContact.fullName || apiContact.FullName || "Unnamed contact",
     jobTitle: apiContact.jobTitle || apiContact.JobTitle || "",
     department: apiContact.department || apiContact.Department || "",
     email: apiContact.email || apiContact.Email || "",
+    alternateEmail: field("alternateEmail", "AlternateEmail"),
     phone: apiContact.phone || apiContact.Phone || "",
+    mobile: field("mobile", "Mobile"),
+    preferredContact: field("preferredContact", "PreferredContact"),
+    linkedin: apiContact.linkedin || apiContact.linkedIn || apiContact.LinkedIn || legacy.linkedin || "",
     organization: companyName,
     clientId,
-    isPrimary,
+    isPrimary: Boolean(apiContact.isPrimary ?? apiContact.IsPrimary ?? false),
+    companyRole: field("companyRole", "CompanyRole"),
+    industry: field("industry", "Industry"),
+    companyWebsite: field("companyWebsite", "CompanyWebsite"),
+    companyEmail: field("companyEmail", "CompanyEmail"),
+    companyPhone: field("companyPhone", "CompanyPhone"),
+    companySize: field("companySize", "CompanySize"),
+    registrationNumber: field("registrationNumber", "RegistrationNumber"),
+    vatNumber: field("vatNumber", "VatNumber"),
+    address: field("address", "Address"),
+    city: field("city", "City"),
+    province: field("province", "Province"),
+    postalCode: field("postalCode", "PostalCode"),
+    country: field("country", "Country") || "South Africa",
+    relationship: field("relationship", "Relationship") || (clientId ? "Client contact" : "Prospect"),
+    source: field("source", "Source"),
+    lastContactDate: field("lastContactDate", "LastContactDate"),
+    nextFollowUp: field("nextFollowUp", "NextFollowUp"),
     notes: apiContact.notes || apiContact.Notes || "",
-    relationship: extras.relationship || (clientId ? "Client contact" : "Prospect"),
-    source: extras.source || (clientId ? "Client" : "Contact"),
     linkedRecordType: clientId ? "Client" : "Contact",
     apiBacked: true
   };
@@ -328,16 +346,42 @@ function toApiContactPayload(contact) {
   const linkedClient = state.clients.find(client =>
     String(client.name || "").trim().toLowerCase() === organization.toLowerCase()
   );
+  const textOrNull = value => String(value ?? "").trim() || null;
+  const dateOrNull = value => {
+    const normalized = String(value ?? "").trim();
+    return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : null;
+  };
   return {
     clientId: linkedClient ? linkedClient.id : (contact.clientId || null),
     fullName: String(contact.name || "").trim(),
-    jobTitle: String(contact.jobTitle || "").trim() || null,
-    department: String(contact.department || "").trim() || null,
-    email: String(contact.email || "").trim() || null,
-    phone: String(contact.phone || contact.mobile || "").trim() || null,
+    jobTitle: textOrNull(contact.jobTitle),
+    department: textOrNull(contact.department),
+    email: textOrNull(contact.email),
+    alternateEmail: textOrNull(contact.alternateEmail),
+    phone: textOrNull(contact.phone),
+    mobile: textOrNull(contact.mobile),
+    preferredContact: textOrNull(contact.preferredContact),
+    linkedin: textOrNull(contact.linkedin),
     companyName: organization || linkedClient?.name || null,
     isPrimary: Boolean(contact.isPrimary),
-    notes: String(contact.notes || "").trim() || null
+    companyRole: textOrNull(contact.companyRole),
+    industry: textOrNull(contact.industry),
+    companyWebsite: textOrNull(contact.companyWebsite),
+    companyEmail: textOrNull(contact.companyEmail),
+    companyPhone: textOrNull(contact.companyPhone),
+    companySize: textOrNull(contact.companySize),
+    registrationNumber: textOrNull(contact.registrationNumber),
+    vatNumber: textOrNull(contact.vatNumber),
+    address: textOrNull(contact.address),
+    city: textOrNull(contact.city),
+    province: textOrNull(contact.province),
+    postalCode: textOrNull(contact.postalCode),
+    country: textOrNull(contact.country) || "South Africa",
+    relationship: textOrNull(contact.relationship),
+    source: textOrNull(contact.source),
+    lastContactDate: dateOrNull(contact.lastContactDate),
+    nextFollowUp: dateOrNull(contact.nextFollowUp),
+    notes: textOrNull(contact.notes)
   };
 }
 
@@ -348,6 +392,51 @@ async function loadApiContacts() {
     if (!Array.isArray(response)) throw new Error("The Contacts API returned an unexpected response.");
     state.contacts = response.map(mapApiContact);
     renderAll();
+
+    // One-time migration: move legacy extended fields from this browser into the API
+    // only where the server does not already have a value. Server values always win.
+    const legacyExtras = readContactExtras();
+    let migratedAny = false;
+    for (const apiContact of response) {
+      const id = String(apiContact.id || apiContact.Id);
+      const legacy = legacyExtras[id];
+      if (!legacy || !Object.values(legacy).some(value => value !== null && value !== undefined && String(value).trim() !== "")) continue;
+      const serverContact = state.contacts.find(item => String(item.id) === id);
+      if (!serverContact) continue;
+      const camelToApi = {
+        alternateEmail: "alternateEmail", mobile: "mobile", preferredContact: "preferredContact", linkedin: "linkedin",
+        companyRole: "companyRole", industry: "industry", companyWebsite: "companyWebsite", companyEmail: "companyEmail",
+        companyPhone: "companyPhone", companySize: "companySize", registrationNumber: "registrationNumber", vatNumber: "vatNumber",
+        address: "address", city: "city", province: "province", postalCode: "postalCode", country: "country",
+        relationship: "relationship", source: "source", lastContactDate: "lastContactDate", nextFollowUp: "nextFollowUp"
+      };
+      const hasLegacyOnlyFields = Object.entries(camelToApi).some(([key, apiKey]) =>
+        legacy[key] && !apiContact[apiKey] && !apiContact[apiKey[0].toUpperCase() + apiKey.slice(1)]
+      );
+      if (hasLegacyOnlyFields) {
+        try {
+          const migrationCandidate = { ...serverContact };
+          for (const [key, apiKey] of Object.entries(camelToApi)) {
+            const serverValue = apiContact[apiKey] ?? apiContact[apiKey[0].toUpperCase() + apiKey.slice(1)];
+            if ((!serverValue || String(serverValue).trim() === "") && legacy[key] && String(legacy[key]).trim() !== "") {
+              migrationCandidate[key] = legacy[key];
+            }
+          }
+          Object.assign(serverContact, await updateApiContact(migrationCandidate));
+          delete legacyExtras[id];
+          migratedAny = true;
+        } catch (migrationError) {
+          console.warn(`Could not migrate legacy contact fields for ${id}.`, migrationError);
+        }
+      } else {
+        delete legacyExtras[id];
+        migratedAny = true;
+      }
+    }
+    if (migratedAny) {
+      try { localStorage.setItem(CONTACT_EXTRAS_KEY, JSON.stringify(legacyExtras)); } catch {}
+      renderAll();
+    }
   } catch (error) {
     console.error("Unable to load API-backed contacts.", error);
     toast(`Could not load contacts from the API. ${error.message || "Please try again."}`);
@@ -360,7 +449,6 @@ async function createApiContact(contact) {
     body: JSON.stringify(toApiContactPayload(contact))
   });
   if (!response || !(response.id || response.Id)) throw new Error("The Contacts API did not return the saved contact.");
-  saveContactExtras(response.id || response.Id, contact);
   return mapApiContact(response);
 }
 
@@ -369,7 +457,6 @@ async function updateApiContact(contact) {
     method: "PUT",
     body: JSON.stringify(toApiContactPayload(contact))
   });
-  saveContactExtras(contact.id, contact);
   return response ? mapApiContact(response) : contact;
 }
 
@@ -1596,7 +1683,7 @@ const modalDefinitions = {
           }
           state.activities.unshift({ icon: "✎", color: "orange", text: `<strong>Existing contact updated</strong> — ${esc(data.name)} at ${esc(data.organization)}`, by: currentActorName(), time: "Just now" });
           persistState(); renderAll(); setView("contacts");
-          toast(CONTACTS_API_ENABLED ? "Contact updated in the CRM database. Extended profile fields are still browser-specific until the API schema is expanded." : "A matching contact was updated in this browser preview.");
+          toast(CONTACTS_API_ENABLED ? "Contact and extended profile saved to the CRM database." : "A matching contact was updated in this browser preview.");
           return;
         }
         const contact = CONTACTS_API_ENABLED
@@ -1605,7 +1692,7 @@ const modalDefinitions = {
         state.contacts.push(contact);
         state.activities.unshift({ icon: "＋", color: "orange", text: `<strong>Contact added</strong> — ${esc(data.name)} at ${esc(data.organization)}`, by: currentActorName(), time: "Just now" });
         persistState(); renderAll(); setView("contacts");
-        toast(CONTACTS_API_ENABLED ? "Contact saved to the CRM database. Extended profile fields are still browser-specific until the API schema is expanded." : "Contact saved in this browser preview.");
+        toast(CONTACTS_API_ENABLED ? "Contact and extended profile saved to the CRM database." : "Contact saved in this browser preview.");
       } catch (error) {
         toast(`Contact was not saved. ${error.message || "Please try again."}`);
       }
@@ -2054,7 +2141,7 @@ $("#record-form").addEventListener("submit", async event => {
       toast(type === "lead" && LEADS_API_ENABLED && record.apiBacked
         ? "Lead updated in the CRM database."
         : type === "contact" && CONTACTS_API_ENABLED && record.apiBacked
-          ? "Contact updated in the CRM database. Extended profile fields are still browser-specific until the API schema is expanded."
+          ? "Contact and extended profile saved to the CRM database."
           : "Record updated in this browser preview.");
     }
   } else definition.save(data);
