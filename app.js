@@ -1370,7 +1370,7 @@ function renderDashboardCharts() {
   const greeting = $("#dashboard-greeting");
   if (greeting) {
     const salutation = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
-    let currentUser = null; try { currentUser = JSON.parse(sessionStorage.getItem("zymaCrmAuthenticatedUser") || "null"); } catch {} const firstName = (currentUser?.name || currentUser?.email || "there").trim().split(/\s+/)[0]; greeting.innerHTML = `${salutation}, ${esc(firstName)} <span class="wave">✳</span>`;
+    let currentUser = null; try { currentUser = JSON.parse(sessionStorage.getItem("zymaCrmAuthenticatedUser") || "null"); } catch {} const identity = String(currentUser?.name || currentUser?.username || currentUser?.userName || currentUser?.email || "there").trim().split("@")[0]; const firstName = identity.split(/\s+/)[0] || "there"; greeting.innerHTML = `${salutation}, ${esc(firstName)} <span class="wave">✳</span>`;
   }
 }
 

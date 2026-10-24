@@ -6,9 +6,15 @@
   const currentKey = 'zymaCrmAuthenticatedUser';
   const labels = { super_admin: 'Super Admin', employee: 'Employee', sales: 'Sales & Client Relations', project_manager: 'Project Manager', viewer: 'Read-only' };
   const initialsFor = value => String(value || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'U';
+  const displayNameFor = user => {
+    const suppliedName = String(user?.name || '').trim();
+    if (suppliedName) return suppliedName;
+    const username = String(user?.username || user?.userName || user?.email || '').split('@')[0].trim();
+    return username || 'User';
+  };
   function hydrate(user) {
     if (!user) return;
-    const displayName = user.name || user.email || 'User';
+    const displayName = displayNameFor(user);
     const firstName = displayName.trim().split(/\s+/)[0];
     document.querySelectorAll('.sidebar-user .user-copy strong').forEach(el => { el.textContent = displayName; });
     document.querySelectorAll('.sidebar-user .user-copy small').forEach(el => { el.textContent = labels[user.role] || user.role || 'User'; });

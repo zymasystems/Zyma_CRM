@@ -1,9 +1,15 @@
 /* Populate shared profile labels from the API-authenticated browser session. */
 (() => {
   let user;
+  const displayNameFor = value => {
+    const suppliedName = String(value?.name || '').trim();
+    if (suppliedName) return suppliedName;
+    const username = String(value?.username || value?.userName || value?.email || '').split('@')[0].trim();
+    return username || 'User';
+  };
   try { user = JSON.parse(sessionStorage.getItem('zymaCrmAuthenticatedUser') || 'null'); } catch (_) { user = null; }
   if (!user) return;
-  const name = user.name || user.email || 'User';
+  const name = displayNameFor(user);
   const firstName = name.trim().split(/\s+/)[0];
   const roles = { super_admin: 'Super Admin', employee: 'Employee', sales: 'Sales & Client Relations', project_manager: 'Project Manager', viewer: 'Read-only' };
   const role = roles[user.role] || user.role || 'User';
