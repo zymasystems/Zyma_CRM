@@ -1790,13 +1790,22 @@ const modalDefinitions = {
       if (state.projects.some(project => String(project.code || "").toLowerCase() === code.toLowerCase())) { toast("That project reference is already in use. Choose a unique reference."); return; }
       const draft = { name: data.name.trim(), client: client.name, clientId: client.id, startDate: data.startDate || "", scope: data.scope || "", status: data.status || "Planning", progress: 0, due: data.due || "", manager: currentActorName(), color: "orange", code };
       try {
-        const project = CLIENTS_API_ENABLED ? await createApiProject(draft) : { id: nextId(state.projects), ...draft };
+        // Projects are operational CRM records: never silently create them in localStorage.
+        if (!window.ZymaCrmApi || !window.ZymaCrmApi.getToken()) {
+          throw new Error("You are not authenticated with the CRM API. Sign out and sign in again, then retry.");
+        }
+        const project = await createApiProject(draft);
         project.code = code;
-        state.projects.push(project);
-        client.projects = state.projects.filter(item => String(item.clientId) === String(client.id) || item.client === client.name).length;
+        const existingIndex = state.projects.findIndex(item => String(item.id) === String(project.id));
+        if (existingIndex >= 0) state.projects[existingIndex] = project;
+        else state.projects.push(project);
+        client.projects = state.projects.filter(item => String(item.clientId) === String(client.id)).length;
         state.activities.unshift({ icon: "▣", color: "blue", text: `<strong>Project created</strong> — ${esc(data.name)}`, by: currentActorName(), time: "Just now" });
-        persistState(); renderAll(); setView("projects"); toast(CLIENTS_API_ENABLED ? "Project saved to the CRM database. Next, add milestones and tasks." : "Project created in this browser preview.");
-      } catch (error) { toast(`Project was not saved. ${error.message || "Please try again."}`); }
+        persistState(); renderAll(); setView("projects"); toast("Project saved to the CRM database.");
+      } catch (error) {
+        console.error("Project creation failed:", error);
+        toast(`Project was not saved to the database. ${error.message || "Please try again."}`);
+      }
     }
   },
   "new-task": {
@@ -2158,13 +2167,17 @@ $("#record-form").addEventListener("submit", async event => {
     if (record) {
       const previousName = record.name;
       const changes = Object.fromEntries(Object.entries(data).filter(([field, value]) => field in record && value !== ""));
-      if (type === "project" && CLIENTS_API_ENABLED && record.apiBacked) {
+      if (type === "project") {
+        if (!window.ZymaCrmApi || !window.ZymaCrmApi.getToken() || !record.apiBacked) {
+          toast("This project is not linked to a database record. Reload projects from the API and try again.");
+          return;
+        }
         const candidate = { ...record, ...changes };
         try {
           const updated = await updateApiProject(candidate);
           Object.assign(record, updated, { code: record.code, manager: record.manager, color: record.color });
-        } catch (error) { toast(`Project was not updated. ${error.message || "Please try again."}`); return; }
-      } else if (type === "lead" && LEADS_API_ENABLED && record.apiBacked) {
+        } catch (error) { toast(`Project was not updated in the database. ${error.message || "Please try again."}`); return; }
+      } else if (type === "lead"  && LEADS_API_ENABLED && record.apiBacked) {
         const candidate = { ...record, ...changes };
         try {
           await updateApiLead(candidate);
