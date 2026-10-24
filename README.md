@@ -20,7 +20,7 @@ A relationship moves along one path. A **lead** is qualified through two client 
 
 The app is plain HTML, CSS and JavaScript with no build step. It is published as static files on GitHub Pages at `crm.zyma.co.za`.
 
-> **Current status:** staff sign-in and leads run against the live API. Clients are wired to the API in the frontend. Contacts, projects, tasks, milestones, meetings, communications and settings are still stored in the browser. See [Integration status](#integration-status) for the exact breakdown.
+> **Current status:** staff sign-in, leads, clients and core contact records use the live API. Contacts support listing, creating, editing and deleting through authenticated `/contacts` routes. Extended contact profile fields not present in the current backend model remain browser-specific. Projects, tasks, milestones, meetings, communications and settings are still stored in the browser. See [Integration status](#integration-status) for the exact breakdown.
 
 ## What's inside
 
@@ -134,7 +134,8 @@ flowchart LR
 | Employee directory and invitations | Wired in the frontend (`/api/crm/admin/employees`); backend not yet confirmed |
 | Password recovery, reset and account activation | Wired in the frontend; need backend routes and email delivery |
 | Client invitations | Wired in the frontend (`POST /api/invitations`); needs the API and email service |
-| Contacts, projects, tasks, milestones, meetings, communications, settings | Browser-local only |
+| Contacts: list, create, edit, delete | API-backed for name, job title, department, email, phone, organization, primary-contact flag and notes; extended profile metadata remains browser-local pending backend schema expansion |
+| Projects, tasks, milestones, meetings, communications, settings | Browser-local only |
 
 When the API is not reachable or the user is not signed in, leads and clients fall back to browser-local preview data. Browser storage is not shared between users or devices and is not secure enough for production client data.
 

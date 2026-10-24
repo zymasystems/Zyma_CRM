@@ -88,6 +88,7 @@ if (savedWorkspace) {
   }
 }
 const CONTACTS_STORAGE_KEY = "zyma-crm-contacts-v1";
+const CONTACT_EXTRAS_KEY = "zyma-crm-contact-extras-v1";
 try {
   const savedContacts = JSON.parse(localStorage.getItem(CONTACTS_STORAGE_KEY) || "null");
   if (Array.isArray(savedContacts)) state.contacts = savedContacts;
@@ -106,10 +107,10 @@ function currentActorName() {
   catch { return "Workspace user"; }
 }
 
-// Leads and clients are API-backed when the authenticated CRM session is available.
-// Contacts remain browser-local until a contacts endpoint is implemented.
+// Leads, clients, and contacts use the authenticated API when a CRM session is available.
 const LEADS_API_ENABLED = Boolean(window.ZymaCrmApi && window.ZymaCrmApi.getToken());
 const CLIENTS_API_ENABLED = LEADS_API_ENABLED;
+const CONTACTS_API_ENABLED = LEADS_API_ENABLED;
 const LEAD_EXTRAS_KEY = "zyma-crm-lead-extras-v1";
 const API_LEAD_FIELDS = new Set([
   "id", "company", "contact", "email", "phone", "industry", "service",
@@ -259,6 +260,126 @@ async function loadApiClients() {
   }
 }
 
+function readContactExtras() {
+  try {
+    const value = JSON.parse(localStorage.getItem(CONTACT_EXTRAS_KEY) || "{}");
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  } catch { return {}; }
+}
+
+function saveContactExtras(contactId, data) {
+  if (contactId == null || contactId === "") return;
+  const extras = readContactExtras();
+  extras[String(contactId)] = {
+    alternateEmail: data.alternateEmail || "",
+    mobile: data.mobile || "",
+    preferredContact: data.preferredContact || "",
+    linkedin: data.linkedin || "",
+    companyRole: data.companyRole || "",
+    industry: data.industry || "",
+    companyWebsite: data.companyWebsite || "",
+    companyEmail: data.companyEmail || "",
+    companyPhone: data.companyPhone || "",
+    companySize: data.companySize || "",
+    registrationNumber: data.registrationNumber || "",
+    vatNumber: data.vatNumber || "",
+    address: data.address || "",
+    city: data.city || "",
+    province: data.province || "",
+    postalCode: data.postalCode || "",
+    country: data.country || "South Africa",
+    relationship: data.relationship || "Client contact",
+    source: data.source || "",
+    lastContactDate: data.lastContactDate || "",
+    nextFollowUp: data.nextFollowUp || ""
+  };
+  try { localStorage.setItem(CONTACT_EXTRAS_KEY, JSON.stringify(extras)); }
+  catch { toast("Some extended contact details could not be saved in this browser."); }
+}
+
+function mapApiContact(apiContact) {
+  const id = String(apiContact.id || apiContact.Id);
+  const extras = readContactExtras()[id] || {};
+  const clientId = apiContact.clientId || apiContact.ClientId || apiContact.client?.id || apiContact.Client?.Id || null;
+  const linkedClient = state.clients.find(client => String(client.id) === String(clientId));
+  const companyName = apiContact.companyName || apiContact.CompanyName || apiContact.client?.companyName || apiContact.Client?.CompanyName || linkedClient?.name || "";
+  const isPrimary = Boolean(apiContact.isPrimary ?? apiContact.IsPrimary ?? false);
+  return {
+    ...extras,
+    id,
+    name: apiContact.fullName || apiContact.FullName || "Unnamed contact",
+    jobTitle: apiContact.jobTitle || apiContact.JobTitle || "",
+    department: apiContact.department || apiContact.Department || "",
+    email: apiContact.email || apiContact.Email || "",
+    phone: apiContact.phone || apiContact.Phone || "",
+    organization: companyName,
+    clientId,
+    isPrimary,
+    notes: apiContact.notes || apiContact.Notes || "",
+    relationship: extras.relationship || (clientId ? "Client contact" : "Prospect"),
+    source: extras.source || (clientId ? "Client" : "Contact"),
+    linkedRecordType: clientId ? "Client" : "Contact",
+    apiBacked: true
+  };
+}
+
+function toApiContactPayload(contact) {
+  const organization = String(contact.organization || "").trim();
+  const linkedClient = state.clients.find(client =>
+    String(client.name || "").trim().toLowerCase() === organization.toLowerCase()
+  );
+  return {
+    clientId: linkedClient ? linkedClient.id : (contact.clientId || null),
+    fullName: String(contact.name || "").trim(),
+    jobTitle: String(contact.jobTitle || "").trim() || null,
+    department: String(contact.department || "").trim() || null,
+    email: String(contact.email || "").trim() || null,
+    phone: String(contact.phone || contact.mobile || "").trim() || null,
+    companyName: organization || linkedClient?.name || null,
+    isPrimary: Boolean(contact.isPrimary),
+    notes: String(contact.notes || "").trim() || null
+  };
+}
+
+async function loadApiContacts() {
+  if (!CONTACTS_API_ENABLED) return;
+  try {
+    const response = await window.ZymaCrmApi.request("/contacts");
+    if (!Array.isArray(response)) throw new Error("The Contacts API returned an unexpected response.");
+    state.contacts = response.map(mapApiContact);
+    renderAll();
+  } catch (error) {
+    console.error("Unable to load API-backed contacts.", error);
+    toast(`Could not load contacts from the API. ${error.message || "Please try again."}`);
+  }
+}
+
+async function createApiContact(contact) {
+  const response = await window.ZymaCrmApi.request("/contacts", {
+    method: "POST",
+    body: JSON.stringify(toApiContactPayload(contact))
+  });
+  if (!response || !(response.id || response.Id)) throw new Error("The Contacts API did not return the saved contact.");
+  saveContactExtras(response.id || response.Id, contact);
+  return mapApiContact(response);
+}
+
+async function updateApiContact(contact) {
+  const response = await window.ZymaCrmApi.request(`/contacts/${encodeURIComponent(contact.id)}`, {
+    method: "PUT",
+    body: JSON.stringify(toApiContactPayload(contact))
+  });
+  saveContactExtras(contact.id, contact);
+  return response ? mapApiContact(response) : contact;
+}
+
+async function deleteApiContact(contact) {
+  await window.ZymaCrmApi.request(`/contacts/${encodeURIComponent(contact.id)}`, { method: "DELETE" });
+  const extras = readContactExtras();
+  delete extras[String(contact.id)];
+  try { localStorage.setItem(CONTACT_EXTRAS_KEY, JSON.stringify(extras)); } catch {}
+}
+
 async function convertApiLeadToClient(lead) {
   const response = await window.ZymaCrmApi.request(`/leads/${encodeURIComponent(lead.id)}/convert`, {
     method: "POST",
@@ -293,7 +414,7 @@ function calculatedProjectProgress(project) {
 }
 function recordActionButtons(type, id) {
   const record = type === "contact" ? state.contacts.find(item => String(item.id) === String(id)) : null;
-  const relationshipManaged = Boolean(record && (record.sourceLeadId || record.sourceClientId));
+  const relationshipManaged = Boolean(record && !record.apiBacked && (record.sourceLeadId || record.sourceClientId));
   return `<span class="record-actions"><button type="button" class="row-action-button" data-edit-record="${esc(type)}" data-record-id="${esc(id)}">Edit</button>${relationshipManaged ? "" : `<button type="button" class="row-action-button danger" data-delete-record="${esc(type)}" data-record-id="${esc(id)}">Delete</button>`}</span>`;
 }
 
@@ -617,6 +738,15 @@ function renderClients() {
 // appear here, without creating a second record when a lead converts to a client.
 function syncRelationshipContacts() {
   const contacts = Array.isArray(state.contacts) ? state.contacts : (state.contacts = []);
+  if (CONTACTS_API_ENABLED) {
+    contacts.forEach(contact => {
+      const org = String(contact.organization || "").trim().toLowerCase();
+      const related = (state.projects || []).filter(project => String(project.client || "").trim().toLowerCase() === org);
+      contact.linkedProjectCount = related.length;
+      contact.projectNames = related.map(project => project.name).filter(Boolean);
+    });
+    return;
+  }
   const normalise = value => String(value || "").trim().toLowerCase();
   const upsertLinkedContact = (source, kind) => {
     const organization = kind === "lead" ? (source.company || "") : (source.name || "");
@@ -1421,6 +1551,7 @@ const modalDefinitions = {
       { name: "linkedin", label: "LinkedIn profile", type: "url", full: true, placeholder: "https://www.linkedin.com/in/..." },
       { type: "section", label: "Company information", description: "Record the organization this person represents." },
       { name: "organization", label: "Company / organization name", required: true, full: true, placeholder: "Registered or trading name" },
+      { name: "isPrimary", label: "Primary contact for this client?", type: "select", options: [{value:"false",label:"No"},{value:"true",label:"Yes — primary contact"}] },
       { name: "companyRole", label: "Relationship to company", type: "select", options: [{value:"Employee",label:"Employee"},{value:"Owner / Founder",label:"Owner / Founder"},{value:"Director / Executive",label:"Director / Executive"},{value:"Contractor / Consultant",label:"Contractor / Consultant"},{value:"Other",label:"Other"}] },
       { name: "industry", label: "Industry", placeholder: "e.g. Logistics, Energy, Non-profit" },
       { name: "companyWebsite", label: "Company website", type: "url", placeholder: "https://company.co.za" },
@@ -1441,23 +1572,43 @@ const modalDefinitions = {
       { name: "nextFollowUp", label: "Next follow-up date", type: "date" },
       { name: "notes", label: "Notes", type: "textarea", full: true, placeholder: "Communication preferences, responsibilities, interests, requirements or follow-up context..." }
     ],
-    save(data) {
+    async save(data) {
       const normalise = value => String(value || "").trim().toLowerCase();
       const email = normalise(data.email);
       const organization = normalise(data.organization);
-      const duplicate = state.contacts.find(item =>
-        email && normalise(item.email || item.workEmail) === email &&
-        normalise(item.organization) === organization);
-      if (duplicate) {
-        Object.assign(duplicate, data, { phone: data.phone || data.mobile || duplicate.phone || "", relationship: data.relationship || duplicate.relationship || "Client contact" });
-        state.activities.unshift({ icon: "✎", color: "orange", text: `<strong>Existing contact updated</strong> — ${esc(data.name)} at ${esc(data.organization)}`, by: currentActorName(), time: "Just now" });
-        persistState(); renderAll(); setView("contacts"); toast("A contact with this email and organization already exists. Its details were updated.");
-        return;
+      const duplicate = state.contacts.find(item => email && normalise(item.email) === email && normalise(item.organization) === organization);
+      const contactDraft = {
+        ...data,
+        phone: data.phone || data.mobile || "",
+        isPrimary: data.isPrimary === "true" || data.isPrimary === true,
+        relationship: data.relationship || "Client contact",
+        country: data.country || "South Africa"
+      };
+      try {
+        if (duplicate) {
+          Object.assign(contactDraft, { id: duplicate.id, apiBacked: duplicate.apiBacked, clientId: duplicate.clientId });
+          if (CONTACTS_API_ENABLED && duplicate.apiBacked) {
+            Object.assign(duplicate, await updateApiContact({ ...duplicate, ...contactDraft }));
+          } else if (CONTACTS_API_ENABLED) {
+            Object.assign(duplicate, await createApiContact(contactDraft));
+          } else {
+            Object.assign(duplicate, contactDraft);
+          }
+          state.activities.unshift({ icon: "✎", color: "orange", text: `<strong>Existing contact updated</strong> — ${esc(data.name)} at ${esc(data.organization)}`, by: currentActorName(), time: "Just now" });
+          persistState(); renderAll(); setView("contacts");
+          toast(CONTACTS_API_ENABLED ? "Contact updated in the CRM database. Extended profile fields are still browser-specific until the API schema is expanded." : "A matching contact was updated in this browser preview.");
+          return;
+        }
+        const contact = CONTACTS_API_ENABLED
+          ? await createApiContact(contactDraft)
+          : { id: nextId(state.contacts), ...contactDraft };
+        state.contacts.push(contact);
+        state.activities.unshift({ icon: "＋", color: "orange", text: `<strong>Contact added</strong> — ${esc(data.name)} at ${esc(data.organization)}`, by: currentActorName(), time: "Just now" });
+        persistState(); renderAll(); setView("contacts");
+        toast(CONTACTS_API_ENABLED ? "Contact saved to the CRM database. Extended profile fields are still browser-specific until the API schema is expanded." : "Contact saved in this browser preview.");
+      } catch (error) {
+        toast(`Contact was not saved. ${error.message || "Please try again."}`);
       }
-      const contact = { id: nextId(state.contacts), ...data, phone: data.phone || data.mobile || "", relationship: data.relationship || "Client contact" };
-      state.contacts.push(contact);
-      state.activities.unshift({ icon: "＋", color: "orange", text: `<strong>Contact added</strong> — ${esc(data.name)} at ${esc(data.organization)}`, by: currentActorName(), time: "Just now" });
-      persistState(); renderAll(); setView("contacts"); toast("Contact saved.");
     }
   },
   "new-communication": {
@@ -1698,6 +1849,7 @@ document.addEventListener("click", async event => {
         state.clients.unshift(client);
         // The API conversion is authoritative; reload to reconcile any existing linked client.
         await loadApiClients();
+        await loadApiContacts();
       } else {
         const existing = state.clients.find(item => String(item.name).toLowerCase() === String(lead.company).toLowerCase());
         if (existing) {
@@ -1792,12 +1944,13 @@ document.addEventListener("click", async event => {
     if (!window.confirm(`Delete ${label}? This cannot be undone.`)) return;
     try {
       if (type === "lead" && LEADS_API_ENABLED && record.apiBacked) await deleteApiLead(record);
+      if (type === "contact" && CONTACTS_API_ENABLED && record.apiBacked) await deleteApiContact(record);
       collection.splice(index, 1);
       if (type === "lead" && record.apiBacked) removeLeadExtras(record.id);
       if (type === "client") state.contacts = state.contacts.filter(item => item.organization !== record.name);
       persistState(); renderAll();
-      toast(type === "lead" && LEADS_API_ENABLED && record.apiBacked
-        ? "Lead deleted from the CRM database."
+      toast((type === "lead" && LEADS_API_ENABLED && record.apiBacked) || (type === "contact" && CONTACTS_API_ENABLED && record.apiBacked)
+        ? "Record deleted from the CRM database."
         : "Record deleted from this browser preview.");
     } catch (error) {
       toast(`Could not delete the record. ${error.message || "Please try again."}`);
@@ -1872,6 +2025,22 @@ $("#record-form").addEventListener("submit", async event => {
           toast(`Lead was not updated. ${error.message || "Please try again."}`);
           return;
         }
+      } else if (type === "contact" && CONTACTS_API_ENABLED && record.apiBacked) {
+        const candidate = { ...record, ...changes, isPrimary: changes.isPrimary === "true" || changes.isPrimary === true };
+        try {
+          Object.assign(record, await updateApiContact(candidate));
+        } catch (error) {
+          toast(`Contact was not updated. ${error.message || "Please try again."}`);
+          return;
+        }
+      } else if (type === "contact" && CONTACTS_API_ENABLED) {
+        try {
+          const created = await createApiContact({ ...record, ...changes, isPrimary: changes.isPrimary === "true" || changes.isPrimary === true });
+          Object.assign(record, created);
+        } catch (error) {
+          toast(`Contact was not saved to the database. ${error.message || "Please try again."}`);
+          return;
+        }
       } else {
         Object.assign(record, changes);
       }
@@ -1884,7 +2053,9 @@ $("#record-form").addEventListener("submit", async event => {
       persistState(); renderAll();
       toast(type === "lead" && LEADS_API_ENABLED && record.apiBacked
         ? "Lead updated in the CRM database."
-        : "Record updated in this browser preview.");
+        : type === "contact" && CONTACTS_API_ENABLED && record.apiBacked
+          ? "Contact updated in the CRM database. Extended profile fields are still browser-specific until the API schema is expanded."
+          : "Record updated in this browser preview.");
     }
   } else definition.save(data);
   closeModal();
@@ -2079,7 +2250,7 @@ populateSettings();
 renderAll();
 if (LEADS_API_ENABLED) {
   loadApiLeads();
-  loadApiClients();
+  loadApiClients().then(() => loadApiContacts());
 }
 const initialView = window.location.hash.replace("#", "");
 const [hashType, hashId] = initialView.split("/");
