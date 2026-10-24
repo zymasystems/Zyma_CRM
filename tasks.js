@@ -92,6 +92,66 @@ function normalizeCrm(crm) {
   return { hasCrm: !!crm, projects, tasks, milestones, leads: arr("leads"), meetings: arr("meetings") };
 }
 const loadState = () => normalizeCrm(readCrm());
+let apiMode = false;
+let apiLoadError = "";
+
+const fromApiStatus = value => ({
+  "To Do": "To do", "In Progress": "In progress", "In Review": "In review",
+  "Completed": "Done", "Blocked": "In review"
+})[value] || (STATUSES.includes(value) ? value : "To do");
+const toApiStatus = value => ({
+  "To do": "To Do", "In progress": "In Progress", "In review": "In Review", "Done": "Completed"
+})[value] || "To Do";
+const fromApiMilestoneStatus = value => ({
+  "Pending": "Planned", "In Progress": "In progress", "Completed": "Completed",
+  "Delayed": "Blocked", "Cancelled": "Blocked"
+})[value] || "Planned";
+const toApiMilestoneStatus = value => ({
+  "Planned": "Pending", "In progress": "In Progress", "Completed": "Completed", "Blocked": "Delayed"
+})[value] || "Pending";
+const apiDate = value => {
+  if (!value) return null;
+  const d = isIso(value) ? `${value}T00:00:00Z` : value;
+  return d;
+};
+function mapApiState(projects, tasks, milestones) {
+  const mappedProjects = projects.map(p => ({
+    id: String(p.id), sourceId: p.id, name: p.name || "Untitled project",
+    code: "", clientName: p.clientName || "", status: p.status || "Planning",
+    progress: 0, due: normalizeDate(p.targetEndDateUtc), manager: p.clientName || ""
+  }));
+  const mappedTasks = tasks.map(t => ({
+    id: String(t.id), sourceId: t.id, projectId: String(t.projectId), projectLabel: "",
+    milestoneId: "", title: t.title || "Untitled task", description: t.description || "",
+    assignee: t.assignedToName || "", priority: t.priority || "Medium",
+    status: fromApiStatus(t.status), due: normalizeDate(t.dueDateUtc),
+    sourceRecord: t
+  }));
+  const mappedMilestones = milestones.map(m => ({
+    id: String(m.id), sourceId: m.id, projectId: String(m.projectId),
+    title: m.title || "Untitled milestone", description: m.description || "",
+    status: fromApiMilestoneStatus(m.status), due: normalizeDate(m.targetDateUtc),
+    isApprovedForClientView: !!m.isApprovedForClientView, sourceRecord: m
+  }));
+  return { hasCrm: true, projects: mappedProjects, tasks: mappedTasks,
+    milestones: mappedMilestones, leads: [], meetings: [] };
+}
+async function loadApiState() {
+  if (!window.ZymaCrmApi || !window.ZymaCrmApi.getToken()) return false;
+  const api = window.ZymaCrmApi;
+  try {
+    const [projects, tasks, milestones] = await Promise.all([
+      api.request("/projects"), api.request("/tasks"), api.request("/milestones")
+    ]);
+    state = mapApiState(projects || [], tasks || [], milestones || []);
+    apiMode = true;
+    apiLoadError = "";
+    return true;
+  } catch (error) {
+    apiLoadError = error?.message || "Could not load project data from the API.";
+    return false;
+  }
+}
 
 let state = loadState();
 let tab = "board", statusFilter = "all", priorityFilter = "all", query = "";
@@ -155,7 +215,7 @@ function renderProjectCards() {
     const pct = tasks.length ? Math.round(done / tasks.length * 100) : 0;
     const stateClass = ({ "In progress": "status-progress", Planning: "status-planning", Completed: "status-done", "On hold": "status-hold" })[p.status] || "status-planning";
     return `<article class="project-choice">
-      <div class="project-choice-top"><div class="project-choice-id"><span class="company-mark">${esc(initials(p.name))}</span><div><h2>${esc(p.name)}</h2><div class="project-choice-client">${esc(p.manager ? "Manager: " + p.manager : "No manager set")} · Target ${esc(p.due || "not set")}</div></div></div><span class="project-code">${esc(p.code || "PROJECT")}</span></div>
+      <div class="project-choice-top"><div class="project-choice-id"><span class="company-mark">${esc(initials(p.name))}</span><div><h2>${esc(p.name)}</h2><div class="project-choice-client">${esc(p.clientName ? "Client: " + p.clientName : (p.manager ? "Manager: " + p.manager : "No client linked"))} · Target ${esc(p.due || "not set")}</div></div></div><span class="project-code">${esc(p.code || "PROJECT")}</span></div>
       <div><span class="status-pill ${stateClass}">${esc(p.status)}</span></div>
       <div class="project-choice-stats">
         <div class="project-choice-stat"><b>${pad(tasks.length - done)}</b><span>Open tasks</span></div>
@@ -176,9 +236,12 @@ function renderProjectCards() {
 function renderDataNote() {
   const unlinkedTasks = state.tasks.filter(t => !t.projectId);
   const notes = [];
-  if (unlinkedTasks.length) notes.push(`${plural(unlinkedTasks.length, "task")} ${unlinkedTasks.length === 1 ? "isn't" : "aren't"} linked to a project (project name doesn't match: ${unlinkedTasks.map(t => `“${t.projectLabel || "none"}”`).join(", ")}).`);
-  $("#data-note").innerHTML = notes.length ? `<span>ⓘ</span> ${esc(notes.join(" "))}` : "";
-  $("#data-note").classList.toggle("hidden", !notes.length);
+  if (apiMode) notes.push("Connected to the live CRM API. Project, task and milestone changes are saved to the shared database.");
+  else if (apiLoadError) notes.push(`Live API data could not be loaded: ${apiLoadError}. Showing browser preview data instead.`);
+  else notes.push("Showing browser-local preview data. Sign in to load shared project records.");
+  if (unlinkedTasks.length) notes.push(`${plural(unlinkedTasks.length, "task")} ${unlinkedTasks.length === 1 ? "isn't" : "aren't"} linked to a project.`);
+  $("#data-note").innerHTML = `<span>ⓘ</span> ${esc(notes.join(" "))}`;
+  $("#data-note").classList.remove("hidden");
 }
 
 /* =========================================================
@@ -310,7 +373,54 @@ function renderMilestones() {
 }
 
 /* ---------- saving back into the shared CRM records ---------- */
-function save(message) {
+async function save(message, change = null) {
+  if (apiMode && change) {
+    const api = window.ZymaCrmApi;
+    try {
+      const { kind, action, record, id } = change;
+      const base = kind === "task" ? "/tasks" : "/milestones";
+      if (action === "delete") {
+        await api.request(`${base}/${encodeURIComponent(id)}`, { method: "DELETE" });
+      } else if (kind === "task") {
+        const body = {
+          projectId: record.projectId,
+          title: record.title,
+          description: record.description || null,
+          status: toApiStatus(record.status),
+          priority: record.priority || "Medium",
+          assignedToUserId: record.sourceRecord?.assignedToUserId || null,
+          dueDateUtc: apiDate(record.due)
+        };
+        await api.request(action === "create" ? base : `${base}/${encodeURIComponent(record.id)}`, {
+          method: action === "create" ? "POST" : "PUT",
+          body: JSON.stringify(body)
+        });
+      } else {
+        const body = {
+          projectId: record.projectId,
+          title: record.title,
+          description: record.description || null,
+          status: toApiMilestoneStatus(record.status),
+          targetDateUtc: apiDate(record.due)
+        };
+        await api.request(action === "create" ? base : `${base}/${encodeURIComponent(record.id)}`, {
+          method: action === "create" ? "POST" : "PUT",
+          body: JSON.stringify(body)
+        });
+      }
+      const loaded = await loadApiState();
+      if (!loaded) throw new Error(apiLoadError || "Could not refresh records from the API.");
+      renderWorkspace();
+      renderPicker();
+      if (message) toast(message);
+    } catch (error) {
+      const loaded = await loadApiState();
+      if (loaded) { renderWorkspace(); renderPicker(); }
+      toast(error?.message || "The change could not be saved to the CRM API.");
+    }
+    return;
+  }
+
   const crm = readCrm();
   if (!crm) { toast("No saved CRM data found for this browser. Open the main CRM on this same address first."); return; }
   const oldTasks = Array.isArray(crm.tasks) ? crm.tasks : [];
@@ -394,12 +504,12 @@ function detail(id) {
   $("#detail-save").onclick = () => {
     t.status = $("#detail-status").value; t.assignee = $("#detail-assignee").value.trim();
     t.due = $("#detail-due").value; t.milestoneId = $("#detail-milestone").value;
-    closeDialog(d); save("Task updated");
+    closeDialog(d); save("Task updated", { kind: "task", action: "update", record: t });
   };
   $("#detail-delete").onclick = () => {
     if (!confirm("Delete this task?")) return;
     state.tasks = state.tasks.filter(x => String(x.id) !== String(id));
-    closeDialog(d); save("Task deleted");
+    closeDialog(d); save("Task deleted", { kind: "task", action: "delete", id });
   };
 }
 
@@ -419,7 +529,7 @@ $("#task-form").addEventListener("submit", e => {
     state.tasks = state.tasks.map(x => String(x.id) === String(id) ? t : x);
   } else state.tasks.unshift(t);
   closeDialog($("#task-modal"));
-  save(id ? "Task updated" : "Task created");
+  save(id ? "Task updated" : "Task created", { kind: "task", action: id ? "update" : "create", record: t });
 });
 $("#milestone-form").addEventListener("submit", e => {
   e.preventDefault();
@@ -430,7 +540,7 @@ $("#milestone-form").addEventListener("submit", e => {
   };
   state.milestones = id ? state.milestones.map(x => x.id === id ? m : x) : [m, ...state.milestones];
   closeDialog($("#milestone-modal"));
-  save(id ? "Milestone updated" : "Milestone created");
+  save(id ? "Milestone updated" : "Milestone created", { kind: "milestone", action: id ? "update" : "create", record: m });
 });
 $$("[data-close]").forEach(b => b.addEventListener("click", () => closeDialog($(`#${b.dataset.close}`))));
 $$("dialog.modal").forEach(dlg => dlg.addEventListener("click", e => { if (e.target === dlg) closeDialog(dlg); }));
@@ -486,7 +596,7 @@ $("#board").addEventListener("drop", e => {
   if (!col) return;
   e.preventDefault();
   const t = state.tasks.find(x => String(x.id) === e.dataTransfer.getData("text/plain"));
-  if (t && t.status !== col.dataset.column) { t.status = col.dataset.column; save(`Task moved to ${t.status}`); }
+  if (t && t.status !== col.dataset.column) { t.status = col.dataset.column; save(`Task moved to ${t.status}`, { kind: "task", action: "update", record: t }); }
   else renderBoard();
 });
 $("#list").addEventListener("click", e => {
@@ -501,7 +611,7 @@ $("#milestones").addEventListener("click", e => {
     const id = del.dataset.delMs;
     state.milestones = state.milestones.filter(m => m.id !== id);
     state.tasks.forEach(t => { if (t.milestoneId === id) t.milestoneId = ""; });
-    save("Milestone deleted");
+    save("Milestone deleted", { kind: "milestone", action: "delete", id });
   }
 });
 
@@ -530,15 +640,19 @@ document.addEventListener("keydown", e => {
 });
 
 /* ---------- keep in sync with the main CRM ---------- */
-function refresh() {
-  state = loadState();
+async function refresh() {
+  const loaded = await loadApiState();
+  if (!loaded) state = loadState();
   if (projectFilter !== "all" && !project(projectFilter)) { closeProject(); return; }
   if (inWorkspace()) renderWorkspace(); else renderPicker();
 }
-window.addEventListener("pageshow", refresh);
-window.addEventListener("storage", e => { if (e.key === CRM_KEY || e.key === MILESTONE_KEY) refresh(); });
+window.addEventListener("pageshow", () => { void refresh(); });
+window.addEventListener("storage", e => {
+  if (!apiMode && (e.key === CRM_KEY || e.key === MILESTONE_KEY)) refresh();
+});
 
 renderPicker();
+void refresh();
 // Deep-link into a specific project from the CRM project detail view.
 try {
   const requestedProject = new URLSearchParams(window.location.search).get("project");

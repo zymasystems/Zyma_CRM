@@ -71,3 +71,19 @@ After login, all roles should land on `workspace.html`. Return the authenticated
 ### Current development preview
 The frontend currently supports a clearly labelled browser-only demo account: `admin@zyma.co.za` / `Luck`. This is solely for UI review before backend implementation. Do not treat localStorage as a security boundary or deploy demo authentication to production.
 \n\n## Additional workflow endpoints\n\n- `POST /api/auth/accept-invitation` for employee account activation from `activate-account.html`.\n- `POST /api/auth/reset-password` for token-based password reset from `reset-password.html`.\n- `POST /api/invitations` to invite a client contact linked to a CRM client organization. The API must derive the organization association from an authorized staff action.\n- `POST /api/invitations/accept` for client account activation from the Client Portal. The invitation token, not a company name submitted by the browser, determines the organization.\n- `GET /api/portal/projects/{id}/milestones` for client-visible milestones.\n- `GET/POST /api/support/tickets` and `GET/PATCH /api/support/tickets/{id}` for client ticket creation and status updates.\n\nAll routes above are planned integration contracts and are not implemented in this frontend repository.\n
+
+## Project delivery API integration update — 24 October 2026
+
+The Tasks & Milestones page (`tasks.html` / `tasks.js`) now uses `crm-api.js` when an authenticated CRM session is present:
+
+- Loads projects from `GET /projects`, tasks from `GET /tasks`, and milestones from `GET /milestones`.
+- Creates and updates tasks through `POST /tasks` and `PUT /tasks/{id}`; deletes through `DELETE /tasks/{id}`.
+- Creates and updates milestones through `POST /milestones` and `PUT /milestones/{id}`; deletes through `DELETE /milestones/{id}`.
+- Maps the page's Kanban statuses to the API's supported task statuses, and maps milestone statuses to the API's supported milestone statuses.
+- Shows an explicit message when API loading fails and browser-preview data is being shown.
+
+Important remaining integration work:
+- The main workspace's project create/edit flow still needs to be connected to `POST/PUT /projects`. Until then, projects must already exist in the backend database for tasks and milestones to be saved successfully.
+- Task assignee selection is still a free-text UI field, while the API requires an optional staff-user GUID. This page preserves existing API assignments but does not create new assignments from free text.
+- Staff-role authorization and client-specific portal authorization must be implemented and tested server-side before exposing these resources to client users.
+- Browser testing on `https://crm.zyma.co.za` is still required after deployment.
