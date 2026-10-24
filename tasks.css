@@ -471,3 +471,127 @@ dialog#project-plan-modal #project-plan-approve { margin-left: auto; }
   dialog#project-plan-modal .project-plan-task { padding: 10px; }
   dialog#project-plan-modal .modal-header h2 { font-size: 18px; }
 }
+
+
+/* Final project workspace layout correction.
+   Use grid for the selector, progress summary, and view controls so these
+   three regions cannot shrink into one another on narrow screens. */
+#project-workspace-view .project-strip {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.95fr) minmax(200px, 1.35fr) auto;
+  align-items: end;
+  gap: 16px;
+  min-width: 0;
+}
+#project-workspace-view .project-strip > * {
+  min-width: 0;
+  max-width: 100%;
+}
+#project-workspace-view .project-strip .strip-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  width: auto;
+  min-width: 0;
+  flex: initial;
+  gap: 7px;
+}
+#project-workspace-view .project-strip .control-select {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+#project-workspace-view .project-strip .progress-wrap {
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
+  flex: initial;
+}
+#project-workspace-view .project-strip .progress-wrap > div:first-child {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+#project-workspace-view #progress-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+#project-workspace-view #progress-value {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+#project-workspace-view .project-strip .progress-track {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+#project-workspace-view .project-strip .progress-fill {
+  max-width: 100%;
+}
+#project-workspace-view .project-strip #view-tabs {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
+}
+#project-workspace-view .project-strip #view-tabs .filter-tab {
+  min-width: 0;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  #project-workspace-view .project-strip {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+    gap: 14px;
+  }
+  #project-workspace-view .project-strip .strip-field {
+    grid-column: 1 / -1;
+  }
+  #project-workspace-view .project-strip .progress-wrap {
+    grid-column: 1;
+    align-self: center;
+  }
+  #project-workspace-view .project-strip #view-tabs {
+    grid-column: 2;
+    justify-content: flex-end;
+    align-self: center;
+  }
+}
+@media (max-width: 600px) {
+  #project-workspace-view .project-strip {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 13px;
+    padding: 13px;
+    align-items: stretch;
+  }
+  #project-workspace-view .project-strip .strip-field,
+  #project-workspace-view .project-strip .progress-wrap,
+  #project-workspace-view .project-strip #view-tabs {
+    grid-column: 1;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+  #project-workspace-view .project-strip .progress-wrap {
+    padding: 2px 0;
+  }
+  #project-workspace-view .project-strip #view-tabs {
+    justify-content: flex-start;
+    gap: 6px;
+  }
+  #project-workspace-view .project-strip #view-tabs .filter-tab {
+    flex: 0 0 auto;
+    padding: 8px 9px;
+    font-size: 10px;
+  }
+}
