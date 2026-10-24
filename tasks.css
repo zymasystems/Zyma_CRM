@@ -249,3 +249,97 @@ a.text-link:hover { color: #ffb16d; }
   #project-plan-cancel { grid-column: 2; grid-row: 1; }
   #project-plan-approve { grid-column: 1 / -1; grid-row: 2; width: 100%; }
 }
+
+/* Mobile layout correction: keep the workspace and project-plan dialog inside the viewport. */
+html, body { max-width: 100%; overflow-x: hidden; }
+.app-shell, .main-column, .content, #main-content, .project-strip, .toolbar-plain,
+.board, .table-panel, .project-plan-content { min-width: 0; max-width: 100%; box-sizing: border-box; }
+.content > *, #main-content > * { min-width: 0; }
+.page-heading h1, .page-heading h2 { overflow-wrap: anywhere; }
+.heading-actions { min-width: 0; }
+.board { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+/* Native dialog centering can be overridden by broad shared modal rules; explicitly center it. */
+#project-plan-modal {
+  position: fixed;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  box-sizing: border-box;
+  width: min(980px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow: hidden;
+}
+#project-plan-modal .project-plan-card {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  max-height: calc(100dvh - 32px);
+  min-height: 0;
+  overflow: hidden;
+}
+#project-plan-modal .modal-header,
+#project-plan-summary,
+#project-plan-modal .project-plan-notice { flex: 0 0 auto; }
+#project-plan-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+#project-plan-modal .project-plan-actions {
+  flex: 0 0 auto;
+  position: static;
+  margin: 0;
+  padding: 12px 0 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border-soft);
+}
+
+@media (max-width: 700px) {
+  .board { grid-template-columns: minmax(0, 1fr); overflow-x: visible; }
+  .column { min-height: 160px; }
+  .stack { min-height: 90px; }
+  .project-strip { align-items: stretch; gap: 12px; padding: 13px; }
+  .strip-field { width: 100%; min-width: 0; }
+  .progress-wrap { width: 100%; min-width: 0; }
+  .toolbar-plain { gap: 12px; }
+  .toolbar-plain .table-toolbar, .toolbar-plain .tools { width: 100%; min-width: 0; }
+  .tools > * { max-width: 100%; }
+  .table-search { min-width: 0; }
+  #project-plan-modal {
+    inset: 50% auto auto 50%;
+    width: calc(100vw - 20px);
+    max-width: calc(100vw - 20px);
+    max-height: calc(100dvh - 24px);
+    border-radius: 14px;
+  }
+  #project-plan-modal .project-plan-card {
+    max-height: calc(100dvh - 24px);
+    padding: 15px;
+  }
+  #project-plan-modal .modal-header { gap: 8px; }
+  #project-plan-modal .modal-header h2 { font-size: 20px; overflow-wrap: anywhere; }
+  #project-plan-summary { line-height: 1.6; overflow-wrap: anywhere; }
+  #project-plan-content { margin-top: 12px; }
+  .project-plan-milestone { width: 100%; }
+  .project-plan-milestone-head { grid-template-columns: 30px minmax(0, 1fr); }
+  .project-plan-milestone-head time { grid-column: 2; }
+  .project-plan-task { width: 100%; }
+  .project-plan-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+  .project-plan-actions .button { min-width: 0; width: 100%; padding: 11px 8px; white-space: normal; font-size: 12px; }
+  #project-plan-reject { grid-column: 1; grid-row: 1; }
+  #project-plan-cancel { grid-column: 2; grid-row: 1; }
+  #project-plan-approve { grid-column: 1 / -1; grid-row: 2; }
+}
+@media (max-width: 380px) {
+  #project-plan-modal .project-plan-card { padding: 12px; }
+  .project-plan-milestone { padding: 10px; }
+  .project-plan-task { padding: 10px; }
+  #project-plan-modal .modal-header h2 { font-size: 18px; }
+}
