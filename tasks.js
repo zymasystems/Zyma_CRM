@@ -116,9 +116,9 @@ const apiDate = value => {
 };
 function mapApiState(projects, tasks, milestones) {
   const mappedProjects = projects.map(p => ({
-    id: String(p.id), sourceId: p.id, name: p.name || "Untitled project",
+    id: String(p.id), sourceId: p.id, name: p.name || "Untitled project", description: p.description || "", requirements: p.requirements || "",
     code: "", clientName: p.clientName || "", status: p.status || "Planning",
-    progress: 0, due: normalizeDate(p.targetEndDateUtc), manager: p.clientName || ""
+    progress: 0, startDate: normalizeDate(p.startDateUtc), due: normalizeDate(p.targetEndDateUtc), manager: p.clientName || ""
   }));
   const mappedTasks = tasks.map(t => ({
     id: String(t.id), sourceId: t.id, projectId: String(t.projectId), projectLabel: "",
@@ -512,6 +512,58 @@ function detail(id) {
     closeDialog(d); save("Task deleted", { kind: "task", action: "delete", id });
   };
 }
+
+/* ---------- AI project plan draft via authenticated CRM API proxy ---------- */
+async function generateProjectPlanDraft() {
+  const selected = project(projectFilter);
+  if (!selected || projectFilter === "all") return toast("Open a specific project before generating its plan.");
+  if (!apiMode || !window.ZymaCrmApi?.getToken()) return toast("Sign in to the live CRM before generating a project plan.");
+  const button = $("#generate-project-plan");
+  const original = button.textContent;
+  button.disabled = true;
+  button.textContent = "Generating draft…";
+  try {
+    const existingTasks = state.tasks.filter(t => t.projectId === selected.id).map(t => ({
+      title: t.title, description: t.description, status: toApiStatus(t.status), priority: t.priority, dueDate: t.due || null
+    }));
+    const existingMilestones = state.milestones.filter(m => m.projectId === selected.id).map(m => ({
+      title: m.title, description: m.description, status: toApiMilestoneStatus(m.status), targetDate: m.due || null
+    }));
+    const draft = await window.ZymaCrmApi.request("/project-plans/draft", {
+      method: "POST",
+      body: JSON.stringify({
+        projectId: selected.id,
+        projectName: selected.name,
+        description: selected.description || "",
+        requirements: selected.requirements || selected.description || "",
+        startDate: selected.startDate || todayStr(),
+        targetEndDate: selected.due || "",
+        existingTasks,
+        existingMilestones
+      })
+    });
+    if (!draft || !Array.isArray(draft.milestones)) throw new Error("The planner returned an invalid draft.");
+    renderProjectPlanDraft(draft);
+  } catch (error) {
+    toast(error?.message || "Could not generate the project plan draft.");
+  } finally {
+    button.disabled = false;
+    button.textContent = original;
+  }
+}
+function renderProjectPlanDraft(draft) {
+  $("#project-plan-summary").textContent = draft.summary || `Draft plan for ${draft.projectName || project(projectFilter)?.name || "this project"}.`;
+  const content = $("#project-plan-content");
+  content.innerHTML = draft.milestones.map((m, index) => `
+    <article class="project-plan-milestone">
+      <div class="project-plan-milestone-head"><span class="project-plan-index">${String(index + 1).padStart(2, "0")}</span><div><h3>${esc(m.title)}</h3><p>${esc(m.description || "")}</p></div><time>${esc(m.targetDate || "Date not set")}</time></div>
+      <div class="project-plan-tasks">${(Array.isArray(m.tasks) ? m.tasks : []).map(t => `<div class="project-plan-task"><div><strong>${esc(t.title)}</strong><p>${esc(t.description || "")}</p><small>${esc(t.startDate || "No start date")} → ${esc(t.dueDate || "No due date")}</small></div><span class="priority-pill ${priorityClass(t.priority || "Medium")}">${esc(t.priority || "Medium")}</span></div>`).join("") || `<p class="muted">No tasks returned for this milestone.</p>`}</div>
+    </article>`).join("") || `<p class="muted">The planner returned no milestones.</p>`;
+  openDialog($("#project-plan-modal"));
+}
+$("#generate-project-plan").addEventListener("click", () => void generateProjectPlanDraft());
+$("#project-plan-close").addEventListener("click", () => closeDialog($("#project-plan-modal")));
+$("#project-plan-cancel").addEventListener("click", () => closeDialog($("#project-plan-modal")));
 
 /* ---------- events ---------- */
 $("#task-form").addEventListener("submit", e => {

@@ -131,3 +131,22 @@ a.text-link:hover { color: #ffb16d; }
 .chart-content.is-chart-visible .chart-bar-row:nth-child(6) .chart-bar { animation-delay:350ms; }
 .chart-content.is-chart-visible .chart-bar-row:nth-child(n+7) .chart-bar { animation-delay:420ms; }
 @media (prefers-reduced-motion: reduce) { .scroll-reveal { opacity:1 !important; transform:none !important; } .chart-content.is-chart-visible .chart-bar, .chart-content.is-chart-visible .donut-chart, .chart-content.is-chart-visible .report-conversion-donut, .chart-content.is-chart-visible .trend-point, .chart-content.is-chart-visible circle { animation:none !important; } }
+
+
+/* AI project plan draft preview */
+.project-plan-card { width: min(980px, calc(100vw - 32px)); max-height: min(88vh, 900px); overflow: auto; }
+.project-plan-content { display: grid; gap: 12px; margin: 16px 0; }
+.project-plan-milestone { padding: 15px; border: 1px solid var(--border); border-radius: 11px; background: var(--surface-raised); }
+.project-plan-milestone-head { display: grid; grid-template-columns: 32px minmax(0,1fr) auto; gap: 11px; align-items: start; }
+.project-plan-index { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: var(--orange-soft); color: var(--orange); font-weight: 800; }
+.project-plan-milestone h3 { margin: 0 0 5px; font-size: 13px; }
+.project-plan-milestone p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.project-plan-milestone-head time { color: var(--muted); font-size: 10px; white-space: nowrap; }
+.project-plan-tasks { display: grid; gap: 7px; margin: 14px 0 0 42px; }
+.project-plan-task { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 11px; border: 1px solid var(--border-soft); border-radius: 8px; background: var(--surface); }
+.project-plan-task strong { font-size: 11px; }
+.project-plan-task p { margin: 4px 0; }
+.project-plan-task small { color: var(--muted-2); font-size: 10px; }
+.project-plan-notice { padding: 11px 13px; border: 1px solid var(--border); border-radius: 8px; color: var(--muted); font-size: 11px; }
+#generate-project-plan:disabled { opacity: .65; cursor: wait; }
+@media(max-width:650px) { .project-plan-milestone-head { grid-template-columns: 30px minmax(0,1fr); } .project-plan-milestone-head time { grid-column: 2; } .project-plan-tasks { margin-left: 0; } .project-plan-task { flex-direction: column; } }
