@@ -345,12 +345,26 @@ html, body { max-width: 100%; overflow-x: hidden; }
 }
 
 
-/* FINAL RESPONSIVE OVERRIDES — project-plan dialog and task board */
-#project-plan-modal[open] {
+
+
+/* Stable view switching: the hidden state must win over the board grid. */
+#board.board { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; width: 100%; min-width: 0; max-width: 100%; overflow-x: visible; }
+#board.board.hidden, #list.hidden, #milestones.hidden { display: none !important; }
+#board.board > .column { min-width: 0; max-width: 100%; }
+#list, #milestones { min-width: 0; max-width: 100%; overflow: hidden; }
+#list .table-wrap { width: 100%; overflow-x: auto; }
+#list table { min-width: 760px; }
+
+/* Project-plan review dialog: centered in the viewport on desktop and mobile. */
+dialog#project-plan-modal[open] {
   position: fixed !important;
-  inset: 0 !important;
-  margin: auto !important;
-  transform: none !important;
+  left: 50% !important;
+  top: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  inset: auto !important;
+  transform: translate(-50%, -50%) !important;
+  margin: 0 !important;
   width: min(980px, calc(100vw - 32px)) !important;
   max-width: calc(100vw - 32px) !important;
   height: min(900px, calc(100dvh - 32px)) !important;
@@ -362,43 +376,56 @@ html, body { max-width: 100%; overflow-x: hidden; }
   border: 1px solid var(--border) !important;
   border-radius: 18px !important;
 }
-#project-plan-modal[open] > .project-plan-card {
+dialog#project-plan-modal::backdrop { background: rgba(3, 7, 12, .72); backdrop-filter: blur(5px); }
+dialog#project-plan-modal > .project-plan-card {
   display: flex !important;
   flex-direction: column !important;
+  gap: 0 !important;
   width: 100% !important;
   height: 100% !important;
   max-width: 100% !important;
-  max-height: none !important;
+  max-height: 100% !important;
   min-width: 0 !important;
   min-height: 0 !important;
-  padding: clamp(14px, 2.5vw, 28px) !important;
   margin: 0 !important;
+  padding: clamp(16px, 2.5vw, 28px) !important;
   box-sizing: border-box !important;
   overflow: hidden !important;
 }
-#project-plan-modal[open] .modal-header,
-#project-plan-modal[open] #project-plan-summary,
-#project-plan-modal[open] .project-plan-notice,
-#project-plan-modal[open] .project-plan-actions { flex: 0 0 auto !important; min-width: 0 !important; }
-#project-plan-modal[open] #project-plan-content {
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) !important;
-  align-content: start !important;
+dialog#project-plan-modal .modal-header,
+dialog#project-plan-modal #project-plan-summary,
+dialog#project-plan-modal .project-plan-notice,
+dialog#project-plan-modal .project-plan-actions { flex: 0 0 auto; min-width: 0; }
+dialog#project-plan-modal #project-plan-summary { overflow-wrap: anywhere; }
+dialog#project-plan-modal #project-plan-content {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 14px !important;
   flex: 1 1 auto !important;
   min-width: 0 !important;
   min-height: 0 !important;
   max-width: 100% !important;
+  margin: 12px 0 !important;
+  padding: 0 2px 4px 0 !important;
   overflow-y: auto !important;
   overflow-x: hidden !important;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
 }
-#project-plan-modal[open] .project-plan-milestone,
-#project-plan-modal[open] .project-plan-milestone-head,
-#project-plan-modal[open] .project-plan-task { min-width: 0 !important; max-width: 100% !important; box-sizing: border-box !important; }
-#project-plan-modal[open] .project-plan-milestone-head { grid-template-columns: 34px minmax(0, 1fr) auto !important; }
-#project-plan-modal[open] .project-plan-task { flex-wrap: wrap; }
-#project-plan-modal[open] .project-plan-actions {
+dialog#project-plan-modal .project-plan-milestone,
+dialog#project-plan-modal .project-plan-milestone-head,
+dialog#project-plan-modal .project-plan-tasks,
+dialog#project-plan-modal .project-plan-task { min-width: 0 !important; max-width: 100% !important; box-sizing: border-box !important; }
+dialog#project-plan-modal .project-plan-milestone-head { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 12px; align-items: start; }
+dialog#project-plan-modal .project-plan-milestone-head > div { min-width: 0; }
+dialog#project-plan-modal .project-plan-milestone-head h3,
+dialog#project-plan-modal .project-plan-milestone-head p,
+dialog#project-plan-modal .project-plan-task strong,
+dialog#project-plan-modal .project-plan-task p { overflow-wrap: anywhere; }
+dialog#project-plan-modal .project-plan-task { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+dialog#project-plan-modal .project-plan-task > div { flex: 1 1 220px; min-width: 0; }
+dialog#project-plan-modal .project-plan-task .priority-pill { flex: 0 0 auto; }
+dialog#project-plan-modal .project-plan-actions {
   display: flex !important;
   align-items: center;
   flex-wrap: wrap;
@@ -409,29 +436,38 @@ html, body { max-width: 100%; overflow-x: hidden; }
   border-top: 1px solid var(--border-soft);
   background: var(--surface);
 }
-/* Four columns on desktop; one full-width lane at phone/tablet widths. */
-#board.board { display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)) !important; width: 100%; min-width: 0; max-width: 100%; overflow-x: auto; }
-#board.board > .column { min-width: 0 !important; max-width: 100%; }
+dialog#project-plan-modal .project-plan-actions .button { min-width: 0; }
+dialog#project-plan-modal #project-plan-approve { margin-left: auto; }
+
+@media (max-width: 900px) {
+  #board.board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 @media (max-width: 700px) {
-  #project-plan-modal[open] {
-    inset: 0 !important;
+  #board.board { grid-template-columns: minmax(0, 1fr); overflow-x: hidden; }
+  #board.board > .column { width: 100%; min-height: 150px; }
+  dialog#project-plan-modal[open] {
+    left: 50% !important;
+    top: 50% !important;
     width: calc(100vw - 20px) !important;
     max-width: calc(100vw - 20px) !important;
     height: calc(100dvh - 20px) !important;
     max-height: calc(100dvh - 20px) !important;
     border-radius: 14px !important;
   }
-  #project-plan-modal[open] > .project-plan-card { padding: 14px !important; }
-  #project-plan-modal[open] .modal-header h2 { font-size: 20px; overflow-wrap: anywhere; }
-  #project-plan-modal[open] .project-plan-milestone-head { grid-template-columns: 30px minmax(0, 1fr) !important; gap: 9px; }
-  #project-plan-modal[open] .project-plan-milestone-head time { grid-column: 2; justify-self: start; text-align: left; }
-  #project-plan-modal[open] .project-plan-tasks { margin: 12px 0 0 !important; }
-  #project-plan-modal[open] .project-plan-task { flex-direction: column; gap: 8px; padding: 12px; }
-  #project-plan-modal[open] .project-plan-actions { display: grid !important; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important; gap: 8px; }
-  #project-plan-modal[open] .project-plan-actions .button { width: 100%; min-width: 0; padding: 11px 8px; white-space: normal; font-size: 12px; }
-  #project-plan-modal[open] #project-plan-reject { grid-column: 1; grid-row: 1; }
-  #project-plan-modal[open] #project-plan-cancel { grid-column: 2; grid-row: 1; }
-  #project-plan-modal[open] #project-plan-approve { grid-column: 1 / -1; grid-row: 2; }
-  #board.board { grid-template-columns: minmax(0, 1fr) !important; overflow-x: hidden !important; }
-  #board.board > .column { width: 100%; min-height: 150px; }
+  dialog#project-plan-modal > .project-plan-card { padding: 14px !important; }
+  dialog#project-plan-modal .modal-header h2 { font-size: 20px; overflow-wrap: anywhere; }
+  dialog#project-plan-modal .project-plan-milestone-head { grid-template-columns: 30px minmax(0, 1fr); gap: 9px; }
+  dialog#project-plan-modal .project-plan-milestone-head time { grid-column: 2; justify-self: start; text-align: left; }
+  dialog#project-plan-modal .project-plan-task { flex-direction: column; gap: 8px; padding: 12px; }
+  dialog#project-plan-modal .project-plan-actions { display: grid !important; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+  dialog#project-plan-modal .project-plan-actions .button { width: 100%; min-width: 0; padding: 11px 8px; white-space: normal; font-size: 12px; }
+  dialog#project-plan-modal #project-plan-reject { grid-column: 1; grid-row: 1; }
+  dialog#project-plan-modal #project-plan-cancel { grid-column: 2; grid-row: 1; }
+  dialog#project-plan-modal #project-plan-approve { grid-column: 1 / -1; grid-row: 2; margin-left: 0; }
+}
+@media (max-width: 380px) {
+  dialog#project-plan-modal > .project-plan-card { padding: 11px !important; }
+  dialog#project-plan-modal .project-plan-milestone { padding: 10px; }
+  dialog#project-plan-modal .project-plan-task { padding: 10px; }
+  dialog#project-plan-modal .modal-header h2 { font-size: 18px; }
 }

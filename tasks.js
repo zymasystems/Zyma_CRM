@@ -25,10 +25,16 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const todayStr = () => ymd(new Date());
 const isIso = v => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ""));
+const dateOnly = value => {
+  if (!value) return "";
+  const match = String(value).trim().match(/^(\d{4}-\d{2}-\d{2})/);
+  return match ? match[1] : "";
+};
 function normalizeDate(value) {
   if (!value) return "";
   const raw = String(value).trim();
-  if (isIso(raw)) return raw;
+  const isoDate = dateOnly(raw);
+  if (isoDate) return isoDate;
   if (raw.toLowerCase() === "today") return todayStr();
   const match = raw.match(/^(\d{1,2})\s+([A-Za-z]{3})[A-Za-z]*\.?(?:\s+(\d{4}))?/);
   if (match) {
@@ -95,17 +101,23 @@ const loadState = () => normalizeCrm(readCrm());
 let apiMode = false;
 let apiLoadError = "";
 
-const fromApiStatus = value => ({
-  "To Do": "To do", "In Progress": "In progress", "In Review": "In review",
-  "Completed": "Done", "Blocked": "In review"
-})[value] || (STATUSES.includes(value) ? value : "To do");
+const fromApiStatus = value => {
+  const raw = String(value || "").trim();
+  const key = raw.toLowerCase();
+  const mapped = {
+    "to do": "To do", "todo": "To do", "in progress": "In progress",
+    "in review": "In review", "completed": "Done", "done": "Done",
+    "blocked": "In review"
+  }[key];
+  return mapped || (STATUSES.includes(raw) ? raw : "To do");
+};
 const toApiStatus = value => ({
   "To do": "To Do", "In progress": "In Progress", "In review": "In Review", "Done": "Completed"
 })[value] || "To Do";
 const fromApiMilestoneStatus = value => ({
-  "Pending": "Planned", "In Progress": "In progress", "Completed": "Completed",
-  "Delayed": "Blocked", "Cancelled": "Blocked"
-})[value] || "Planned";
+  pending: "Planned", "in progress": "In progress", completed: "Completed",
+  delayed: "Blocked", cancelled: "Blocked", blocked: "Blocked", planned: "Planned"
+})[String(value || "").trim().toLowerCase()] || "Planned";
 const toApiMilestoneStatus = value => ({
   "Planned": "Pending", "In progress": "In Progress", "Completed": "Completed", "Blocked": "Delayed"
 })[value] || "Pending";
@@ -116,22 +128,24 @@ const apiDate = value => {
 };
 function mapApiState(projects, tasks, milestones) {
   const mappedProjects = projects.map(p => ({
-    id: String(p.id), sourceId: p.id, name: p.name || "Untitled project", description: p.description || "", requirements: p.requirements || "",
-    code: "", clientName: p.clientName || "", status: p.status || "Planning",
-    progress: 0, startDate: normalizeDate(p.startDateUtc), due: normalizeDate(p.targetEndDateUtc), manager: p.clientName || ""
+    id: String(p.id || p.Id), sourceId: p.id || p.Id, name: p.name || p.Name || "Untitled project", description: p.description || p.Description || "", requirements: p.requirements || p.Requirements || "",
+    code: "", clientName: p.clientName || p.ClientName || "", status: p.status || p.Status || "Planning",
+    progress: 0, startDate: normalizeDate(p.startDateUtc || p.StartDateUtc), due: normalizeDate(p.targetEndDateUtc || p.TargetEndDateUtc), manager: p.clientName || p.ClientName || ""
   }));
   const mappedTasks = tasks.map(t => ({
-    id: String(t.id), sourceId: t.id, projectId: String(t.projectId), projectLabel: "",
-    milestoneId: "", title: t.title || "Untitled task", description: t.description || "",
-    assignee: t.assignedToName || "", priority: t.priority || "Medium",
-    status: fromApiStatus(t.status), due: normalizeDate(t.dueDateUtc),
+    id: String(t.id || t.Id), sourceId: t.id || t.Id, projectId: String(t.projectId || t.ProjectId), projectLabel: "",
+    milestoneId: String(t.milestoneId || t.MilestoneId || ""),
+    title: t.title || t.Title || "Untitled task", description: t.description || t.Description || "",
+    assignee: t.assignedToName || t.AssignedToName || "", priority: t.priority || t.Priority || "Medium",
+    status: fromApiStatus(t.status || t.Status), due: normalizeDate(t.dueDateUtc || t.DueDateUtc),
+    startDate: normalizeDate(t.startDateUtc || t.StartDateUtc),
     sourceRecord: t
   }));
   const mappedMilestones = milestones.map(m => ({
-    id: String(m.id), sourceId: m.id, projectId: String(m.projectId),
-    title: m.title || "Untitled milestone", description: m.description || "",
-    status: fromApiMilestoneStatus(m.status), due: normalizeDate(m.targetDateUtc),
-    isApprovedForClientView: !!m.isApprovedForClientView, sourceRecord: m
+    id: String(m.id || m.Id), sourceId: m.id || m.Id, projectId: String(m.projectId || m.ProjectId),
+    title: m.title || m.Title || "Untitled milestone", description: m.description || m.Description || "",
+    status: fromApiMilestoneStatus(m.status || m.Status), due: normalizeDate(m.targetDateUtc || m.TargetDateUtc),
+    isApprovedForClientView: !!(m.isApprovedForClientView ?? m.IsApprovedForClientView), sourceRecord: m
   }));
   return { hasCrm: true, projects: mappedProjects, tasks: mappedTasks,
     milestones: mappedMilestones, leads: [], meetings: [] };
@@ -389,6 +403,7 @@ async function save(message, change = null) {
           status: toApiStatus(record.status),
           priority: record.priority || "Medium",
           assignedToUserId: record.sourceRecord?.assignedToUserId || null,
+          startDateUtc: apiDate(record.startDate),
           dueDateUtc: apiDate(record.due)
         };
         await api.request(action === "create" ? base : `${base}/${encodeURIComponent(record.id)}`, {
@@ -465,6 +480,7 @@ function taskForm(id = null, status = null) {
   $("#task-assignee").value = t?.assignee || "";
   $("#task-status").value = t?.status || status || "To do";
   $("#task-priority").value = t?.priority || "Medium";
+  $("#task-start").value = t?.startDate || "";
   $("#task-due").value = t?.due || "";
   $("#task-description").value = t?.description || "";
   openDialog($("#task-modal"));
@@ -493,6 +509,7 @@ function detail(id) {
     <div class="modal-fields">
       <div class="form-field"><label for="detail-status">Status</label><select id="detail-status">${STATUSES.map(s => `<option ${s === t.status ? "selected" : ""}>${s}</option>`).join("")}</select></div>
       <div class="form-field"><label for="detail-assignee">Assignee</label><input id="detail-assignee" value="${esc(t.assignee)}"></div>
+      <div class="form-field"><label for="detail-start">Start date</label><input id="detail-start" type="date" value="${esc(t.startDate || "")}"></div>
       <div class="form-field"><label for="detail-due">Due date</label><input id="detail-due" type="date" value="${esc(t.due)}"></div>
       <div class="form-field"><label for="detail-milestone">Milestone</label><select id="detail-milestone"><option value="">No milestone</option>${state.milestones.filter(m => m.projectId === t.projectId).map(m => `<option value="${esc(m.id)}" ${m.id === t.milestoneId ? "selected" : ""}>${esc(m.title)}</option>`).join("")}</select></div>
     </div>
@@ -503,7 +520,7 @@ function detail(id) {
   $("#detail-edit").onclick = () => { closeDialog(d); taskForm(t.id); };
   $("#detail-save").onclick = () => {
     t.status = $("#detail-status").value; t.assignee = $("#detail-assignee").value.trim();
-    t.due = $("#detail-due").value; t.milestoneId = $("#detail-milestone").value;
+    t.startDate = $("#detail-start").value; t.due = $("#detail-due").value; t.milestoneId = $("#detail-milestone").value;
     closeDialog(d); save("Task updated", { kind: "task", action: "update", record: t });
   };
   $("#detail-delete").onclick = () => {
@@ -609,7 +626,7 @@ $("#task-form").addEventListener("submit", e => {
     id: id || String(Math.max(0, ...state.tasks.map(x => Number(x.id) || 0)) + 1),
     title: $("#task-title").value.trim(), projectId: $("#task-project").value, milestoneId: $("#task-milestone").value,
     assignee: $("#task-assignee").value.trim(), status: $("#task-status").value, priority: $("#task-priority").value,
-    due: $("#task-due").value, description: $("#task-description").value.trim()
+    startDate: $("#task-start").value, due: $("#task-due").value, description: $("#task-description").value.trim()
   };
   if (id) {
     const old = state.tasks.find(x => String(x.id) === String(id));

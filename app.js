@@ -70,6 +70,7 @@ const state = {
   contacts: [],
   projects: [],
   tasks: [],
+  milestones: [],
   meetings: [],
   communications: [],
   communicationFilter: "all",
@@ -644,6 +645,22 @@ function updateMetrics() {
   const openLeads = state.leads.filter(lead => !["Won", "Lost"].includes(lead.stage)).length;
   const openTasks = state.tasks.filter(task => !task.done && !["Done", "Completed"].includes(task.status)).length;
   const activeProjects = state.projects.filter(project => project.status !== "Completed").length;
+  const completedTasks = state.tasks.filter(task => task.done || ["Done", "Completed"].includes(String(task.status || ""))).length;
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const overdueTasks = state.tasks.filter(task => {
+    const status = String(task.status || "").toLowerCase();
+    if (task.done || ["done", "completed"].includes(status)) return false;
+    let due = task.dueDateUtc || "";
+    if (!due) {
+      const parsed = parseDisplayDate(task.due);
+      if (parsed) due = `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}-${String(parsed.getDate()).padStart(2, "0")}`;
+    }
+    return Boolean(due && due < todayIso && due !== "Not set");
+  }).length;
+  const activeMilestones = (state.milestones || []).filter(m => !["completed", "cancelled"].includes(String(m.status || "").toLowerCase())).length;
+  if ($("#metric-completed-tasks")) $("#metric-completed-tasks").textContent = String(completedTasks).padStart(2, "0");
+  if ($("#metric-overdue-tasks")) $("#metric-overdue-tasks").textContent = String(overdueTasks).padStart(2, "0");
+  if ($("#metric-milestones")) $("#metric-milestones").textContent = String(activeMilestones).padStart(2, "0");
   $("#metric-clients").textContent = String(state.clients.length).padStart(2, "0");
   $("#metric-projects").textContent = String(activeProjects).padStart(2, "0");
   $("#metric-leads").textContent = String(openLeads).padStart(2, "0");
@@ -2123,11 +2140,40 @@ document.addEventListener("change", event => {
   if (moveSelect) { moveLead(moveSelect.dataset.moveLead, moveSelect.value); return; }
   const taskCheckbox = event.target.closest("[data-complete-task]");
   if (!taskCheckbox) return;
-  const task = state.tasks.find(item => item.id === Number(taskCheckbox.dataset.completeTask));
+  const task = state.tasks.find(item => String(item.id) === String(taskCheckbox.dataset.completeTask));
   if (!task) return;
-  task.done = taskCheckbox.checked;
-  if (task.done) task.status = "Done";
-  else task.status = "To do";
+  const nextDone = taskCheckbox.checked;
+  const previousStatus = task.status;
+  task.done = nextDone;
+  task.status = nextDone ? "Done" : "To do";
+  if (task.apiBacked && LEADS_API_ENABLED) {
+    taskCheckbox.disabled = true;
+    window.ZymaCrmApi.request(`/tasks/${encodeURIComponent(task.sourceId || task.id)}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        projectId: task.projectId,
+        title: task.title,
+        description: task.description || null,
+        status: nextDone ? "Completed" : "To Do",
+        priority: task.priority || "Medium",
+        assignedToUserId: task.assignedToUserId || null,
+        startDateUtc: task.startDateUtc || null,
+        dueDateUtc: task.dueDateUtc ? `${task.dueDateUtc}T00:00:00Z` : null
+      })
+    }).then(async () => {
+      await loadApiTasksAndMilestones();
+      renderAll();
+      toast(nextDone ? "Task marked complete." : "Task reopened.");
+    }).catch(error => {
+      task.done = previousStatus === "Done" || previousStatus === "Completed";
+      task.status = previousStatus;
+      taskCheckbox.checked = task.done;
+      taskCheckbox.disabled = false;
+      renderAll();
+      toast(`Task could not be updated in the CRM database. ${error.message || "Please try again."}`);
+    });
+    return;
+  }
   persistState(); renderAll();
   toast(task.done ? "Task marked complete." : "Task reopened.");
 });
@@ -2412,6 +2458,70 @@ populateSettings();
 
 renderAll();
 
+function apiRecordValue(record, camel, pascal = null) {
+  return record?.[camel] ?? record?.[pascal || (camel ? camel[0].toUpperCase() + camel.slice(1) : camel)];
+}
+function formatApiDate(value) {
+  if (!value) return "Not set";
+  const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return "Not set";
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  return date.toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" });
+}
+async function loadApiTasksAndMilestones() {
+  if (!LEADS_API_ENABLED) return;
+  const api = window.ZymaCrmApi;
+  const [tasksResult, milestonesResult] = await Promise.allSettled([
+    api.request("/tasks"),
+    api.request("/milestones")
+  ]);
+  if (tasksResult.status === "fulfilled") {
+    const response = tasksResult.value;
+    if (!Array.isArray(response)) throw new Error("The Tasks API returned an unexpected response.");
+    state.tasks = response.map(item => {
+      const id = String(apiRecordValue(item, "id"));
+      const projectId = String(apiRecordValue(item, "projectId") || "");
+      const linkedProject = state.projects.find(project => String(project.id) === projectId);
+      const rawStatus = String(apiRecordValue(item, "status") || "To Do");
+      const status = ({
+        "to do": "To do", "in progress": "In progress",
+        "in review": "In review", completed: "Done", done: "Done", blocked: "In review"
+      })[rawStatus.toLowerCase()] || "To do";
+      const dueRaw = apiRecordValue(item, "dueDateUtc");
+      const dueIso = dueRaw ? String(dueRaw).slice(0, 10) : "";
+      const dueDate = formatApiDate(dueRaw);
+      return {
+        id, sourceId: id, apiBacked: true, projectId,
+        title: apiRecordValue(item, "title") || "Untitled task",
+        description: apiRecordValue(item, "description") || "",
+        project: linkedProject?.name || apiRecordValue(item, "projectName") || "Unassigned",
+        assignee: apiRecordValue(item, "assignedToName") || "Unassigned",
+        assignedToUserId: apiRecordValue(item, "assignedToUserId") || null,
+        priority: apiRecordValue(item, "priority") || "Medium",
+        status, done: status === "Done", due: dueDate,
+        startDateUtc: apiRecordValue(item, "startDateUtc") ? String(apiRecordValue(item, "startDateUtc")).slice(0, 10) : null,
+        dueDateUtc: dueIso, milestoneId: String(apiRecordValue(item, "milestoneId") || "")
+      };
+    });
+  } else {
+    console.warn("Unable to load API tasks for the dashboard.", tasksResult.reason);
+  }
+  if (milestonesResult.status === "fulfilled") {
+    const response = milestonesResult.value;
+    if (!Array.isArray(response)) throw new Error("The Milestones API returned an unexpected response.");
+    state.milestones = response.map(item => ({
+      id: String(apiRecordValue(item, "id")),
+      projectId: String(apiRecordValue(item, "projectId") || ""),
+      title: apiRecordValue(item, "title") || "Untitled milestone",
+      status: apiRecordValue(item, "status") || "Pending",
+      due: formatApiDate(apiRecordValue(item, "targetDateUtc")),
+      isApprovedForClientView: Boolean(apiRecordValue(item, "isApprovedForClientView"))
+    }));
+  } else {
+    console.warn("Unable to load API milestones for the dashboard.", milestonesResult.reason);
+  }
+}
+
 // Keep API-backed dashboard metrics, charts, lists and reports in sync with changes
 // made by this user or another authorised staff member. Successful CRUD handlers
 // already call renderAll(); this refresh catches changes made in other sessions.
@@ -2423,6 +2533,7 @@ async function refreshApiBackedData() {
     await Promise.all([loadApiLeads(), loadApiClients()]);
     await loadApiProjects();
     await loadApiContacts();
+    await loadApiTasksAndMilestones();
     // Recompute all dashboard and report visuals from the latest shared API state.
     renderAll();
   } finally {

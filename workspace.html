@@ -100,10 +100,13 @@
             <article class="metric-card"><div class="metric-top"><span class="metric-label">Active projects</span><span class="metric-top-right"><span class="metric-change" id="metric-projects-change" aria-label="Change versus previous week">—</span><span class="metric-icon icon-blue">▣</span></span></div><div class="metric-value" id="metric-projects">03</div><div class="metric-foot"><span class="metric-positive"><span>↑</span> In delivery</span><span class="metric-caption">Across clients</span></div></article>
             <article class="metric-card"><div class="metric-top"><span class="metric-label">Open leads</span><span class="metric-top-right"><span class="metric-change" id="metric-leads-change" aria-label="Change versus previous week">—</span><span class="metric-icon icon-orange">◎</span></span></div><div class="metric-value" id="metric-leads">08</div><div class="metric-foot"><span class="metric-neutral">In the pipeline</span><button class="text-link" data-view-link="leads">View pipeline ↗</button></div></article>
             <article class="metric-card"><div class="metric-top"><span class="metric-label">Open tasks</span><span class="metric-top-right"><span class="metric-change" id="metric-tasks-change" aria-label="Change versus previous week">—</span><span class="metric-icon icon-green">☑</span></span></div><div class="metric-value" id="metric-tasks">05</div><div class="metric-foot"><span class="metric-warning">Needs attention</span><button class="text-link" data-view-link="tasks">View tasks ↗</button></div></article>
+            <article class="metric-card"><div class="metric-top"><span class="metric-label">Completed tasks</span><span class="metric-icon icon-green">✓</span></div><div class="metric-value" id="metric-completed-tasks">00</div><div class="metric-foot"><span class="metric-neutral">Delivery progress</span><button class="text-link" data-view-link="tasks">View tasks ↗</button></div></article>
+            <article class="metric-card"><div class="metric-top"><span class="metric-label">Overdue tasks</span><span class="metric-icon icon-orange">!</span></div><div class="metric-value" id="metric-overdue-tasks">00</div><div class="metric-foot"><span class="metric-warning">Past due date</span><button class="text-link" data-view-link="tasks">Review work ↗</button></div></article>
+            <article class="metric-card"><div class="metric-top"><span class="metric-label">Active milestones</span><span class="metric-icon icon-blue">⚑</span></div><div class="metric-value" id="metric-milestones">00</div><div class="metric-foot"><span class="metric-neutral">Across all projects</span><a class="text-link" href="tasks.html">View milestones ↗</a></div></article>
           </div>
 
           <section class="analytics-section" aria-label="Workspace analytics">
-            <div class="analytics-heading"><div><p class="eyebrow">PERFORMANCE SNAPSHOT</p><h2>Workspace analytics</h2><p class="page-subtitle">Live breakdowns from the records currently saved in this CRM preview.</p></div><span class="analytics-live"><span></span> Updates with CRM data</span></div>
+            <div class="analytics-heading"><div><p class="eyebrow">PERFORMANCE SNAPSHOT</p><h2>Workspace analytics</h2><p class="page-subtitle">Live breakdowns from records saved in the CRM database and workspace.</p></div><span class="analytics-live"><span></span> Updates with CRM data</span></div>
             <div class="analytics-grid">
               <article class="panel chart-panel"><div class="panel-heading"><div><h2>Lead pipeline by stage</h2><p>Number of leads at each stage</p></div><span class="chart-kicker">LEADS</span></div><div id="chart-lead-stages" class="chart-content"></div></article>
               <article class="panel chart-panel"><div class="panel-heading"><div><h2>Project delivery progress</h2><p>Recorded completion percentage per project</p></div><span class="chart-kicker">PROJECTS</span></div><div id="chart-project-progress" class="chart-content"></div></article>
@@ -320,7 +323,7 @@
 
   <script src="auth-session.js"></script>
   <script src="crm-api.js"></script>
-  <script src="app.js"></script>
+  <script src="app.js?v=20261024-dashboard-api-stats"></script>
   <script src="workspace-access.js"></script>
   <script src="current-user.js"></script>
 </body>
