@@ -247,6 +247,58 @@ function mapApiClient(apiClient) {
   };
 }
 
+function mapApiProject(item) {
+  const clientId = String(item.clientId || item.ClientId || "");
+  const client = state.clients.find(c => String(c.id) === clientId);
+  const start = item.startDateUtc || item.StartDateUtc || null;
+  const due = item.targetEndDateUtc || item.TargetEndDateUtc || null;
+  const created = item.createdAtUtc || item.CreatedAtUtc || new Date().toISOString();
+  const statusRaw = item.status || item.Status || "Planning";
+  const status = ({"in progress":"In progress", "on hold":"On hold"})[String(statusRaw).toLowerCase()] || statusRaw;
+  return {
+    id: String(item.id || item.Id), sourceId: item.id || item.Id, apiBacked: true,
+    clientId, client: item.clientName || item.ClientName || client?.name || "Unknown client",
+    name: item.name || item.Name || "Untitled project",
+    code: item.code || item.Code || `ZS-${String(item.id || item.Id).slice(0, 8).toUpperCase()}`,
+    scope: item.description || item.Description || "", description: item.description || item.Description || "",
+    status, startDate: start ? String(start).slice(0, 10) : "", due: due ? String(due).slice(0, 10) : "",
+    progress: 0, manager: "", color: "orange", createdAt: created
+  };
+}
+function toApiProjectPayload(project) {
+  const client = state.clients.find(c => String(c.name).trim().toLowerCase() === String(project.client || "").trim().toLowerCase() || String(c.id) === String(project.clientId));
+  return {
+    clientId: client ? client.id : project.clientId,
+    name: String(project.name || "").trim(),
+    description: String(project.scope || project.description || "").trim() || null,
+    status: ({"In progress":"In Progress", "On hold":"On Hold"})[project.status] || project.status || "Planning",
+    startDateUtc: project.startDate ? new Date(`${project.startDate}T00:00:00Z`).toISOString() : null,
+    targetEndDateUtc: project.due ? new Date(`${project.due}T00:00:00Z`).toISOString() : null
+  };
+}
+async function loadApiProjects() {
+  if (!CLIENTS_API_ENABLED) return;
+  try {
+    const response = await window.ZymaCrmApi.request("/projects");
+    if (!Array.isArray(response)) throw new Error("The Projects API returned an unexpected response.");
+    state.projects = response.map(mapApiProject);
+    state.clients.forEach(client => { client.projects = state.projects.filter(p => p.clientId === String(client.id)).length; });
+    renderAll();
+  } catch (error) {
+    console.error("Unable to load API-backed projects.", error);
+    toast(`Could not load projects from the API. ${error.message || "Please try again."}`);
+  }
+}
+async function createApiProject(project) {
+  return mapApiProject(await window.ZymaCrmApi.request("/projects", { method: "POST", body: JSON.stringify(toApiProjectPayload(project)) }));
+}
+async function updateApiProject(project) {
+  return mapApiProject(await window.ZymaCrmApi.request(`/projects/${encodeURIComponent(project.sourceId || project.id)}`, { method: "PUT", body: JSON.stringify(toApiProjectPayload(project)) }));
+}
+async function deleteApiProject(project) {
+  return window.ZymaCrmApi.request(`/projects/${encodeURIComponent(project.sourceId || project.id)}`, { method: "DELETE" });
+}
+
 async function loadApiClients() {
   if (!CLIENTS_API_ENABLED) return;
   try {
@@ -1731,16 +1783,20 @@ const modalDefinitions = {
       { name: "status", label: "Initial status", type: "select", required: true, options: [{value:"Planning",label:"Planning"},{value:"In progress",label:"In progress"},{value:"On hold",label:"On hold"}] },
       { name: "scope", label: "Agreed scope / deliverables", type: "textarea", full: true, placeholder: "Record the agreed deliverables, boundaries and acceptance criteria." }
     ],
-    save(data) {
-      const client = state.clients.find(item => item.name === data.client);
+    async save(data) {
+      const client = state.clients.find(item => String(item.name).trim() === String(data.client).trim());
       if (!client) { toast("Create a client record first, then create the project."); setView("clients"); return; }
-      const id = nextId(state.projects);
-      const code = (data.code || `ZS-${String(id).padStart(3, "0")}`).trim().toUpperCase();
-      if (state.projects.some(project => project.code.toLowerCase() === code.toLowerCase())) { toast("That project reference is already in use. Choose a unique reference."); return; }
-      state.projects.push({ id, code, name: data.name.trim(), client: client.name, clientId: client.id, startDate: data.startDate || "", scope: data.scope || "", status: data.status || "Planning", progress: 0, due: data.due || "", manager: currentActorName(), color: "orange" });
-      client.projects = state.projects.filter(project => project.clientId === client.id || project.client === client.name).length;
-      state.activities.unshift({ icon: "▣", color: "blue", text: `<strong>Project created</strong> — ${esc(data.name)}`, by: currentActorName(), time: "Just now" });
-      persistState(); renderAll(); setView("projects"); toast("Project created. Next, add milestones and tasks.");
+      const code = (data.code || `ZS-${String(Date.now()).slice(-6)}`).trim().toUpperCase();
+      if (state.projects.some(project => String(project.code || "").toLowerCase() === code.toLowerCase())) { toast("That project reference is already in use. Choose a unique reference."); return; }
+      const draft = { name: data.name.trim(), client: client.name, clientId: client.id, startDate: data.startDate || "", scope: data.scope || "", status: data.status || "Planning", progress: 0, due: data.due || "", manager: currentActorName(), color: "orange", code };
+      try {
+        const project = CLIENTS_API_ENABLED ? await createApiProject(draft) : { id: nextId(state.projects), ...draft };
+        project.code = code;
+        state.projects.push(project);
+        client.projects = state.projects.filter(item => String(item.clientId) === String(client.id) || item.client === client.name).length;
+        state.activities.unshift({ icon: "▣", color: "blue", text: `<strong>Project created</strong> — ${esc(data.name)}`, by: currentActorName(), time: "Just now" });
+        persistState(); renderAll(); setView("projects"); toast(CLIENTS_API_ENABLED ? "Project saved to the CRM database. Next, add milestones and tasks." : "Project created in this browser preview.");
+      } catch (error) { toast(`Project was not saved. ${error.message || "Please try again."}`); }
     }
   },
   "new-task": {
@@ -2030,6 +2086,7 @@ document.addEventListener("click", async event => {
     const label = record.name || record.company || record.title || record.code || "this record";
     if (!window.confirm(`Delete ${label}? This cannot be undone.`)) return;
     try {
+      if (type === "project" && CLIENTS_API_ENABLED && record.apiBacked) await deleteApiProject(record);
       if (type === "lead" && LEADS_API_ENABLED && record.apiBacked) await deleteApiLead(record);
       if (type === "contact" && CONTACTS_API_ENABLED && record.apiBacked) await deleteApiContact(record);
       collection.splice(index, 1);
@@ -2101,7 +2158,13 @@ $("#record-form").addEventListener("submit", async event => {
     if (record) {
       const previousName = record.name;
       const changes = Object.fromEntries(Object.entries(data).filter(([field, value]) => field in record && value !== ""));
-      if (type === "lead" && LEADS_API_ENABLED && record.apiBacked) {
+      if (type === "project" && CLIENTS_API_ENABLED && record.apiBacked) {
+        const candidate = { ...record, ...changes };
+        try {
+          const updated = await updateApiProject(candidate);
+          Object.assign(record, updated, { code: record.code, manager: record.manager, color: record.color });
+        } catch (error) { toast(`Project was not updated. ${error.message || "Please try again."}`); return; }
+      } else if (type === "lead" && LEADS_API_ENABLED && record.apiBacked) {
         const candidate = { ...record, ...changes };
         try {
           await updateApiLead(candidate);
@@ -2345,6 +2408,7 @@ async function refreshApiBackedData() {
   apiRefreshInProgress = true;
   try {
     await Promise.all([loadApiLeads(), loadApiClients()]);
+    await loadApiProjects();
     await loadApiContacts();
     // Recompute all dashboard and report visuals from the latest shared API state.
     renderAll();
