@@ -1083,3 +1083,8 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(245,130,3
 
 /* Respect role-aware navigation visibility even when component styles set display. */
 [hidden] { display: none !important; }
+
+
+/* Contact-to-client/project context */
+.contact-card-context { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:0 0 10px; color:var(--muted-2); font-size:9px; }
+.contact-context-label { display:inline-flex; align-items:center; padding:4px 7px; border:1px solid var(--border-soft); border-radius:6px; color:var(--muted); font-weight:600; }

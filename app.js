@@ -80,12 +80,26 @@ const state = {
 const LEAD_VIEW_KEY = "zyma-crm-lead-view";
 try { state.leadView = localStorage.getItem(LEAD_VIEW_KEY) === "table" ? "table" : "board"; } catch { state.leadView = "board"; }
 
-// Start with an empty workspace in a fresh storage namespace; prior preview snapshots are not imported.
-crmRepository.save(state);
+// Restore the browser preview workspace instead of clearing it on every page load.
+const savedWorkspace = crmRepository.load();
+if (savedWorkspace) {
+  for (const key of ENTITY_KEYS) {
+    if (Array.isArray(savedWorkspace[key])) state[key] = savedWorkspace[key];
+  }
+}
+const CONTACTS_STORAGE_KEY = "zyma-crm-contacts-v1";
+try {
+  const savedContacts = JSON.parse(localStorage.getItem(CONTACTS_STORAGE_KEY) || "null");
+  if (Array.isArray(savedContacts)) state.contacts = savedContacts;
+} catch (error) {
+  console.warn("Unable to restore saved contacts.", error);
+}
 
-function persistState() { crmRepository.save(state); }
-// Persist clean/user-created records so the Tasks page reads the same dataset.
-crmRepository.save(state);
+function persistState() {
+  crmRepository.save(state);
+  try { localStorage.setItem(CONTACTS_STORAGE_KEY, JSON.stringify(state.contacts || [])); }
+  catch (error) { console.warn("Unable to persist contacts.", error); }
+}
 function nextId(items) { return Math.max(0, ...items.map(item => Number(item.id) || 0)) + 1; }
 function currentActorName() {
   try { const user = JSON.parse(sessionStorage.getItem("zymaCrmAuthenticatedUser") || "null"); return user?.name || user?.email || "Workspace user"; }
@@ -278,7 +292,9 @@ function calculatedProjectProgress(project) {
   return Math.round((completed / relatedTasks.length) * 100);
 }
 function recordActionButtons(type, id) {
-  return `<span class="record-actions"><button type="button" class="row-action-button" data-edit-record="${esc(type)}" data-record-id="${esc(id)}">Edit</button><button type="button" class="row-action-button danger" data-delete-record="${esc(type)}" data-record-id="${esc(id)}">Delete</button></span>`;
+  const record = type === "contact" ? state.contacts.find(item => String(item.id) === String(id)) : null;
+  const relationshipManaged = Boolean(record && (record.sourceLeadId || record.sourceClientId));
+  return `<span class="record-actions"><button type="button" class="row-action-button" data-edit-record="${esc(type)}" data-record-id="${esc(id)}">Edit</button>${relationshipManaged ? "" : `<button type="button" class="row-action-button danger" data-delete-record="${esc(type)}" data-record-id="${esc(id)}">Delete</button>`}</span>`;
 }
 
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -597,12 +613,74 @@ function renderClients() {
   }).join("") || `<div class="client-empty-state"><span>⌕</span><h3>No clients found</h3><p>Try another search or change the status filter.</p><button type="button" class="button button-secondary" data-client-reset>Clear filters</button></div>`;
 }
 
+// Contacts are the people directory for the whole CRM: leads and clients must also
+// appear here, without creating a second record when a lead converts to a client.
+function syncRelationshipContacts() {
+  const contacts = Array.isArray(state.contacts) ? state.contacts : (state.contacts = []);
+  const normalise = value => String(value || "").trim().toLowerCase();
+  const upsertLinkedContact = (source, kind) => {
+    const organization = kind === "lead" ? (source.company || "") : (source.name || "");
+    const personName = kind === "lead" ? (source.contact || source.company || "") : (source.contact || source.name || "");
+    const email = source.email || "";
+    const sourceId = String(source.id ?? "");
+    let contact = contacts.find(item =>
+      (kind === "lead" && String(item.sourceLeadId ?? "") === sourceId) ||
+      (kind === "client" && String(item.sourceClientId ?? "") === sourceId)
+    );
+    if (!contact && email) {
+      contact = contacts.find(item => normalise(item.email || item.workEmail) === normalise(email)
+        && normalise(item.organization) === normalise(organization));
+    }
+    if (!contact) {
+      contact = contacts.find(item => normalise(item.organization) === normalise(organization)
+        && normalise(item.name) === normalise(personName)
+        && (item.sourceLeadId || item.sourceClientId));
+    }
+    const isClient = kind === "client" || state.clients.some(client =>
+      normalise(client.name) === normalise(organization));
+    const relationship = isClient ? "Client contact" : "Prospect";
+    if (!contact) {
+      contact = { id: `linked-${kind}-${sourceId}`, name: personName || organization || "Unnamed contact",
+        organization, email, phone: source.phone || "", industry: source.industry || "", relationship, source: kind === "lead" ? "Lead" : "Client",
+        sourceLeadId: kind === "lead" ? source.id : (source.sourceLeadId || null),
+        sourceClientId: kind === "client" ? source.id : null, linkedRecordType: isClient ? "Client" : "Lead" };
+      contacts.push(contact);
+    } else {
+      // Keep enriched, user-entered profile fields; refresh only relationship/source fields.
+      contact.name = contact.name || personName || organization || "Unnamed contact";
+      contact.organization = organization || contact.organization || "";
+      contact.email = contact.email || email;
+      contact.phone = contact.phone || source.phone || "";
+      contact.industry = contact.industry || source.industry || "";
+      contact.relationship = relationship;
+      contact.source = contact.source || (kind === "lead" ? "Lead" : "Client");
+      if (kind === "lead") contact.sourceLeadId = source.id;
+      if (kind === "client") contact.sourceClientId = source.id;
+      contact.linkedRecordType = isClient ? "Client" : "Lead";
+    }
+  };
+  (state.leads || []).forEach(lead => upsertLinkedContact(lead, "lead"));
+  (state.clients || []).forEach(client => upsertLinkedContact(client, "client"));
+
+  // Keep each contact connected to delivery work for quick relationship context.
+  contacts.forEach(contact => {
+    const org = normalise(contact.organization);
+    const related = (state.projects || []).filter(project => normalise(project.client) === org);
+    contact.linkedProjectCount = related.length;
+    contact.projectNames = related.map(project => project.name).filter(Boolean);
+  });
+  try { localStorage.setItem(CONTACTS_STORAGE_KEY, JSON.stringify(contacts)); }
+  catch (error) { console.warn("Unable to persist linked contacts.", error); }
+}
+
 function renderContacts() {
+  syncRelationshipContacts();
   const query = (($("#contact-search")?.value || "").trim()).toLowerCase();
   const all = state.contacts || [];
   const decisionCount = all.filter(c => /decision maker/i.test(c.relationship || "")).length;
   const projectCount = all.filter(c => /project/i.test(c.relationship || "")).length;
   const clientCount = all.filter(c => /client/i.test(c.relationship || "")).length;
+  const prospectCount = all.filter(c => /prospect/i.test(c.relationship || "")).length;
   const orgCount = new Set(all.map(c => String(c.organization || "").trim()).filter(Boolean).map(v => v.toLowerCase())).size;
   const setMetric = (id, value) => { const el = $(id); if (el) el.textContent = String(value).padStart(2, "0"); };
   setMetric("#contact-heading-count", all.length);
@@ -614,6 +692,7 @@ function renderContacts() {
   setMetric("#contact-filter-decision-count", decisionCount);
   setMetric("#contact-filter-project-count", projectCount);
   setMetric("#contact-filter-client-count", clientCount);
+  setMetric("#contact-filter-prospect-count", prospectCount);
   const filtered = all.filter(contact => {
     const values = Object.values(contact).filter(value => value !== null && value !== undefined).join(" ").toLowerCase();
     return (state.contactFilter === "all" || (contact.relationship || "") === state.contactFilter) && values.includes(query);
@@ -634,7 +713,8 @@ function renderContacts() {
       <div class="contact-card-identity"><h3><button type="button" class="record-link contact-name-link" data-open-record="contact" data-record-id="${esc(contact.id)}">${esc(name)}</button></h3><p>${esc(title)}</p></div>
       <div class="contact-organization"><span class="contact-info-icon">▦</span><span><small>Organization</small><strong>${esc(organization)}</strong></span></div>
       <div class="contact-info-list">${email ? `<a class="contact-info-row" href="mailto:${esc(email)}"><span class="contact-info-icon">✉</span><span>${esc(email)}</span></a>` : `<div class="contact-info-row contact-info-muted"><span class="contact-info-icon">✉</span><span>Email not provided</span></div>`}${phone ? `<a class="contact-info-row" href="tel:${esc(safePhone)}"><span class="contact-info-icon">⌕</span><span>${esc(phone)}</span></a>` : `<div class="contact-info-row contact-info-muted"><span class="contact-info-icon">⌕</span><span>Phone not provided</span></div>`}</div>
-      <div class="contact-card-footer"><span class="contact-updated-note">${contact.nextFollowUp ? `Follow-up · ${esc(contact.nextFollowUp)}` : contact.department ? esc(contact.department) : "Contact profile"}</span><div class="contact-card-actions">${recordActionButtons("contact", contact.id)}</div></div>
+      <div class="contact-card-context"><span class="contact-context-label">${esc(contact.linkedRecordType || (contact.source === "Lead" ? "Lead" : contact.source === "Client" ? "Client" : "Contact"))}</span><span>${Number(contact.linkedProjectCount || 0)} ${Number(contact.linkedProjectCount || 0) === 1 ? "project" : "projects"} linked</span></div>
+      <div class="contact-card-footer"><span class="contact-updated-note">${contact.nextFollowUp ? `Follow-up · ${esc(contact.nextFollowUp)}` : contact.department ? esc(contact.department) : (contact.source ? `${esc(contact.source)} relationship` : "Contact profile")}</span><div class="contact-card-actions">${recordActionButtons("contact", contact.id)}</div></div>
     </article>`;
   }).join("") || `<div class="contact-empty-state"><span>◎</span><h3>No contacts found</h3><p>Try a different search or filter, or add a new contact to your directory.</p><button type="button" class="button button-secondary" data-contact-reset>Clear filters</button></div>`;
   const resultCount = $("#contact-results-count");
@@ -742,7 +822,7 @@ function openRecordDetail(type, id) {
   detailView.innerHTML = `
     <div class="detail-back-row"><button class="button button-secondary" type="button" data-back-to-list>← Back to ${esc(type === "client" ? "clients" : type === "lead" ? "leads" : type === "contact" ? "contacts" : type === "project" ? "projects" : type === "meeting" ? "meetings" : "tasks")}</button><span class="eyebrow">${esc(subtitleMap[type] || "RECORD DETAILS")}</span></div>
     <div class="page-heading detail-heading"><div><p class="eyebrow">${esc(record.code || `ZS-${String(record.id).padStart(3,"0")}`)}</p><h1>${esc(title)}</h1><p class="page-subtitle">${esc(type === "client" ? record.industry : type === "lead" ? record.service : type === "contact" ? record.relationship : type === "project" ? record.client : type === "meeting" ? `${record.type || "Meeting"} · ${record.date || "Date not set"}` : record.project)}</p></div><div class="heading-actions"><button class="button button-secondary" type="button" data-edit-record="${esc(type)}" data-record-id="${esc(record.id)}">Edit record</button></div></div>
-    <div class="detail-layout"><div class="detail-main">${detailSection("Overview", `<div class="detail-fields">${fields.join("")}</div>`)}${related}</div><aside class="detail-side">${detailSection("Record activity", activities.map(a => `<div class="activity-item"><span class="activity-icon ${esc(a.color)}">${esc(a.icon)}</span><div class="activity-copy"><p>${a.text}</p><small>${esc(a.by)} · ${esc(a.time)}</small></div></div>`).join(""), "Activity history will appear here as actions are recorded.")}${detailSection("Record actions", `<div class="detail-action-stack">${type === "lead" && record.stage !== "Lost" && !state.clients.some(client => String(client.name).toLowerCase() === String(record.company).toLowerCase()) ? `<button class="button button-primary" type="button" data-convert-lead="${esc(record.id)}">Convert to client</button>` : ""}${type === "client" ? `<button class="button button-primary" type="button" data-create-project-for-client="${esc(record.id)}">＋ Create project for this client</button><a class="button button-secondary" href="invite-client.html?clientId=${encodeURIComponent(record.id)}">Invite client to portal ↗</a>` : ""}${type === "project" ? `<a class="button button-primary" href="tasks.html?project=${encodeURIComponent(record.id)}">Manage tasks & milestones ↗</a>` : ""}<button class="button button-secondary" type="button" data-edit-record="${esc(type)}" data-record-id="${esc(record.id)}">Edit details</button><button class="button button-secondary danger-text" type="button" data-delete-record="${esc(type)}" data-record-id="${esc(record.id)}">Delete record</button></div>`)}</aside></div>${type === "lead" ? renderLeadWorkspace(record) : ""}`;
+    <div class="detail-layout"><div class="detail-main">${detailSection("Overview", `<div class="detail-fields">${fields.join("")}</div>`)}${related}</div><aside class="detail-side">${detailSection("Record activity", activities.map(a => `<div class="activity-item"><span class="activity-icon ${esc(a.color)}">${esc(a.icon)}</span><div class="activity-copy"><p>${a.text}</p><small>${esc(a.by)} · ${esc(a.time)}</small></div></div>`).join(""), "Activity history will appear here as actions are recorded.")}${detailSection("Record actions", `<div class="detail-action-stack">${type === "lead" && record.stage !== "Lost" && !state.clients.some(client => String(client.name).toLowerCase() === String(record.company).toLowerCase()) ? `<button class="button button-primary" type="button" data-convert-lead="${esc(record.id)}">Convert to client</button>` : ""}${type === "client" ? `<button class="button button-primary" type="button" data-create-project-for-client="${esc(record.id)}">＋ Create project for this client</button><a class="button button-secondary" href="invite-client.html?clientId=${encodeURIComponent(record.id)}">Invite client to portal ↗</a>` : ""}${type === "project" ? `<a class="button button-primary" href="tasks.html?project=${encodeURIComponent(record.id)}">Manage tasks & milestones ↗</a>` : ""}<button class="button button-secondary" type="button" data-edit-record="${esc(type)}" data-record-id="${esc(record.id)}">Edit details</button>${type === "contact" && (record.sourceLeadId || record.sourceClientId) ? "" : `<button class="button button-secondary danger-text" type="button" data-delete-record="${esc(type)}" data-record-id="${esc(record.id)}">Delete record</button>`}</div>`)}</aside></div>${type === "lead" ? renderLeadWorkspace(record) : ""}`;
   setView("record-detail");
   if (type === "lead") updateCommercialCalculations();
   window.location.hash = `${type}/${id}`;
@@ -1216,6 +1296,7 @@ function exportReport(type) {
 }
 
 function renderAll() {
+  syncRelationshipContacts();
   updateMetrics();
   renderDashboardProjects();
   renderDashboardTasks();
@@ -1361,10 +1442,22 @@ const modalDefinitions = {
       { name: "notes", label: "Notes", type: "textarea", full: true, placeholder: "Communication preferences, responsibilities, interests, requirements or follow-up context..." }
     ],
     save(data) {
-      const contact = { id: nextId(state.contacts), ...data, phone: data.phone || data.mobile || "—", relationship: data.relationship || "Client contact" };
+      const normalise = value => String(value || "").trim().toLowerCase();
+      const email = normalise(data.email);
+      const organization = normalise(data.organization);
+      const duplicate = state.contacts.find(item =>
+        email && normalise(item.email || item.workEmail) === email &&
+        normalise(item.organization) === organization);
+      if (duplicate) {
+        Object.assign(duplicate, data, { phone: data.phone || data.mobile || duplicate.phone || "", relationship: data.relationship || duplicate.relationship || "Client contact" });
+        state.activities.unshift({ icon: "✎", color: "orange", text: `<strong>Existing contact updated</strong> — ${esc(data.name)} at ${esc(data.organization)}`, by: currentActorName(), time: "Just now" });
+        persistState(); renderAll(); setView("contacts"); toast("A contact with this email and organization already exists. Its details were updated.");
+        return;
+      }
+      const contact = { id: nextId(state.contacts), ...data, phone: data.phone || data.mobile || "", relationship: data.relationship || "Client contact" };
       state.contacts.push(contact);
       state.activities.unshift({ icon: "＋", color: "orange", text: `<strong>Contact added</strong> — ${esc(data.name)} at ${esc(data.organization)}`, by: currentActorName(), time: "Just now" });
-      persistState(); renderAll(); setView("contacts"); toast("Contact saved in this browser preview.");
+      persistState(); renderAll(); setView("contacts"); toast("Contact saved.");
     }
   },
   "new-communication": {
