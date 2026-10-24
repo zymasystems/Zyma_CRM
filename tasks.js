@@ -529,14 +529,19 @@ async function generateProjectPlanDraft() {
     const existingMilestones = state.milestones.filter(m => m.projectId === selected.id).map(m => ({
       title: m.title, description: m.description, status: toApiMilestoneStatus(m.status), targetDate: m.due || null
     }));
-    // The API generates the plan for a project loaded from the database.
-    // Its route is project-specific: POST /project-plans/{projectId}/generate.
-    // Keep the existing task/milestone snapshots available for future UI review,
-    // but do not send an unsupported draft payload to the generation endpoint.
-    const draft = await window.ZymaCrmApi.request(
-      `/project-plans/${encodeURIComponent(selected.id)}/generate`,
-      { method: "POST" }
-    );
+    const draft = await window.ZymaCrmApi.request(`/project-plans/${encodeURIComponent(selected.id)}/generate`, {
+      method: "POST",
+      body: JSON.stringify({
+        projectId: selected.id,
+        projectName: selected.name,
+        description: selected.description || "",
+        requirements: selected.requirements || selected.description || "",
+        startDate: selected.startDate || todayStr(),
+        targetEndDate: selected.due || "",
+        existingTasks,
+        existingMilestones
+      })
+    });
     if (!draft || !Array.isArray(draft.milestones)) throw new Error("The planner returned an invalid draft.");
     renderProjectPlanDraft(draft);
   } catch (error) {
