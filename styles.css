@@ -1088,3 +1088,82 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(245,130,3
 /* Contact-to-client/project context */
 .contact-card-context { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:0 0 10px; color:var(--muted-2); font-size:9px; }
 .contact-context-label { display:inline-flex; align-items:center; padding:4px 7px; border:1px solid var(--border-soft); border-radius:6px; color:var(--muted); font-weight:600; }
+
+
+/* Mobile topbar correction: keep breadcrumbs and theme controls inside the viewport. */
+@media (max-width: 820px) {
+  .topbar {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    overflow: visible;
+  }
+  .breadcrumbs {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    gap: 7px;
+  }
+  .breadcrumbs > span:first-child,
+  .breadcrumbs .crumb-slash {
+    flex: 0 0 auto;
+  }
+  .breadcrumbs strong {
+    display: block;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .topbar-actions {
+    flex: 0 0 auto;
+    min-width: 0;
+    gap: 5px;
+  }
+  .global-search { flex: 0 0 auto; }
+  .theme-toggle,
+  .notification-button {
+    flex: 0 0 32px;
+    width: 32px;
+    min-width: 32px;
+    display: inline-grid;
+  }
+  .profile-button { flex: 0 0 auto; }
+}
+@media (max-width: 520px) {
+  .topbar {
+    gap: 6px;
+    min-height: 60px;
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+  .topbar .mobile-menu {
+    flex: 0 0 30px;
+    width: 30px;
+    min-width: 30px;
+  }
+  .breadcrumbs { gap: 5px; font-size: 11px; }
+  .topbar-actions { gap: 3px; }
+  .global-search { width: 28px; height: 34px; padding: 0 4px; }
+  .global-search:focus-within {
+    left: 48px;
+    right: 82px;
+    width: auto;
+    z-index: 15;
+  }
+  .theme-toggle,
+  .notification-button {
+    flex-basis: 29px;
+    width: 29px;
+    min-width: 29px;
+    height: 34px;
+  }
+}
+@media (max-width: 360px) {
+  .topbar { padding-left: 7px; padding-right: 7px; gap: 4px; }
+  .breadcrumbs > span:first-child { display: none; }
+  .breadcrumbs .crumb-slash { display: none; }
+  .notification-button { display: none; }
+}
