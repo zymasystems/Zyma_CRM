@@ -194,3 +194,58 @@ a.text-link:hover { color: #ffb16d; }
   .project-plan-task { flex-direction: column; gap: 9px; }
 }
 @media (prefers-reduced-motion: reduce) { #project-plan-modal * { scroll-behavior: auto !important; } }
+
+/* Draft decision actions and narrow-screen dialog safeguards. */
+#project-plan-modal {
+  width: min(980px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  margin: auto;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+}
+#project-plan-modal .project-plan-card {
+  width: 100%;
+  min-width: 0;
+  overflow-x: clip;
+}
+#project-plan-content,
+.project-plan-milestone,
+.project-plan-milestone-head,
+.project-plan-task { max-width: 100%; }
+.project-plan-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  position: sticky;
+  bottom: 0 !important;
+  margin-top: auto;
+  z-index: 2;
+}
+.project-plan-actions-spacer { flex: 1 1 auto; }
+#project-plan-approve:disabled { opacity: .65; cursor: wait; }
+@media (max-width: 600px) {
+  #project-plan-modal {
+    width: calc(100vw - 16px);
+    max-width: calc(100vw - 16px);
+    max-height: calc(100dvh - 16px);
+    border-radius: 14px;
+  }
+  #project-plan-modal .project-plan-card {
+    max-height: calc(100dvh - 16px);
+    padding: 16px;
+  }
+  #project-plan-modal .modal-header h2 { font-size: 21px; }
+  #project-plan-summary { font-size: 12px; }
+  .project-plan-milestone { padding: 13px; }
+  .project-plan-milestone-head { grid-template-columns: 30px minmax(0, 1fr); gap: 9px; }
+  .project-plan-index { width: 29px; height: 29px; }
+  .project-plan-milestone-head time { grid-column: 2; justify-self: start; }
+  .project-plan-tasks { margin: 12px 0 0; }
+  .project-plan-task { padding: 12px; }
+  .project-plan-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .project-plan-actions-spacer { display: none; }
+  #project-plan-reject { grid-column: 1; grid-row: 1; }
+  #project-plan-cancel { grid-column: 2; grid-row: 1; }
+  #project-plan-approve { grid-column: 1 / -1; grid-row: 2; width: 100%; }
+}

@@ -514,6 +514,7 @@ function detail(id) {
 }
 
 /* ---------- AI project plan draft via authenticated CRM API proxy ---------- */
+let pendingProjectPlanDraft = null;
 async function generateProjectPlanDraft() {
   const selected = project(projectFilter);
   if (!selected || projectFilter === "all") return toast("Open a specific project before generating its plan.");
@@ -543,6 +544,7 @@ async function generateProjectPlanDraft() {
       })
     });
     if (!draft || !Array.isArray(draft.milestones)) throw new Error("The planner returned an invalid draft.");
+    pendingProjectPlanDraft = draft;
     renderProjectPlanDraft(draft);
   } catch (error) {
     toast(error?.message || "Could not generate the project plan draft.");
@@ -552,6 +554,9 @@ async function generateProjectPlanDraft() {
   }
 }
 function renderProjectPlanDraft(draft) {
+  const approveButton = $("#project-plan-approve");
+  approveButton.disabled = false;
+  approveButton.textContent = "Approve & create tasks";
   $("#project-plan-summary").textContent = draft.summary || `Draft plan for ${draft.projectName || project(projectFilter)?.name || "this project"}.`;
   const content = $("#project-plan-content");
   content.innerHTML = draft.milestones.map((m, index) => `
@@ -564,6 +569,37 @@ function renderProjectPlanDraft(draft) {
 $("#generate-project-plan").addEventListener("click", () => void generateProjectPlanDraft());
 $("#project-plan-close").addEventListener("click", () => closeDialog($("#project-plan-modal")));
 $("#project-plan-cancel").addEventListener("click", () => closeDialog($("#project-plan-modal")));
+$("#project-plan-reject").addEventListener("click", () => {
+  if (!pendingProjectPlanDraft) return closeDialog($("#project-plan-modal"));
+  if (!confirm("Reject and discard this draft? Nothing will be added to the project.")) return;
+  pendingProjectPlanDraft = null;
+  closeDialog($("#project-plan-modal"));
+  toast("Project plan draft rejected. No changes were saved.");
+});
+$("#project-plan-approve").addEventListener("click", async () => {
+  const selected = project(projectFilter);
+  if (!selected || !pendingProjectPlanDraft) return toast("Generate a project-plan draft first.");
+  if (!apiMode || !window.ZymaCrmApi?.getToken()) return toast("Sign in to the live CRM before approving a project plan.");
+  const button = $("#project-plan-approve");
+  button.disabled = true;
+  button.textContent = "Saving plan…";
+  try {
+    const result = await window.ZymaCrmApi.request(`/project-plans/${encodeURIComponent(selected.id)}/approve`, {
+      method: "POST",
+      body: JSON.stringify({ milestones: pendingProjectPlanDraft.milestones })
+    });
+    pendingProjectPlanDraft = null;
+    closeDialog($("#project-plan-modal"));
+    const loaded = await loadApiState();
+    if (!loaded) throw new Error("The plan was approved, but the task board could not refresh. Reload the page to view saved tasks.");
+    if (inWorkspace()) renderWorkspace(); else renderPicker();
+    toast(result?.message || "Project plan approved. Milestones and tasks have been added to the project.");
+  } catch (error) {
+    toast(error?.message || "Could not approve the project plan.");
+    button.disabled = false;
+    button.textContent = "Approve & create tasks";
+  }
+});
 
 /* ---------- events ---------- */
 $("#task-form").addEventListener("submit", e => {
