@@ -358,11 +358,7 @@ html, body { max-width: 100%; overflow-x: hidden; }
 /* Project-plan review dialog: centered in the viewport on desktop and mobile. */
 dialog#project-plan-modal[open] {
   position: fixed !important;
-  left: 50% !important;
-  top: 50% !important;
-  right: auto !important;
-  bottom: auto !important;
-  inset: auto !important;
+  inset: 50% auto auto 50% !important;
   transform: translate(-50%, -50%) !important;
   margin: 0 !important;
   width: min(980px, calc(100vw - 32px)) !important;
@@ -527,4 +523,26 @@ dialog#project-plan-modal #project-plan-approve { margin-left: auto; }
   .project-strip { padding: 12px; }
   .project-strip #view-tabs { gap: 3px; }
   .project-strip #view-tabs .filter-tab { padding: 8px 7px; font-size: 10px; }
+}
+
+
+/* Draft preview modal positioning fix: keep the dialog centered and fully visible. */
+dialog#project-plan-modal[open] {
+  position: fixed !important;
+  inset: 50% auto auto 50% !important;
+  transform: translate(-50%, -50%) !important;
+  margin: 0 !important;
+  width: min(980px, calc(100vw - 32px)) !important;
+  max-width: calc(100vw - 32px) !important;
+  height: min(900px, calc(100dvh - 32px)) !important;
+  max-height: calc(100dvh - 32px) !important;
+}
+@media (max-width: 700px) {
+  dialog#project-plan-modal[open] {
+    inset: 50% auto auto 50% !important;
+    width: calc(100vw - 20px) !important;
+    max-width: calc(100vw - 20px) !important;
+    height: calc(100dvh - 20px) !important;
+    max-height: calc(100dvh - 20px) !important;
+  }
 }
