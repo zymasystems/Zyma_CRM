@@ -187,9 +187,19 @@ function toast(message) {
 
 /* ---------- sidebar counts (same rules as the main CRM) ---------- */
 function renderSidebarCounts() {
-  $("#lead-nav-count").textContent = state.leads.filter(l => !["Won", "Lost"].includes(l.stage)).length;
-  $("#meeting-nav-count").textContent = state.meetings.length;
-  $("#task-nav-count").textContent = state.tasks.filter(isOpen).length;
+  const setCount = (id, value) => {
+    const element = document.getElementById(id);
+    if (element) element.textContent = String(value);
+  };
+  setCount("lead-nav-count", state.leads.length);
+  setCount("meeting-nav-count", state.meetings.length);
+  setCount("client-nav-count", state.clients.length);
+  setCount("contact-nav-count", state.contacts.length);
+  setCount("project-nav-count", state.projects.length);
+  // Count actionable items consistently: open tasks plus milestones not yet completed.
+  const openTasks = state.tasks.filter(isOpen).length;
+  const openMilestones = state.milestones.filter(m => m.status !== "Completed").length;
+  setCount("task-nav-count", openTasks + openMilestones);
 }
 
 /* =========================================================
