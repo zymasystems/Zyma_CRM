@@ -557,6 +557,28 @@ function detail(id) {
 
 /* ---------- AI project plan draft via authenticated CRM API proxy ---------- */
 let pendingProjectPlanDraft = null;
+let projectPlanApprovalInProgress = false;
+function prepareProjectPlanForApproval(draft, projectId) {
+  const key = value => String(value || "").normalize("NFKC").trim().toLowerCase().replace(/\s+/g, " ");
+  const seenTasks = new Set(state.tasks.filter(t => String(t.projectId) === String(projectId)).map(t => key(t.title)));
+  const seenMilestones = new Set(state.milestones.filter(m => String(m.projectId) === String(projectId)).map(m => key(m.title)));
+  let skippedTasks = 0, skippedMilestones = 0;
+  const milestones = [];
+  for (const m of (Array.isArray(draft?.milestones) ? draft.milestones : [])) {
+    const mk = key(m?.title);
+    if (!mk || seenMilestones.has(mk)) { skippedMilestones++; continue; }
+    seenMilestones.add(mk);
+    const tasks = [];
+    for (const t of (Array.isArray(m.tasks) ? m.tasks : [])) {
+      const tk = key(t?.title);
+      if (!tk || seenTasks.has(tk)) { skippedTasks++; continue; }
+      seenTasks.add(tk);
+      tasks.push(t);
+    }
+    milestones.push({ ...m, tasks });
+  }
+  return { milestones, skippedTasks, skippedMilestones };
+}
 async function generateProjectPlanDraft() {
   const selected = project(projectFilter);
   if (!selected || projectFilter === "all") return toast("Open a specific project before generating its plan.");
@@ -621,24 +643,36 @@ $("#project-plan-reject").addEventListener("click", () => {
 $("#project-plan-approve").addEventListener("click", async () => {
   const selected = project(projectFilter);
   if (!selected || !pendingProjectPlanDraft) return toast("Generate a project-plan draft first.");
+  if (projectPlanApprovalInProgress) return;
   if (!apiMode || !window.ZymaCrmApi?.getToken()) return toast("Sign in to the live CRM before approving a project plan.");
   const button = $("#project-plan-approve");
+  const prepared = prepareProjectPlanForApproval(pendingProjectPlanDraft, selected.id);
+  if (!prepared.milestones.length || prepared.milestones.every(m => !m.tasks.length)) {
+    return toast("This draft contains no new milestones or tasks. Generate a revised plan instead of creating duplicates.");
+  }
+  projectPlanApprovalInProgress = true;
   button.disabled = true;
   button.textContent = "Saving plan…";
   try {
     const result = await window.ZymaCrmApi.request(`/project-plans/${encodeURIComponent(selected.id)}/approve`, {
-      method: "POST",
-      body: JSON.stringify({ milestones: pendingProjectPlanDraft.milestones })
+      method: "POST", body: JSON.stringify({ milestones: prepared.milestones })
     });
     pendingProjectPlanDraft = null;
     closeDialog($("#project-plan-modal"));
     const loaded = await loadApiState();
-    if (!loaded) throw new Error("The plan was approved, but the task board could not refresh. Reload the page to view saved tasks.");
-    if (inWorkspace()) renderWorkspace(); else renderPicker();
-    toast(result?.message || "Project plan approved. Milestones and tasks have been added to the project.");
+    if (loaded) {
+      if (inWorkspace()) renderWorkspace(); else renderPicker();
+    } else {
+      toast("The plan was approved, but the board could not refresh. Reopen Tasks & Milestones to load saved records.");
+      return;
+    }
+    const skipped = prepared.skippedTasks + prepared.skippedMilestones;
+    toast(`${result?.message || "Project plan approved."}${skipped ? ` Skipped ${prepared.skippedTasks} duplicate task(s) and ${prepared.skippedMilestones} duplicate milestone(s).` : ""}`);
   } catch (error) {
     toast(error?.message || "Could not approve the project plan.");
-    button.disabled = false;
+  } finally {
+    projectPlanApprovalInProgress = false;
+    button.disabled = !pendingProjectPlanDraft;
     button.textContent = "Approve & create tasks";
   }
 });
@@ -781,8 +815,24 @@ window.addEventListener("storage", e => {
   if (!apiMode && (e.key === CRM_KEY || e.key === MILESTONE_KEY)) refresh();
 });
 
+// Keep the task board and completion bars synchronized with shared API changes.
+let taskRefreshInProgress = false;
+async function refreshTaskBoard() {
+  if (taskRefreshInProgress || document.visibilityState === "hidden" || !window.ZymaCrmApi?.getToken()) return;
+  taskRefreshInProgress = true;
+  try {
+    const loaded = await loadApiState();
+    if (loaded) { if (inWorkspace()) renderWorkspace(); else renderPicker(); }
+  } catch (error) { console.warn("Task board refresh failed", error); }
+  finally { taskRefreshInProgress = false; }
+}
 renderPicker();
 void refresh();
+if (window.ZymaCrmApi?.getToken()) {
+  window.setInterval(refreshTaskBoard, 30000);
+  window.addEventListener("focus", refreshTaskBoard);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") refreshTaskBoard(); });
+}
 // Deep-link into a specific project from the CRM project detail view.
 try {
   const requestedProject = new URLSearchParams(window.location.search).get("project");

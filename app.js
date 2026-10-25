@@ -547,10 +547,16 @@ async function createApiClient(client) {
 }
 
 function calculatedProjectProgress(project) {
-  const relatedTasks = state.tasks.filter(task => String(task.projectId ?? "") === String(project.id) || String(task.project || "").trim().toLowerCase() === String(project.name || "").trim().toLowerCase());
+  const projectId = String(project.sourceId ?? project.id ?? "");
+  const projectName = String(project.name || "").trim().toLowerCase();
+  const relatedTasks = state.tasks.filter(task => {
+    const taskProjectId = String(task.projectId ?? task.project_id ?? "");
+    const taskProjectName = String(task.project || task.projectName || task.project_name || "").trim().toLowerCase();
+    return (projectId && taskProjectId && taskProjectId === projectId) || (projectName && taskProjectName === projectName);
+  });
   if (!relatedTasks.length) return Math.max(0, Math.min(100, Number(project.progress) || 0));
-  const completed = relatedTasks.filter(task => task.done === true || ["done", "completed"].includes(String(task.status || "").toLowerCase())).length;
-  return Math.round((completed / relatedTasks.length) * 100);
+  const completed = relatedTasks.filter(task => task.done === true || ["done", "completed"].includes(String(task.status || "").trim().toLowerCase())).length;
+  return Math.max(0, Math.min(100, Math.round((completed / relatedTasks.length) * 100)));
 }
 function recordActionButtons(type, id) {
   const record = type === "contact" ? state.contacts.find(item => String(item.id) === String(id)) : null;
