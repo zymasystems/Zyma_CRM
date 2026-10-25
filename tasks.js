@@ -133,7 +133,7 @@ function mapApiState(projects, tasks, milestones) {
     progress: 0, startDate: normalizeDate(p.startDateUtc || p.StartDateUtc), due: normalizeDate(p.targetEndDateUtc || p.TargetEndDateUtc), manager: p.clientName || p.ClientName || ""
   }));
   const mappedTasks = tasks.map(t => ({
-    id: String(t.id || t.Id), sourceId: t.id || t.Id, projectId: String(t.projectId || t.ProjectId), projectLabel: "",
+    id: String(t.id || t.Id), sourceId: t.id || t.Id, projectId: String(t.projectId || t.ProjectId), projectLabel: mappedProjects.find(p => p.id === String(t.projectId || t.ProjectId))?.name || "",
     milestoneId: String(t.milestoneId || t.MilestoneId || ""),
     title: t.title || t.Title || "Untitled task", description: t.description || t.Description || "",
     assignee: t.assignedToName || t.AssignedToName || "", priority: t.priority || t.Priority || "Medium",
@@ -170,10 +170,11 @@ async function loadApiState() {
     ]);
     const countValue = result => result.status === "fulfilled" && Array.isArray(result.value)
       ? result.value.length : 0;
-    state.leads = countValue(countRequests[0]);
-    state.meetings = countValue(countRequests[1]);
-    state.clients = countValue(countRequests[2]);
-    state.contacts = countValue(countRequests[3]);
+    // Keep count collections as arrays: sidebar rendering and other views use .length.
+    state.leads = countRequests[0].status === "fulfilled" && Array.isArray(countRequests[0].value) ? countRequests[0].value : [];
+    state.meetings = countRequests[1].status === "fulfilled" && Array.isArray(countRequests[1].value) ? countRequests[1].value : [];
+    state.clients = countRequests[2].status === "fulfilled" && Array.isArray(countRequests[2].value) ? countRequests[2].value : [];
+    state.contacts = countRequests[3].status === "fulfilled" && Array.isArray(countRequests[3].value) ? countRequests[3].value : [];
     apiMode = true;
     apiLoadError = "";
     return true;
@@ -557,28 +558,6 @@ function detail(id) {
 
 /* ---------- AI project plan draft via authenticated CRM API proxy ---------- */
 let pendingProjectPlanDraft = null;
-let projectPlanApprovalInProgress = false;
-function prepareProjectPlanForApproval(draft, projectId) {
-  const key = value => String(value || "").normalize("NFKC").trim().toLowerCase().replace(/\s+/g, " ");
-  const seenTasks = new Set(state.tasks.filter(t => String(t.projectId) === String(projectId)).map(t => key(t.title)));
-  const seenMilestones = new Set(state.milestones.filter(m => String(m.projectId) === String(projectId)).map(m => key(m.title)));
-  let skippedTasks = 0, skippedMilestones = 0;
-  const milestones = [];
-  for (const m of (Array.isArray(draft?.milestones) ? draft.milestones : [])) {
-    const mk = key(m?.title);
-    if (!mk || seenMilestones.has(mk)) { skippedMilestones++; continue; }
-    seenMilestones.add(mk);
-    const tasks = [];
-    for (const t of (Array.isArray(m.tasks) ? m.tasks : [])) {
-      const tk = key(t?.title);
-      if (!tk || seenTasks.has(tk)) { skippedTasks++; continue; }
-      seenTasks.add(tk);
-      tasks.push(t);
-    }
-    milestones.push({ ...m, tasks });
-  }
-  return { milestones, skippedTasks, skippedMilestones };
-}
 async function generateProjectPlanDraft() {
   const selected = project(projectFilter);
   if (!selected || projectFilter === "all") return toast("Open a specific project before generating its plan.");
@@ -643,36 +622,50 @@ $("#project-plan-reject").addEventListener("click", () => {
 $("#project-plan-approve").addEventListener("click", async () => {
   const selected = project(projectFilter);
   if (!selected || !pendingProjectPlanDraft) return toast("Generate a project-plan draft first.");
-  if (projectPlanApprovalInProgress) return;
   if (!apiMode || !window.ZymaCrmApi?.getToken()) return toast("Sign in to the live CRM before approving a project plan.");
   const button = $("#project-plan-approve");
-  const prepared = prepareProjectPlanForApproval(pendingProjectPlanDraft, selected.id);
-  if (!prepared.milestones.length || prepared.milestones.every(m => !m.tasks.length)) {
-    return toast("This draft contains no new milestones or tasks. Generate a revised plan instead of creating duplicates.");
-  }
-  projectPlanApprovalInProgress = true;
   button.disabled = true;
-  button.textContent = "Saving plan…";
+  button.textContent = "Checking for duplicates…";
   try {
+    // AI drafts can contain items already created during an earlier attempt. Remove
+    // existing and repeated titles before submitting, scoped to this project.
+    const titleKey = value => norm(value).replace(/[^a-z0-9]+/g, " ").trim();
+    const existingTaskTitles = new Set(state.tasks.filter(t => t.projectId === selected.id).map(t => titleKey(t.title)).filter(Boolean));
+    const existingMilestoneTitles = new Set(state.milestones.filter(m => m.projectId === selected.id).map(m => titleKey(m.title)).filter(Boolean));
+    const draftMilestoneTitles = new Set();
+    const draftTaskTitles = new Set();
+    const milestones = (pendingProjectPlanDraft.milestones || []).filter(m => {
+      const key = titleKey(m.title);
+      if (!key || existingMilestoneTitles.has(key) || draftMilestoneTitles.has(key)) return false;
+      draftMilestoneTitles.add(key);
+      return true;
+    }).map(m => ({
+      ...m,
+      tasks: (Array.isArray(m.tasks) ? m.tasks : []).filter(t => {
+        const key = titleKey(t.title);
+        if (!key || existingTaskTitles.has(key) || draftTaskTitles.has(key)) return false;
+        draftTaskTitles.add(key);
+        return true;
+      })
+    }));
+    const newTaskCount = milestones.reduce((total, milestone) => total + milestone.tasks.length, 0);
+    if (!milestones.length && !newTaskCount) {
+      throw new Error("This plan contains no new milestones or tasks. The existing project records were left unchanged. Generate a fresh plan or edit the draft titles before approving.");
+    }
+    button.textContent = "Saving plan…";
     const result = await window.ZymaCrmApi.request(`/project-plans/${encodeURIComponent(selected.id)}/approve`, {
-      method: "POST", body: JSON.stringify({ milestones: prepared.milestones })
+      method: "POST",
+      body: JSON.stringify({ milestones })
     });
     pendingProjectPlanDraft = null;
     closeDialog($("#project-plan-modal"));
     const loaded = await loadApiState();
-    if (loaded) {
-      if (inWorkspace()) renderWorkspace(); else renderPicker();
-    } else {
-      toast("The plan was approved, but the board could not refresh. Reopen Tasks & Milestones to load saved records.");
-      return;
-    }
-    const skipped = prepared.skippedTasks + prepared.skippedMilestones;
-    toast(`${result?.message || "Project plan approved."}${skipped ? ` Skipped ${prepared.skippedTasks} duplicate task(s) and ${prepared.skippedMilestones} duplicate milestone(s).` : ""}`);
+    if (!loaded) throw new Error("The plan was approved, but the task board could not refresh. Reload the page to view saved tasks.");
+    if (inWorkspace()) renderWorkspace(); else renderPicker();
+    toast(result?.message || "Project plan approved. Milestones and tasks have been added to the project.");
   } catch (error) {
     toast(error?.message || "Could not approve the project plan.");
-  } finally {
-    projectPlanApprovalInProgress = false;
-    button.disabled = !pendingProjectPlanDraft;
+    button.disabled = false;
     button.textContent = "Approve & create tasks";
   }
 });
@@ -815,24 +808,8 @@ window.addEventListener("storage", e => {
   if (!apiMode && (e.key === CRM_KEY || e.key === MILESTONE_KEY)) refresh();
 });
 
-// Keep the task board and completion bars synchronized with shared API changes.
-let taskRefreshInProgress = false;
-async function refreshTaskBoard() {
-  if (taskRefreshInProgress || document.visibilityState === "hidden" || !window.ZymaCrmApi?.getToken()) return;
-  taskRefreshInProgress = true;
-  try {
-    const loaded = await loadApiState();
-    if (loaded) { if (inWorkspace()) renderWorkspace(); else renderPicker(); }
-  } catch (error) { console.warn("Task board refresh failed", error); }
-  finally { taskRefreshInProgress = false; }
-}
 renderPicker();
 void refresh();
-if (window.ZymaCrmApi?.getToken()) {
-  window.setInterval(refreshTaskBoard, 30000);
-  window.addEventListener("focus", refreshTaskBoard);
-  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") refreshTaskBoard(); });
-}
 // Deep-link into a specific project from the CRM project detail view.
 try {
   const requestedProject = new URLSearchParams(window.location.search).get("project");
@@ -843,6 +820,30 @@ try {
 } catch { /* no query string support needed for the picker */ }
 })();
 
+
+
+// Keep task boards and progress metrics in sync with updates made elsewhere in CRM.
+let taskRefreshInProgress = false;
+async function refreshTaskPageFromApi() {
+  if (!apiMode || taskRefreshInProgress || document.visibilityState === "hidden") return;
+  taskRefreshInProgress = true;
+  try {
+    const selectedId = projectFilter;
+    if (await loadApiState()) {
+      projectFilter = selectedId === "all" || state.projects.some(p => p.id === selectedId) ? selectedId : "all";
+      if (inWorkspace()) renderWorkspace(); else renderPicker();
+    }
+  } catch (error) {
+    console.warn("Task page refresh failed; keeping the last successfully loaded data.", error);
+  } finally {
+    taskRefreshInProgress = false;
+  }
+}
+window.setInterval(refreshTaskPageFromApi, 30000);
+window.addEventListener("focus", refreshTaskPageFromApi);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") refreshTaskPageFromApi();
+});
 
 /* Accessible scroll reveals + replayable chart entrance effects for dynamically rendered CRM content. */
 (function initZymaScrollMotion() {
