@@ -666,10 +666,14 @@ function updateMetrics() {
   $("#metric-leads").textContent = String(openLeads).padStart(2, "0");
   $("#metric-tasks").textContent = String(openTasks).padStart(2, "0");
   renderMetricChangeBadges({ clients: state.clients.length, projects: activeProjects, leads: openLeads, tasks: openTasks });
-  $("#lead-nav-count").textContent = openLeads;
-  $("#task-nav-count").textContent = openTasks;
-  const meetingCount = state.meetings.length;
-  if ($("#meeting-nav-count")) $("#meeting-nav-count").textContent = meetingCount;
+  // Sidebar badges reflect the total number of records in each section,
+  // including closed/won/lost leads and completed tasks.
+  if ($("#lead-nav-count")) $("#lead-nav-count").textContent = state.leads.length;
+  if ($("#task-nav-count")) $("#task-nav-count").textContent = state.tasks.length + state.milestones.length;
+  if ($("#meeting-nav-count")) $("#meeting-nav-count").textContent = state.meetings.length;
+  if ($("#client-nav-count")) $("#client-nav-count").textContent = state.clients.length;
+  if ($("#contact-nav-count")) $("#contact-nav-count").textContent = state.contacts.length;
+  if ($("#project-nav-count")) $("#project-nav-count").textContent = state.projects.length;
   $("#lead-total").textContent = String(openLeads).padStart(2, "0");
   $("#lead-discovery").textContent = String(state.leads.filter(lead => lead.stage === "Discovery").length).padStart(2, "0");
   $("#lead-proposal").textContent = String(state.leads.filter(lead => lead.stage === "Proposal").length).padStart(2, "0");
@@ -1053,32 +1057,6 @@ function relatedRecordLink(type, record, title, subtitle = "") {
   return `<button type="button" class="related-record" data-open-record="${esc(type)}" data-record-id="${esc(record.id)}"><span><strong>${esc(title)}</strong>${subtitle ? `<small>${esc(subtitle)}</small>` : ""}</span><span aria-hidden="true">↗</span></button>`;
 }
 
-async function loadLeadWorkspaceFromApi(leadId) {
-  if (!LEADS_API_ENABLED || !window.ZymaCrmApi) return;
-  const form = document.querySelector("#lead-workspace-form");
-  if (!form || form.dataset.leadId !== String(leadId)) return;
-  try {
-    const response = await window.ZymaCrmApi.request(`/leads/${encodeURIComponent(leadId)}/workspace`);
-    if (!response || !response.data || typeof response.data !== "object" || Array.isArray(response.data)) return;
-    const currentForm = document.querySelector("#lead-workspace-form");
-    if (!currentForm || currentForm.dataset.leadId !== String(leadId)) return;
-    const lead = state.leads.find(item => String(item.id) === String(leadId));
-    if (!lead) return;
-    Object.assign(lead, response.data);
-    for (const [key, value] of Object.entries(response.data)) {
-      const field = currentForm.elements.namedItem(key);
-      if (!field) continue;
-      field.value = value == null ? "" : String(value);
-    }
-    updateCommercialCalculations();
-    const hint = currentForm.querySelector("[data-workspace-save-status]");
-    if (hint) hint.textContent = "Workspace data loaded from the CRM database.";
-  } catch (error) {
-    console.error("Unable to load the lead workspace from the API.", error);
-    toast(`Workspace data could not be loaded from the server. ${error.message || "Please try again."}`);
-  }
-}
-
 function openRecordDetail(type, id) {
   const collection = recordCollections[type];
   const record = collection && state[collection].find(item => String(item.id) === String(id));
@@ -1136,10 +1114,7 @@ function openRecordDetail(type, id) {
     <div class="page-heading detail-heading"><div><p class="eyebrow">${esc(record.code || `ZS-${String(record.id).padStart(3,"0")}`)}</p><h1>${esc(title)}</h1><p class="page-subtitle">${esc(type === "client" ? record.industry : type === "lead" ? record.service : type === "contact" ? record.relationship : type === "project" ? record.client : type === "meeting" ? `${record.type || "Meeting"} · ${record.date || "Date not set"}` : record.project)}</p></div><div class="heading-actions"><button class="button button-secondary" type="button" data-edit-record="${esc(type)}" data-record-id="${esc(record.id)}">Edit record</button></div></div>
     <div class="detail-layout"><div class="detail-main">${detailSection("Overview", `<div class="detail-fields">${fields.join("")}</div>`)}${related}</div><aside class="detail-side">${detailSection("Record activity", activities.map(a => `<div class="activity-item"><span class="activity-icon ${esc(a.color)}">${esc(a.icon)}</span><div class="activity-copy"><p>${a.text}</p><small>${esc(a.by)} · ${esc(a.time)}</small></div></div>`).join(""), "Activity history will appear here as actions are recorded.")}${detailSection("Record actions", `<div class="detail-action-stack">${type === "lead" && record.stage !== "Lost" && !state.clients.some(client => String(client.name).toLowerCase() === String(record.company).toLowerCase()) ? `<button class="button button-primary" type="button" data-convert-lead="${esc(record.id)}">Convert to client</button>` : ""}${type === "client" ? `<button class="button button-primary" type="button" data-create-project-for-client="${esc(record.id)}">＋ Create project for this client</button><a class="button button-secondary" href="invite-client.html?clientId=${encodeURIComponent(record.id)}">Invite client to portal ↗</a>` : ""}${type === "project" ? `<a class="button button-primary" href="tasks.html?project=${encodeURIComponent(record.id)}">Manage tasks & milestones ↗</a>` : ""}<button class="button button-secondary" type="button" data-edit-record="${esc(type)}" data-record-id="${esc(record.id)}">Edit details</button>${type === "contact" && (record.sourceLeadId || record.sourceClientId) ? "" : `<button class="button button-secondary danger-text" type="button" data-delete-record="${esc(type)}" data-record-id="${esc(record.id)}">Delete record</button>`}</div>`)}</aside></div>${type === "lead" ? renderLeadWorkspace(record) : ""}`;
   setView("record-detail");
-  if (type === "lead") {
-    updateCommercialCalculations();
-    if (record.apiBacked) loadLeadWorkspaceFromApi(record.id);
-  }
+  if (type === "lead") updateCommercialCalculations();
   window.location.hash = `${type}/${id}`;
 }
 
@@ -1202,6 +1177,7 @@ function renderLeadWorkspace(lead) {
         ${workspaceField("freeMonths","Free months after deployment",lead.freeMonths,"number","",false,"min=0 step=1")}
         ${workspaceField("deploymentDate","Expected / actual deployment date",lead.deploymentDate,"date")}
         ${workspaceField("recurringPaymentDay","Recurring payment day",lead.recurringPaymentDay || "01", "select", "", false, "", ["15","22","25","30","01"])}
+        ${workspaceField("recurringPaymentDay","Recurring payment day",lead.recurringPaymentDay || "01", "select", "", false, "", ["15","22","25","30","01"])}
         ${workspaceField("firstRecurringDate","First recurring payment date",lead.firstRecurringDate,"date")}
         ${workspaceField("commercialNotes","Additional commercial terms",lead.commercialNotes,"textarea","Contract term, cancellation notice, annual increases, exclusions...")}
       </div><div class="financial-summary"><div><span>Minimum deposit required</span><strong id="calc-deposit-required">${money(depositRequired)}</strong></div><div><span>Deposit received</span><strong id="calc-deposit-paid">${money(lead.depositPaid)}</strong></div><div><span>Deposit outstanding</span><strong id="calc-deposit-outstanding">${money(outstandingDeposit)}</strong></div><div><span>Remaining development balance</span><strong id="calc-development-balance">${money(Math.max(0,Number(lead.developmentFee||0)-Number(lead.depositPaid||0)))}</strong></div><div><span>Monthly recurring total</span><strong id="calc-recurring-total">${money(Number(lead.monthlyFee||0)+Number(lead.zohoMonthlyFee||0))}</strong></div></div><p class="form-hint">Project start should be confirmed only after the required deposit is received and the agreement is signed. These figures are planning aids, not payment confirmations.</p></div>
@@ -1215,7 +1191,7 @@ function renderLeadWorkspace(lead) {
         ${workspaceField("zohoBillingDate","Zoho renewal / billing date",lead.zohoBillingDate,"date")}
         ${workspaceField("otherSubscriptions","Other subscriptions and renewal dates",lead.otherSubscriptions,"textarea","Service, amount, billing cycle, renewal date and who pays...")}
       </div></div>
-      <div class="workspace-form-actions"><span class="muted">Workspace changes are saved to the CRM database when you save this form.</span><button class="button button-primary" type="submit">Save lead workspace</button></div>
+      <div class="workspace-form-actions"><span class="muted">Saved to this browser preview until the backend is connected.</span><button class="button button-primary" type="submit">Save lead workspace</button></div>
     </form>
     <div class="workspace-section linked-meetings"><div class="panel-heading"><div><h3>Meetings for ${esc(lead.company)}</h3><p>Schedule the next meeting after the discovery call.</p></div><button class="button button-secondary" type="button" data-schedule-for-lead="${esc(lead.id)}">＋ Schedule meeting</button></div>
       ${linkedMeetings.length ? linkedMeetings.map(m=>`<div class="meeting-inline"><div><strong>${esc(m.title)}</strong><small>${esc(m.date)} · ${esc(m.time)} · ${esc(m.type)}</small><p>${esc(m.outcome || m.notes || "No meeting notes recorded yet.")}</p></div><span class="status-pill ${m.status === "Completed" ? "status-done" : "status-progress"}">${esc(m.status)}</span><button class="row-action-button" data-edit-record="meeting" data-record-id="${esc(m.id)}">Edit</button></div>`).join("") : `<p class="muted">No meetings recorded for this lead yet.</p>`}
@@ -2206,57 +2182,23 @@ document.addEventListener("change", event => {
   toast(task.done ? "Task marked complete." : "Task reopened.");
 });
 
-document.addEventListener("submit", async event => {
+document.addEventListener("submit", event => {
   const form = event.target.closest("#lead-workspace-form");
   if (!form) return;
   event.preventDefault();
   const lead = state.leads.find(item => String(item.id) === form.dataset.leadId);
   if (!lead) return toast("Lead record not found.");
-
-  const rawData = Object.fromEntries(new FormData(form).entries());
-  const data = {};
-  for (const [key, value] of Object.entries(rawData)) {
-    if (key === "minimumDepositPercent" && !["30", "40", "50"].includes(value)) {
-      data[key] = "";
-    } else if (["developmentFee", "minimumDepositPercent", "depositPaid", "monthlyFee", "freeMonths", "zohoSeats", "zohoMonthlyFee"].includes(key)) {
-      data[key] = value === "" ? "" : Number(value);
-    } else {
-      data[key] = value;
-    }
-  }
-
-  const required = Number(data.developmentFee || 0) * Number(data.minimumDepositPercent || 0) / 100;
-  const submitButton = form.querySelector('button[type="submit"]');
-  if (submitButton) submitButton.disabled = true;
-  try {
-    if (lead.apiBacked && LEADS_API_ENABLED && window.ZymaCrmApi) {
-      await window.ZymaCrmApi.request(`/leads/${encodeURIComponent(lead.id)}/workspace`, {
-        method: "PUT",
-        body: JSON.stringify({ data })
-      });
-    }
-    Object.assign(lead, data);
-    if (!lead.apiBacked) {
-      persistState();
-      saveLeadExtras(lead);
-    }
-    renderAll();
-    openRecordDetail("lead", lead.id);
-    if (Number(data.depositPaid || 0) > Number(data.developmentFee || 0)) {
-      toast("Workspace saved. Note: the deposit received exceeds the development fee; please verify the amount.");
-    } else if (required > Number(data.depositPaid || 0)) {
-      toast("Workspace saved. The minimum deposit has not yet been fully received.");
-    } else {
-      toast(lead.apiBacked ? "Lead workspace saved to the CRM database." : "Workspace saved in this browser only because this lead is not API-backed.");
-    }
-  } catch (error) {
-    console.error("Unable to save the lead workspace.", error);
-    toast(`Workspace was not saved. ${error.message || "Check your connection and try again."}`);
-  } finally {
-    const currentForm = document.querySelector("#lead-workspace-form");
-    const currentButton = currentForm && currentForm.querySelector('button[type="submit"]');
-    if (currentButton) currentButton.disabled = false;
-  }
+  const data = Object.fromEntries(new FormData(form).entries());
+  Object.entries(data).forEach(([key,value]) => {
+    if (key === "minimumDepositPercent" && !["30","40","50"].includes(value)) lead[key] = "";
+    else lead[key] = ["developmentFee","minimumDepositPercent","depositPaid","monthlyFee","freeMonths","zohoSeats","zohoMonthlyFee"].includes(key) ? (value === "" ? "" : Number(value)) : value;
+  });
+  const required = Number(lead.developmentFee || 0) * Number(lead.minimumDepositPercent || 0) / 100;
+  if (lead.apiBacked) saveLeadExtras(lead);
+  if (Number(lead.depositPaid || 0) > Number(lead.developmentFee || 0)) toast("Workspace saved in this browser only. Note: deposit received exceeds the development fee; please verify the amount.");
+  else if (required > Number(lead.depositPaid || 0)) toast("Workspace saved in this browser only. Minimum deposit is not yet fully received.");
+  else toast("Extended discovery, pricing and payment details are saved in this browser only; the current API schema does not yet store these fields.");
+  persistState(); renderAll(); openRecordDetail("lead", lead.id);
 });
 
 $("#record-form").addEventListener("submit", async event => {
