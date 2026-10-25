@@ -158,6 +158,22 @@ async function loadApiState() {
       api.request("/projects"), api.request("/tasks"), api.request("/milestones")
     ]);
     state = mapApiState(projects || [], tasks || [], milestones || []);
+
+    // Load sidebar counts from the same live CRM API as the main workspace.
+    // Keep these requests independent so a non-essential count endpoint cannot
+    // prevent the task board from loading.
+    const countRequests = await Promise.allSettled([
+      api.request("/leads"),
+      api.request("/meetings"),
+      api.request("/clients"),
+      api.request("/contacts")
+    ]);
+    const countValue = result => result.status === "fulfilled" && Array.isArray(result.value)
+      ? result.value.length : 0;
+    state.leads = countValue(countRequests[0]);
+    state.meetings = countValue(countRequests[1]);
+    state.clients = countValue(countRequests[2]);
+    state.contacts = countValue(countRequests[3]);
     apiMode = true;
     apiLoadError = "";
     return true;
@@ -197,9 +213,8 @@ function renderSidebarCounts() {
   setCount("contact-nav-count", state.contacts.length);
   setCount("project-nav-count", state.projects.length);
   // Count actionable items consistently: open tasks plus milestones not yet completed.
-  const openTasks = state.tasks.filter(isOpen).length;
-  const openMilestones = state.milestones.filter(m => m.status !== "Completed").length;
-  setCount("task-nav-count", openTasks + openMilestones);
+  // Match the main CRM badge: total task records plus total milestone records.
+  setCount("task-nav-count", state.tasks.length + state.milestones.length);
 }
 
 /* =========================================================
