@@ -1088,3 +1088,64 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(245,130,3
 /* Contact-to-client/project context */
 .contact-card-context { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:0 0 10px; color:var(--muted-2); font-size:9px; }
 .contact-context-label { display:inline-flex; align-items:center; padding:4px 7px; border:1px solid var(--border-soft); border-radius:6px; color:var(--muted); font-weight:600; }
+
+
+/* Embedded report preview — consistent with Zyma Pay's document preview flow */
+.crm-report-preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(5, 9, 15, .78);
+  backdrop-filter: blur(7px);
+}
+.crm-report-preview-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(1280px, 100%);
+  height: min(94vh, 1000px);
+  min-height: 0;
+  overflow: hidden;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #dedbd6);
+  border-radius: 16px;
+  box-shadow: 0 24px 90px rgba(0,0,0,.4);
+}
+.crm-report-preview-header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 15px 20px;
+  border-bottom: 1px solid var(--border, #dedbd6);
+  background: var(--surface-raised, #fff);
+}
+.crm-report-preview-header div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.crm-report-preview-header strong { color: var(--text, #101722); font-size: 14px; }
+.crm-report-preview-header span { color: var(--text-muted, #596575); font-size: 12px; }
+.crm-report-preview-close {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--border, #dedbd6);
+  border-radius: 10px;
+  background: var(--surface, #fff);
+  color: var(--text, #101722);
+  font-size: 25px;
+  line-height: 1;
+  cursor: pointer;
+}
+.crm-report-preview-close:hover { border-color: var(--orange, #f58220); color: var(--orange, #f58220); }
+.crm-report-preview-frame { display: block; flex: 1 1 auto; width: 100%; min-height: 0; border: 0; background: #e9edf1; }
+@media (max-width: 640px) {
+  .crm-report-preview-overlay { padding: 0; }
+  .crm-report-preview-dialog { width: 100%; height: 100%; border-radius: 0; border: 0; }
+  .crm-report-preview-header { padding: 12px 14px; }
+  .crm-report-preview-header span { max-width: 260px; line-height: 1.4; }
+}

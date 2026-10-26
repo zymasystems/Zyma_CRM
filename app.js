@@ -1504,11 +1504,33 @@ function exportReport(type) {
     type === "attention" ? "Items Requiring Attention Report" :
     type === "activity" ? "Client Engagement Report" : "Business Overview Report";
 
-  const win = window.open("", "_blank", "noopener=false,width=1200,height=900");
-  if (!win) return toast("Please allow pop-ups to export the report as a PDF.");
+  // Keep the report preview inside Zyma CRM, matching the embedded PDF
+  // preview experience used by Zyma Pay. No pop-up blocker is required.
+  document.getElementById("crm-report-preview-overlay")?.remove();
   const stylesheet = new URL("styles.css", window.location.href).href;
-  win.document.open();
-  win.document.write(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(printableTitle)} — Zyma CRM</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="${stylesheet}"><style>
+  const previewOverlay = document.createElement("div");
+  previewOverlay.id = "crm-report-preview-overlay";
+  previewOverlay.className = "crm-report-preview-overlay";
+  previewOverlay.innerHTML = `<section class="crm-report-preview-dialog" role="dialog" aria-modal="true" aria-label="Report preview">
+    <header class="crm-report-preview-header">
+      <div><strong>Report preview</strong><span>Review the report before downloading it as a PDF.</span></div>
+      <button type="button" class="crm-report-preview-close" aria-label="Close report preview">×</button>
+    </header>
+    <iframe class="crm-report-preview-frame" title="CRM report preview"></iframe>
+  </section>`;
+  document.body.append(previewOverlay);
+  const previewFrame = previewOverlay.querySelector(".crm-report-preview-frame");
+  const closeReportPreview = () => previewOverlay.remove();
+  previewOverlay.querySelector(".crm-report-preview-close").addEventListener("click", closeReportPreview);
+  previewOverlay.addEventListener("click", event => { if (event.target === previewOverlay) closeReportPreview(); });
+  const handlePreviewEscape = event => {
+    if (event.key === "Escape" && document.getElementById("crm-report-preview-overlay")) {
+      closeReportPreview();
+      document.removeEventListener("keydown", handlePreviewEscape);
+    }
+  };
+  document.addEventListener("keydown", handlePreviewEscape);
+  const previewDocument = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(printableTitle)} — Zyma CRM</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="${stylesheet}"><style>
     :root{color-scheme:light;--surface:#fff;--surface-raised:#fff;--text:#101722;--text-muted:#596575;--border:#dedbd6;--page:#fff;--orange:#f58220;--shadow:none}
     *{box-sizing:border-box;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;opacity:1!important;text-shadow:none!important}
     html,body{background:#fff!important;color:#101722!important;margin:0!important;padding:0!important;font-family:'DM Sans',Arial,sans-serif!important}
@@ -1585,11 +1607,11 @@ function exportReport(type) {
       button.textContent=original;
     }finally{button.disabled=false;}
   });
-  document.getElementById('close-preview').addEventListener('click',function(){window.close();});
+  document.getElementById('close-preview').addEventListener('click',function(){parent.document.getElementById('crm-report-preview-overlay')?.remove();});
 })();
-<\/script></body></html>`);
-  win.document.close();
-  toast("Report preview opened. Review the A4 layout, then choose Download / Save as PDF.");
+<\\/script></body></html>`;
+  previewFrame.srcdoc = previewDocument;
+  toast("Report preview opened. Review it, then choose Download PDF.");
 }
 
 function renderAll() {
