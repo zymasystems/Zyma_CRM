@@ -41,6 +41,7 @@
       <p class="nav-label nav-label-spaced">RELATIONSHIPS</p>
       <nav class="primary-nav" aria-label="Relationship navigation">
         <button class="nav-item" data-view="communications"><span class="nav-icon">▤</span><span>Communications</span></button>
+        <button class="nav-item" data-view="support"><span class="nav-icon">✉</span><span>Support tickets</span><span class="nav-count" id="support-nav-count">0</span></button>
         <button class="nav-item" data-view="reports"><span class="nav-icon">▥</span><span>Reports</span></button>
       </nav>
 
@@ -250,6 +251,29 @@
           <p class="reports-disclaimer">Reports are calculated from the records currently available in this workspace. Weekly lead history starts when tracking is enabled; no earlier history is invented. Financial reporting will be added after the Zyma Pay integration is connected.</p>
         </section>
 
+        <section class="view-section" id="view-support" data-title="Support tickets">
+          <div class="page-heading">
+            <div><p class="eyebrow">CLIENT SUCCESS</p><h1>Support tickets</h1><p class="page-subtitle">Review client requests, respond to conversations and manage resolution.</p></div>
+            <div class="heading-actions"><button class="button button-secondary" id="support-refresh" type="button">Refresh tickets</button></div>
+          </div>
+          <div class="metric-grid compact-metrics support-metrics">
+            <article class="metric-card"><span class="metric-label">Total tickets</span><div class="metric-value" id="support-total">0</div><span class="metric-caption">All recorded requests</span></article>
+            <article class="metric-card"><span class="metric-label">Open</span><div class="metric-value" id="support-open">0</div><span class="metric-caption">Awaiting action</span></article>
+            <article class="metric-card"><span class="metric-label">In progress</span><div class="metric-value" id="support-progress">0</div><span class="metric-caption">Being handled</span></article>
+            <article class="metric-card"><span class="metric-label">Resolved / closed</span><div class="metric-value" id="support-resolved">0</div><span class="metric-caption">Completed requests</span></article>
+          </div>
+          <section class="panel support-panel">
+            <div class="panel-heading support-list-heading"><div><h2>Request inbox</h2><p>Tickets submitted by clients through their invited portal.</p></div><label class="support-search">Search <input id="support-search" type="search" placeholder="Reference, client, subject…"></label></div>
+            <div class="support-filters" id="support-filters"><button class="filter-tab active" type="button" data-support-filter="All">All tickets</button><button class="filter-tab" type="button" data-support-filter="Open">Open</button><button class="filter-tab" type="button" data-support-filter="InProgress">In progress</button><button class="filter-tab" type="button" data-support-filter="AwaitingClient">Awaiting client</button><button class="filter-tab" type="button" data-support-filter="Resolved">Resolved</button><button class="filter-tab" type="button" data-support-filter="Closed">Closed</button></div>
+            <div class="table-wrap support-table-wrap"><table class="support-table"><thead><tr><th>Ticket</th><th>Client / project</th><th>Priority</th><th>Status</th><th>Last updated</th><th></th></tr></thead><tbody id="support-ticket-rows"><tr><td colspan="6" class="support-empty">Loading support tickets…</td></tr></tbody></table></div>
+            <p class="support-feedback" id="support-feedback" role="status" aria-live="polite"></p>
+          </section>
+          <section class="panel support-detail-panel" id="support-detail-panel" hidden>
+            <div class="panel-heading"><div><p class="eyebrow" id="support-detail-reference">TICKET DETAILS</p><h2 id="support-detail-subject">Select a ticket</h2><p id="support-detail-meta" class="muted"></p></div><button class="button button-secondary button-small" id="support-close-detail" type="button">Close details</button></div>
+            <div class="support-detail-grid"><div><h3>Request description</h3><p id="support-detail-description" class="support-description"></p><div class="support-field-row"><label for="support-status-select">Ticket status</label><select id="support-status-select" class="control-select"><option>Open</option><option>InProgress</option><option>AwaitingClient</option><option>Resolved</option><option>Closed</option></select><button class="button button-secondary button-small" id="support-save-status" type="button">Update status</button></div></div><div><h3>Conversation</h3><div id="support-replies" class="support-replies"></div><form id="support-reply-form" class="support-reply-form"><label for="support-reply-body">Write a reply</label><textarea id="support-reply-body" rows="4" maxlength="5000" required placeholder="Write a clear response to the client…"></textarea><button class="button button-primary" type="submit">Send reply</button></form></div></div>
+          </section>
+        </section>
+
         <section class="view-section" id="view-settings" data-title="Settings">
           <div class="page-heading settings-page-heading"><div><p class="eyebrow">WORKSPACE CONFIGURATION</p><h1>Settings</h1><p class="page-subtitle">Manage your workspace identity, personal preferences and connected services.</p></div><span class="settings-saved-indicator"><span class="settings-live-dot"></span> Saved in this browser</span></div>
           <div class="settings-layout">
@@ -326,5 +350,6 @@
   <script src="app.js?v=20261024-dashboard-api-stats"></script>
   <script src="workspace-access.js"></script>
   <script src="current-user.js"></script>
+  <script src="support-tickets.js?v=20261027-1"></script>
 </body>
 </html>
