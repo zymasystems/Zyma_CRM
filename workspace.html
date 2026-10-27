@@ -42,6 +42,7 @@
       <nav class="primary-nav" aria-label="Relationship navigation">
         <button class="nav-item" data-view="communications"><span class="nav-icon">▤</span><span>Communications</span></button>
         <button class="nav-item" data-view="support"><span class="nav-icon">✉</span><span>Support tickets</span><span class="nav-count" id="support-nav-count">0</span></button>
+        <button class="nav-item" data-view="project-updates"><span class="nav-icon">↗</span><span>Development updates</span></button>
         <button class="nav-item" data-view="reports"><span class="nav-icon">▥</span><span>Reports</span></button>
       </nav>
 
@@ -274,6 +275,35 @@
           </section>
         </section>
 
+        <section class="view-section" id="view-project-updates" data-title="Development updates">
+          <div class="page-heading">
+            <div><p class="eyebrow">PROJECT COMMUNICATION</p><h1>Development updates</h1><p class="page-subtitle">Publish progress notes, milestones and decisions to the relevant client's private portal.</p></div>
+            <div class="heading-actions"><button class="button button-secondary" id="updates-refresh" type="button">Refresh</button><button class="button button-primary" id="update-new" type="button">＋ New update</button></div>
+          </div>
+          <section class="panel support-panel">
+            <div class="panel-heading support-list-heading"><div><h2>Published updates & drafts</h2><p>Drafts are staff-only. Published updates appear in the matching client's portal.</p></div>
+              <label class="support-search">Project <select id="updates-project-filter" class="control-select"><option value="">All projects</option></select></label>
+            </div>
+            <div class="table-wrap"><table class="support-table"><thead><tr><th>Update</th><th>Project</th><th>Category</th><th>Status</th><th>Last updated</th><th></th></tr></thead><tbody id="updates-rows"><tr><td colspan="6" class="support-empty">Loading updates…</td></tr></tbody></table></div>
+            <p class="support-feedback" id="updates-feedback" role="status" aria-live="polite"></p>
+          </section>
+          <section class="panel support-detail-panel" id="update-editor" hidden>
+            <div class="panel-heading"><div><p class="eyebrow" id="update-editor-eyebrow">NEW UPDATE</p><h2 id="update-editor-heading">Compose development update</h2></div><button class="button button-secondary button-small" id="update-cancel" type="button">Cancel</button></div>
+            <form id="update-form" class="settings-form">
+              <input type="hidden" id="update-id">
+              <div class="settings-form-grid">
+                <label class="field"><span>Project</span><select id="update-project" required class="control-select"><option value="">Select a project</option></select></label>
+                <label class="field"><span>Title</span><input id="update-title" maxlength="160" required placeholder="e.g. Homepage implementation completed"></label>
+                <label class="field"><span>Category</span><select id="update-category" class="control-select"><option>Development</option><option>Milestone</option><option>Approval</option><option>Release</option><option>Maintenance</option></select></label>
+                <label class="field"><span>Visibility</span><select id="update-status" class="control-select"><option value="Draft">Save as draft</option><option value="Published">Publish to client portal</option></select></label>
+              </div>
+              <label class="field"><span>Update details</span><textarea id="update-body" rows="6" maxlength="10000" required placeholder="Explain what has been completed, what is in progress, decisions required, or what happens next."></textarea></label>
+              <p class="modal-note">Only publish information approved for the client. Published updates are visible to the client assigned to the selected project.</p>
+              <div class="modal-actions"><button class="button button-secondary" type="button" id="update-save-draft">Save draft</button><button class="button button-primary" type="submit">Save update</button></div>
+            </form>
+          </section>
+        </section>
+
         <section class="view-section" id="view-settings" data-title="Settings">
           <div class="page-heading settings-page-heading"><div><p class="eyebrow">WORKSPACE CONFIGURATION</p><h1>Settings</h1><p class="page-subtitle">Manage your workspace identity, personal preferences and connected services.</p></div><span class="settings-saved-indicator"><span class="settings-live-dot"></span> Saved in this browser</span></div>
           <div class="settings-layout">
@@ -350,6 +380,6 @@
   <script src="app.js?v=20261024-dashboard-api-stats"></script>
   <script src="workspace-access.js"></script>
   <script src="current-user.js"></script>
-  <script src="support-tickets.js?v=20261027-1"></script>
+  <script src="support-tickets.js?v=20261027-assignment"></script>\n  <script src="project-updates.js?v=20261027-1"></script>
 </body>
 </html>

@@ -31,10 +31,36 @@
       const t = await request(`/support-requests/${encodeURIComponent(id)}`); activeTicket = t;
       $("#support-detail-panel").hidden = false; $("#support-detail-reference").textContent = t.ticketReference || "SUPPORT TICKET"; $("#support-detail-subject").textContent = t.subject || "Support request";
       $("#support-detail-meta").textContent = `${t.clientName || "Client"} · ${t.projectName || "Project"} · ${t.category || "General"} · ${t.priority || "Normal"} priority · Created ${date(t.createdAtUtc)}`;
+      let assignment = $("#support-assignment");
+      if (!assignment) {
+        assignment = document.createElement("div");
+        assignment.id = "support-assignment";
+        assignment.className = "support-assignment-row";
+        $("#support-detail-meta").insertAdjacentElement("afterend", assignment);
+      }
+      const user = api.getUser ? api.getUser() : null;
+      const userId = String(user?.id || user?.userId || "");
+      const assignedId = String(t.assignedToUserId || t.assignedEmployeeId || t.assigneeId || "");
+      const assignedName = t.assignedToName || t.assignedEmployeeName || t.assigneeName || "";
+      const isAssignedToMe = assignedId && userId && assignedId.toLowerCase() === userId.toLowerCase();
+      assignment.innerHTML = `<strong>Assigned to:</strong> ${esc(assignedName || (assignedId ? "Assigned staff member" : "Unassigned"))}${assignedId ? "" : ' <button type="button" class="button button-primary button-small" id="support-accept-ticket">Accept ticket</button>'}${isAssignedToMe ? ' <span class="support-status" data-status="InProgress">Assigned to you</span>' : ""}`;
+      const acceptButton = $("#support-accept-ticket");
+      if (acceptButton) acceptButton.addEventListener("click", async () => {
+        acceptButton.disabled = true;
+        try {
+          await request(`/support-requests/${encodeURIComponent(t.id)}/accept`, {method:"POST", body:JSON.stringify({})});
+          feedback("Ticket accepted and assigned to you.");
+          await loadTickets(true);
+          if (activeTicket) await openTicket(activeTicket.id, true);
+        } catch (err) {
+          feedback(err.message || "Unable to accept ticket. The assignment API may not be deployed yet.", true);
+          acceptButton.disabled = false;
+        }
+      });
       $("#support-detail-description").textContent = t.description || "No description provided."; $("#support-status-select").value = t.status || "Open";
       const replies = Array.isArray(t.replies) ? t.replies : [];
       $("#support-replies").innerHTML = replies.length ? replies.map(r => `<article class="support-reply"><div class="support-reply-head"><span>${esc(r.authorName || r.authorRole || "Participant")} <span class="support-project-name">${esc(r.authorRole || "")}</span></span><time>${esc(date(r.createdAtUtc))}</time></div><p>${esc(r.body)}</p></article>`).join("") : '<p class="support-empty">No replies yet.</p>';
-      const closed = t.status === "Closed"; $("#support-reply-body").disabled = closed; $("#support-reply-form" ).querySelector('button[type="submit"]').disabled = closed;
+      const closed = ["Closed","Resolved"].includes(t.status); $("#support-reply-body").disabled = closed; $("#support-reply-form" ).querySelector('button[type="submit"]').disabled = closed;
       if (!quiet) { $("#support-detail-panel").scrollIntoView({behavior:"smooth",block:"start"}); feedback(`Opened ${t.ticketReference || "ticket"}.`); }
     } catch (e) { feedback(e.message || "Unable to load ticket details.", true); }
   }
@@ -45,7 +71,7 @@
   $("#support-ticket-rows")?.addEventListener("click", e => { const b = e.target.closest("[data-open-ticket]"); if (b) openTicket(b.dataset.openTicket); });
   $("#support-close-detail")?.addEventListener("click", closeDetail);
   $("#support-save-status")?.addEventListener("click", async () => { if (!activeTicket) return; const status = $("#support-status-select").value; try { await request(`/support-requests/${encodeURIComponent(activeTicket.id)}/status`, {method:"PATCH",body:JSON.stringify({status})}); feedback("Ticket status updated."); await loadTickets(true); if (activeTicket) await openTicket(activeTicket.id, true); } catch (e) { feedback(e.message || "Unable to update ticket status.", true); } });
-  $("#support-reply-form")?.addEventListener("submit", async e => { e.preventDefault(); if (!activeTicket) return; const body = $("#support-reply-body").value.trim(); if (!body) return; const button = e.currentTarget.querySelector('button[type="submit"]'); button.disabled = true; try { await request(`/support-requests/${encodeURIComponent(activeTicket.id)}/replies`, {method:"POST",body:JSON.stringify({body})}); $("#support-reply-body").value = ""; feedback("Reply sent to the ticket conversation."); await loadTickets(true); if (activeTicket) await openTicket(activeTicket.id, true); } catch (err) { feedback(err.message || "Unable to send reply.", true); } finally { button.disabled = activeTicket?.status === "Closed"; } });
+  $("#support-reply-form")?.addEventListener("submit", async e => { e.preventDefault(); if (!activeTicket) return; const body = $("#support-reply-body").value.trim(); if (!body) return; const button = e.currentTarget.querySelector('button[type="submit"]'); button.disabled = true; try { await request(`/support-requests/${encodeURIComponent(activeTicket.id)}/replies`, {method:"POST",body:JSON.stringify({body})}); $("#support-reply-body").value = ""; feedback("Reply sent to the ticket conversation."); await loadTickets(true); if (activeTicket) await openTicket(activeTicket.id, true); } catch (err) { feedback(err.message || "Unable to send reply.", true); } finally { button.disabled = ["Closed","Resolved"].includes(activeTicket?.status); } });
   document.querySelectorAll('[data-view="support"]').forEach(el => el.addEventListener("click", () => loadTickets()));
   if (window.location.hash.replace("#", "") === "support") loadTickets();
 })();
