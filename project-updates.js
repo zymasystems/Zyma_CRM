@@ -9,6 +9,13 @@
   const feedback = (text, error = false) => { const el=$("#updates-feedback"); if(el){el.textContent=text;el.style.color=error?"var(--danger, #dc2626)":"var(--muted-2)";} };
   const projectId = p => String(p.id || p.projectId || "");
   const projectName = p => p.name || p.projectName || p.title || "Project";
+  // The API may expose publication via publishedAtUtc rather than a status string.
+  const isPublished = u => {
+    const status = String(u.status || "").trim().toLowerCase();
+    if (status === "published") return true;
+    if (status === "draft") return false;
+    return u.isPublished === true || Boolean(u.publishedAtUtc || u.publishedAt);
+  };
   async function loadProjects() {
     const data = await api.request("/projects");
     projects = Array.isArray(data) ? data : (data?.items || data?.projects || []);
@@ -24,8 +31,9 @@
     $("#updates-rows").innerHTML = shown.length ? shown.map(u => {
       const id = u.id || u.updateId;
       const p = projects.find(x => projectId(x) === String(u.projectId));
-      const status = u.status || (u.isPublished ? "Published" : "Draft");
-      return `<tr><td><span class="support-ticket-title">${esc(u.title || "Untitled update")}</span><span class="support-ticket-ref">${esc((u.body || u.message || "").slice(0,100))}</span></td><td>${esc(p ? projectName(p) : u.projectName || "Project")}</td><td>${esc(u.category || "Development")}</td><td><span class="support-status" data-status="${esc(status)}">${esc(status)}</span></td><td>${esc(date(u.updatedAtUtc || u.publishedAtUtc || u.createdAtUtc))}</td><td><button class="button button-secondary button-small" type="button" data-edit-update="${esc(id)}">Edit</button> <button class="button button-secondary button-small" type="button" data-toggle-update="${esc(id)}" data-published="${String(status).toLowerCase()==="published"}">${String(status).toLowerCase()==="published"?"Unpublish":"Publish"}</button></td></tr>`;
+      const published = isPublished(u);
+      const status = published ? "Published" : (u.status || "Draft");
+      return `<tr><td><span class="support-ticket-title">${esc(u.title || "Untitled update")}</span><span class="support-ticket-ref">${esc((u.body || u.message || "").slice(0,100))}</span></td><td>${esc(p ? projectName(p) : u.projectName || "Project")}</td><td>${esc(u.category || "Development")}</td><td><span class="support-status" data-status="${esc(status)}">${esc(status)}</span></td><td>${esc(date(u.updatedAtUtc || u.publishedAtUtc || u.createdAtUtc))}</td><td><button class="button button-secondary button-small" type="button" data-edit-update="${esc(id)}">Edit</button> <button class="button button-secondary button-small" type="button" data-toggle-update="${esc(id)}" data-published="${published}">${String(status).toLowerCase()==="published"?"Unpublish":"Publish"}</button></td></tr>`;
     }).join("") : `<tr><td colspan="6" class="support-empty">${updates.length ? "No updates match this project." : "No updates found. Create a draft to get started."}</td></tr>`;
   }
   async function loadUpdates() {
@@ -65,7 +73,7 @@
     $("#update-project").value=String(u.projectId || "");
     $("#update-title").value=u.title || "";
     $("#update-category").value=u.category || "Development";
-    $("#update-status").value=u.status || (u.isPublished?"Published":"Draft");
+    $("#update-status").value=isPublished(u)?"Published":"Draft";
     $("#update-body").value=u.body || u.message || u.description || "";
     $("#update-editor-heading").textContent="Edit development update";
     $("#update-editor-eyebrow").textContent="PROJECT UPDATE";
