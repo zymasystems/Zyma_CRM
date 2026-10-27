@@ -261,10 +261,13 @@ function mapApiProject(item) {
     id: String(item.id || item.Id), sourceId: item.id || item.Id, apiBacked: true,
     clientId, client: item.clientName || item.ClientName || client?.name || "Unknown client",
     name: item.name || item.Name || "Untitled project",
-    code: item.code || item.Code || `ZS-${String(item.id || item.Id).slice(0, 8).toUpperCase()}`,
-    scope: item.description || item.Description || "", description: item.description || item.Description || "",
+    code: item.projectReference || item.ProjectReference || item.code || item.Code || "",
+    description: item.description || item.Description || "",
+    scope: item.agreedScope || item.AgreedScope || "",
+    projectLeadUserId: item.projectLeadUserId || item.ProjectLeadUserId || "",
+    manager: item.projectLeadName || item.ProjectLeadName || "",
     status, startDate: start ? String(start).slice(0, 10) : "", due: due ? String(due).slice(0, 10) : "",
-    progress: 0, manager: "", color: "orange", createdAt: created
+    progress: 0, color: "orange", createdAt: created
   };
 }
 function toApiProjectPayload(project) {
@@ -272,7 +275,9 @@ function toApiProjectPayload(project) {
   return {
     clientId: client ? client.id : project.clientId,
     name: String(project.name || "").trim(),
-    description: String(project.scope || project.description || "").trim() || null,
+    description: String(project.description || "").trim() || null,
+    agreedScope: String(project.scope || "").trim() || null,
+    projectLeadUserId: project.projectLeadUserId || null,
     status: ({"In progress":"In Progress", "On hold":"On Hold"})[project.status] || project.status || "Planning",
     startDateUtc: project.startDate ? new Date(`${project.startDate}T00:00:00Z`).toISOString() : null,
     targetEndDateUtc: project.due ? new Date(`${project.due}T00:00:00Z`).toISOString() : null
@@ -1636,13 +1641,15 @@ function fieldMarkup(field) {
   if (field.type === "section") return `<div class="form-section-heading full"><strong>${esc(field.label)}</strong>${field.description ? `<p>${esc(field.description)}</p>` : ""}</div>`;
   const required = field.required ? "required" : "";
   const full = field.full ? "full" : "";
+  const readonly = field.readonly ? "readonly" : "";
+  const help = field.help ? `<small class="field-help">${esc(field.help)}</small>` : "";
   if (field.type === "select") {
-    return `<div class="form-field ${full}"><label for="${field.name}">${esc(field.label)}</label><select id="${field.name}" name="${field.name}" ${required}>${field.options.map(option => `<option value="${esc(option.value)}">${esc(option.label)}</option>`).join("")}</select></div>`;
+    return `<div class="form-field ${full}"><label for="${field.name}">${esc(field.label)}</label><select id="${field.name}" name="${field.name}" ${required}>${field.options.map(option => `<option value="${esc(option.value)}">${esc(option.label)}</option>`).join("")}</select>${help}</div>`;
   }
   if (field.type === "textarea") {
-    return `<div class="form-field ${full}"><label for="${field.name}">${esc(field.label)}</label><textarea id="${field.name}" name="${field.name}" ${required} placeholder="${esc(field.placeholder || "")}"></textarea></div>`;
+    return `<div class="form-field ${full}"><label for="${field.name}">${esc(field.label)}</label><textarea id="${field.name}" name="${field.name}" ${required} placeholder="${esc(field.placeholder || "")}"></textarea>${help}</div>`;
   }
-  return `<div class="form-field ${full}"><label for="${field.name}">${esc(field.label)}</label><input id="${field.name}" name="${field.name}" type="${field.type || "text"}" ${required} placeholder="${esc(field.placeholder || "")}"></div>`;
+  return `<div class="form-field ${full}"><label for="${field.name}">${esc(field.label)}</label><input id="${field.name}" name="${field.name}" type="${field.type || "text"}" ${required} ${readonly} placeholder="${esc(field.placeholder || "")}">${help}</div>`;
 }
 
 const modalDefinitions = {
@@ -1827,7 +1834,9 @@ const modalDefinitions = {
     fields: [
       { name: "name", label: "Project name", required: true, full: true, placeholder: "Enter the agreed project name" },
       { name: "client", label: "Client organization", type: "select", required: true, full: true, options: [{value:"",label:"Select an existing client"}] },
-      { name: "code", label: "Project reference", placeholder: "Leave blank to generate automatically" },
+      { name: "code", label: "Project reference", placeholder: "Generated automatically by the CRM", help: "Assigned by the server and kept stable.", readonly: true },
+      { name: "description", label: "Project description", type: "textarea", full: true, placeholder: "A short overview of the project." },
+      { name: "projectLeadUserId", label: "Project lead", type: "select", full: true, options: [{value:"",label:"Unassigned"}] },
       { name: "startDate", label: "Start date", type: "date" },
       { name: "due", label: "Target completion date", type: "date" },
       { name: "status", label: "Initial status", type: "select", required: true, options: [{value:"Planning",label:"Planning"},{value:"In progress",label:"In progress"},{value:"On hold",label:"On hold"}] },
@@ -1836,16 +1845,13 @@ const modalDefinitions = {
     async save(data) {
       const client = state.clients.find(item => String(item.name).trim() === String(data.client).trim());
       if (!client) { toast("Create a client record first, then create the project."); setView("clients"); return; }
-      const code = (data.code || `ZS-${String(Date.now()).slice(-6)}`).trim().toUpperCase();
-      if (state.projects.some(project => String(project.code || "").toLowerCase() === code.toLowerCase())) { toast("That project reference is already in use. Choose a unique reference."); return; }
-      const draft = { name: data.name.trim(), client: client.name, clientId: client.id, startDate: data.startDate || "", scope: data.scope || "", status: data.status || "Planning", progress: 0, due: data.due || "", manager: currentActorName(), color: "orange", code };
+      const draft = { name: data.name.trim(), client: client.name, clientId: client.id, startDate: data.startDate || "", description: data.description || "", scope: data.scope || "", projectLeadUserId: data.projectLeadUserId || null, status: data.status || "Planning", progress: 0, due: data.due || "", manager: "", color: "orange" };
       try {
         // Projects are operational CRM records: never silently create them in localStorage.
         if (!window.ZymaCrmApi || !window.ZymaCrmApi.getToken()) {
           throw new Error("You are not authenticated with the CRM API. Sign out and sign in again, then retry.");
         }
         const project = await createApiProject(draft);
-        project.code = code;
         const existingIndex = state.projects.findIndex(item => String(item.id) === String(project.id));
         if (existingIndex >= 0) state.projects[existingIndex] = project;
         else state.projects.push(project);
@@ -1889,9 +1895,24 @@ function openModal(key, record = null) {
   const fields = definition.fields.map(field => {
     if (field.name === "client") return { ...field, options: [{ value: "", label: state.clients.length ? "Select client" : "No clients yet — add a client first" }, ...state.clients.map(client => ({ value: client.name, label: client.name }))] };
     if (field.name === "project") return { ...field, options: [{ value: "", label: state.projects.length ? "Select project" : "No projects yet — create a project first" }, ...state.projects.map(project => ({ value: project.name, label: project.name }))] };
+    if (field.name === "projectLeadUserId") return { ...field, options: [{ value: "", label: "Unassigned" }] };
     return field;
   });
   $("#modal-fields").innerHTML = fields.map(fieldMarkup).join("");
+  if (key === "new-project" && window.ZymaCrmApi && window.ZymaCrmApi.getToken()) {
+    const leadSelect = $("#projectLeadUserId", $("#modal-fields"));
+    if (leadSelect) {
+      window.ZymaCrmApi.request("/admin/employees").then(users => {
+        if (!Array.isArray(users) || !leadSelect.isConnected) return;
+        const selected = record?.projectLeadUserId ? String(record.projectLeadUserId) : "";
+        const eligible = users.filter(user => user.isActive !== false && ["Admin", "Employee", "admin", "employee"].includes(user.role));
+        leadSelect.innerHTML = '<option value="">Unassigned</option>' + eligible.map(user =>
+          `<option value="${esc(user.id)}">${esc(user.fullName || user.email || "Internal user")}</option>`
+        ).join("");
+        leadSelect.value = selected;
+      }).catch(error => console.warn("Project lead list could not be loaded.", error));
+    }
+  }
   $("#record-form").dataset.modalKey = key;
   $("#record-form").dataset.editId = record ? String(record.id) : "";
   if (record) {
