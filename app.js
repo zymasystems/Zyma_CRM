@@ -822,12 +822,22 @@ function renderLeadBoard(leads) {
 async function moveLead(id, stage) {
   const lead = state.leads.find(item => String(item.id) === String(id));
   if (!lead || !LEAD_STAGES.some(item => item.name === stage) || lead.stage === stage) return false;
+  if (stage === "Won") {
+    try {
+      await convertLeadToClient(lead);
+      return true;
+    } catch (error) {
+      toast(`Could not convert this lead to a client. ${error.message || "Please try again."}`);
+      renderLeads();
+      return false;
+    }
+  }
   const previous = lead.stage;
   const nextLead = { ...lead, stage };
   try {
     if (LEADS_API_ENABLED && lead.apiBacked) await updateApiLead(nextLead);
     lead.stage = stage;
-    state.activities.unshift({ icon: "↗", color: stage === "Won" ? "green" : stage === "Lost" ? "orange" : "blue", text: `<strong>Lead moved to ${esc(stage)}</strong> — ${esc(lead.company)} (was ${esc(previous)})`, by: currentActorName(), time: "Just now" });
+    state.activities.unshift({ icon: "↗", color: stage === "Lost" ? "orange" : "blue", text: `<strong>Lead moved to ${esc(stage)}</strong> — ${esc(lead.company)} (was ${esc(previous)})`, by: currentActorName(), time: "Just now" });
     persistState(); renderAll();
     toast(`${lead.company} moved to ${stage}${LEADS_API_ENABLED && lead.apiBacked ? " and saved to the CRM database." : "."}`);
     return true;
@@ -836,6 +846,79 @@ async function moveLead(id, stage) {
     renderLeads();
     return false;
   }
+}
+
+async function ensureConvertedLeadContact(lead, client) {
+  if (!lead || !client || !(lead.contact || lead.email || lead.phone)) return;
+  const email = String(lead.email || "").trim().toLowerCase();
+  const name = String(lead.contact || lead.company || "").trim().toLowerCase();
+  const alreadyExists = state.contacts.some(contact =>
+    (email && String(contact.email || "").trim().toLowerCase() === email) ||
+    (name && String(contact.name || "").trim().toLowerCase() === name &&
+      String(contact.organization || "").trim().toLowerCase() === String(lead.company || "").trim().toLowerCase())
+  );
+  if (alreadyExists) return;
+
+  const contact = {
+    name: lead.contact || lead.company,
+    organization: client.name || lead.company,
+    clientId: client.id,
+    email: lead.email || "",
+    phone: lead.phone || "",
+    relationship: "Client contact",
+    companyRole: "Primary contact",
+    isPrimary: true,
+    sourceLeadId: lead.id
+  };
+
+  if (CONTACTS_API_ENABLED && client.apiBacked) {
+    const saved = await createApiContact(contact);
+    state.contacts = state.contacts.filter(item => String(item.id) !== String(saved.id));
+    state.contacts.unshift(saved);
+  } else {
+    state.contacts.push({ id: nextId(state.contacts), ...contact });
+  }
+}
+
+async function convertLeadToClient(lead) {
+  if (!lead) throw new Error("Lead not found.");
+  let client;
+  if (LEADS_API_ENABLED && lead.apiBacked) {
+    client = await convertApiLeadToClient(lead);
+    lead.stage = "Won";
+    lead.convertedClientId = client.id;
+    state.clients = state.clients.filter(item => String(item.id) !== String(client.id));
+    state.clients.unshift(client);
+    await loadApiClients();
+    await loadApiContacts();
+    // A conversion endpoint may create the client without creating its primary contact.
+    // Ensure the lead's contact is present in Contacts and linked to the converted client.
+    client = state.clients.find(item => String(item.id) === String(client.id)) || client;
+    await ensureConvertedLeadContact(lead, client);
+  } else {
+    const existing = state.clients.find(item => String(item.name).trim().toLowerCase() === String(lead.company).trim().toLowerCase());
+    if (existing) {
+      client = existing;
+    } else {
+      client = {
+        id: nextId(state.clients), name: lead.company, short: initials(lead.company),
+        industry: lead.industry || "Not specified", email: lead.email || "",
+        contact: lead.contact || "", phone: lead.phone || "", status: "Active", projects: 0,
+        since: new Date().toLocaleDateString("en-ZA", { month: "short", year: "numeric" }),
+        color: "orange", sourceLeadId: lead.id
+      };
+      state.clients.push(client);
+    }
+    lead.stage = "Won";
+    lead.convertedClientId = client.id;
+    await ensureConvertedLeadContact(lead, client);
+  }
+  state.activities.unshift({ icon: "✓", color: "green", text: `<strong>Lead converted to client</strong> — ${esc(lead.company)}`, by: currentActorName(), time: "Just now" });
+  persistState();
+  renderAll();
+  openRecordDetail("client", client.id);
+  toast("Lead converted to a client. The client contact is saved in Contacts.");
+  return client;
 }
 
 function renderLeads() {
@@ -2063,41 +2146,7 @@ document.addEventListener("click", async event => {
     convertButton.dataset.busy = "true";
     convertButton.disabled = true;
     try {
-      let client;
-      if (LEADS_API_ENABLED && lead.apiBacked) {
-        client = await convertApiLeadToClient(lead);
-        lead.stage = "Won";
-        lead.convertedClientId = client.id;
-        state.clients = state.clients.filter(item => String(item.id) !== String(client.id));
-        state.clients.unshift(client);
-        // The API conversion is authoritative; reload to reconcile any existing linked client.
-        await loadApiClients();
-        await loadApiContacts();
-      } else {
-        const existing = state.clients.find(item => String(item.name).toLowerCase() === String(lead.company).toLowerCase());
-        if (existing) {
-          lead.stage = "Won";
-          client = existing;
-        } else {
-          client = {
-            id: nextId(state.clients), name: lead.company, short: initials(lead.company),
-            industry: lead.industry || "Not specified", email: lead.email || "",
-            contact: lead.contact || "", phone: lead.phone || "", status: "Active", projects: 0,
-            since: new Date().toLocaleDateString("en-ZA", { month: "short", year: "numeric" }),
-            color: "orange", sourceLeadId: lead.id
-          };
-          state.clients.push(client);
-          if (lead.contact || lead.email) state.contacts.push({
-            id: nextId(state.contacts), name: lead.contact || lead.company,
-            organization: lead.company, email: lead.email || "", phone: lead.phone || "",
-            relationship: "Client contact", sourceLeadId: lead.id
-          });
-          lead.stage = "Won";
-        }
-      }
-      state.activities.unshift({ icon: "✓", color: "green", text: `<strong>Lead converted to client</strong> — ${esc(lead.company)}`, by: currentActorName(), time: "Just now" });
-      persistState(); renderAll(); openRecordDetail("client", client.id);
-      toast("Lead converted and client saved. You can now create a project from the client profile.");
+      await convertLeadToClient(lead);
     } catch (error) {
       toast(`Could not convert this lead. ${error.message || "Please try again."}`);
     } finally {
