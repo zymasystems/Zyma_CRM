@@ -31,13 +31,27 @@
   async function loadUpdates() {
     $("#updates-rows").innerHTML='<tr><td colspan="6" class="support-empty">Loading updates…</td></tr>';
     try {
-      const data = await api.request("/project-updates");
-      updates = Array.isArray(data) ? data : (data?.items || data?.updates || []);
-      render(); feedback(`Loaded ${updates.length} update${updates.length===1?"":"s"}.`);
+      if (!projects.length) await loadProjects();
+      // The API requires a valid projectId. Query each known project rather than
+      // calling GET /project-updates without one, then merge the results.
+      const results = await Promise.all(projects.map(async project => {
+        const id = projectId(project);
+        if (!id) return [];
+        const data = await api.request(`/project-updates?projectId=${encodeURIComponent(id)}`);
+        return Array.isArray(data) ? data : (data?.items || data?.updates || []);
+      }));
+      const byId = new Map();
+      results.flat().forEach(update => {
+        const id = update.id || update.updateId;
+        if (id) byId.set(String(id), update);
+      });
+      updates = [...byId.values()];
+      render();
+      feedback(`Loaded ${updates.length} update${updates.length===1?"":"s"} across ${projects.length} project${projects.length===1?"":"s"}.`);
     } catch (e) {
       updates=[];
       render();
-      feedback(`${e.message || "Could not load project updates."} Ensure the project-updates API has been deployed.`, true);
+      feedback(`${e.message || "Could not load project updates."} Confirm the selected projects are available to your account and the project-updates API is deployed.`, true);
     }
   }
   function resetForm() {
@@ -68,11 +82,17 @@
     const submit=$("#update-form").querySelector('button[type="submit"]');
     submit.disabled=true;
     try {
+      let savedId = id;
       if(!id) {
-        await api.request("/project-updates",{method:"POST",body:JSON.stringify(payload)});
+        const created = await api.request("/project-updates",{method:"POST",body:JSON.stringify({projectId:projectIdValue,title,body})});
+        savedId = created?.id || created?.updateId || created?.update?.id || "";
+        if (status === "Published") {
+          if (!savedId) throw new Error("The API created the update but did not return its ID, so it could not be published.");
+          await api.request(`/project-updates/${encodeURIComponent(savedId)}/publish`,{method:"POST"});
+        }
       } else {
-        await api.request(`/project-updates/${encodeURIComponent(id)}`,{method:"PUT",body:JSON.stringify({title,category,body})});
-        await api.request(`/project-updates/${encodeURIComponent(id)}/publish`,{method:"PATCH",body:JSON.stringify({isPublished:status==="Published"})});
+        await api.request(`/project-updates/${encodeURIComponent(id)}`,{method:"PUT",body:JSON.stringify({title,body})});
+        await api.request(`/project-updates/${encodeURIComponent(id)}/${status==="Published"?"publish":"unpublish"}`,{method:"POST"});
       }
       feedback(status==="Published"?"Update saved and published to the client portal.":"Draft saved.");
       resetForm(); await loadUpdates();
@@ -92,7 +112,7 @@
     if(edit){const u=updates.find(x=>String(x.id||x.updateId)===edit.dataset.editUpdate);if(u)editUpdate(u);}
     if(toggle){
       toggle.disabled=true;
-      try {await api.request(`/project-updates/${encodeURIComponent(toggle.dataset.toggleUpdate)}/publish`,{method:"PATCH",body:JSON.stringify({isPublished:toggle.dataset.published!=="true"})});feedback(toggle.dataset.published==="true"?"Update unpublished.":"Update published.");await loadUpdates();}
+      try {await api.request(`/project-updates/${encodeURIComponent(toggle.dataset.toggleUpdate)}/${toggle.dataset.published==="true"?"unpublish":"publish"}`,{method:"POST"});feedback(toggle.dataset.published==="true"?"Update unpublished.":"Update published.");await loadUpdates();}
       catch(err){feedback(`${err.message||"Could not change publication status."} Check that the publishing endpoint is deployed.`,true);toggle.disabled=false;}
     }
   });
