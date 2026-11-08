@@ -520,7 +520,7 @@ function renderTimeline() {
     const done=/completed|done/i.test(item.status), late=/overdue|delayed/i.test(item.status);
     return item.kind === "Milestone" ? `<span class="gantt-milestone ${done?"is-done":""}" style="left:${left+Math.max(0,width/2)-7}px" title="${esc(item.title)}"></span>` : `<span class="gantt-bar ${done?"is-done":late?"is-late":""}" style="left:${left+4}px;width:${width}px" title="${esc(item.title)} · ${esc(item.status)}"><i></i></span>`;
   };
-  const ganttRows = scheduled.map(item=>`<div class="gantt-row"><button type="button" class="gantt-label" data-timeline-open="${esc(item.id||"")}" data-kind="${item.kind.toLowerCase()}"><span class="gantt-kind ${item.kind.toLowerCase()}">${item.kind==="Milestone"?"◆":"●"}</span><span><strong>${esc(item.title)}</strong><small>${esc(item.kind)} · ${esc(item.assignee||item.status)}</small></span></button><div class="gantt-track" style="width:${gridWidth}px"><span class="gantt-grid-lines" style="background-size:${dayWidth}px 100%"></span>${todayInRange?`<i class="gantt-today-line" style="left:${todayOffset*dayWidth+dayWidth/2}px" aria-hidden="true"></i>`:""}${barFor(item)}</div></div>`).join("");
+  const ganttRows = scheduled.map(item=>`<div class="gantt-row" style="--gantt-track-width:${gridWidth}px"><button type="button" class="gantt-label" data-timeline-open="${esc(item.id||"")}" data-kind="${item.kind.toLowerCase()}"><span class="gantt-kind ${item.kind.toLowerCase()}">${item.kind==="Milestone"?"◆":"●"}</span><span><strong>${esc(item.title)}</strong><small>${esc(item.kind)} · ${esc(item.assignee||item.status)}</small></span></button><div class="gantt-track" style="width:${gridWidth}px"><span class="gantt-grid-lines" style="background-size:${dayWidth}px 100%"></span>${todayInRange?`<i class="gantt-today-line" style="left:${todayOffset*dayWidth+dayWidth/2}px" aria-hidden="true"></i>`:""}${barFor(item)}</div></div>`).join("");
   const listRows = scheduled.map(item=>`<button type="button" class="timeline-schedule-row" data-timeline-open="${esc(item.id||"")}" data-kind="${item.kind.toLowerCase()}"><span class="gantt-list-name"><i class="gantt-kind ${item.kind.toLowerCase()}">${item.kind==="Milestone"?"◆":"●"}</i><strong>${esc(item.title)}</strong></span><span>${esc(timelineDate(item.start))}</span><span>${esc(timelineDate(item.due))}</span><span class="status-pill ${timelineStatusClass(item.status)}">${esc(item.status)}</span></button>`).join("");
   const metric=(label,value,note)=>`<article class="timeline-metric"><span>${label}</span><strong>${value}</strong><small>${note}</small></article>`;
   root.innerHTML = `
@@ -900,18 +900,27 @@ $("#view-tabs").addEventListener("click", e => {
     if (tab === "timeline") void loadProjectTimeline();
   }
 });
+function applyGanttZoom(nextZoom, anchorX = 0) {
+  const shell = $(".gantt-shell", $("#timeline"));
+  const oldZoom = timelineZoom;
+  const oldScroll = shell?.scrollLeft || 0;
+  const levels = [24, 32, 40, 48, 60, 76, 96, 120, 144, 168];
+  const target = levels.reduce((best, value) => Math.abs(value-nextZoom) < Math.abs(best-nextZoom) ? value : best, levels[0]);
+  if (target === oldZoom) return;
+  const anchorDateOffset = oldScroll + anchorX;
+  timelineZoom = target;
+  renderTimeline();
+  const updated = $(".gantt-shell", $("#timeline"));
+  if (updated) updated.scrollLeft = Math.max(0, anchorDateOffset * (target / oldZoom) - anchorX);
+}
+
 $("#timeline").addEventListener("click", e => {
   if (e.target.closest("#timeline-retry, #timeline-refresh")) { void loadProjectTimeline(); return; }
   const zoom = e.target.closest("[data-gantt-zoom]");
   if (zoom) {
     const shell = $(".gantt-shell", $("#timeline"));
-    const scrollLeft = shell?.scrollLeft || 0;
-    const levels = [24, 32, 40, 48, 60, 76, 96, 120];
-    if (zoom.dataset.ganttZoom === "fit") timelineZoom = 48;
-    else { const index = levels.indexOf(timelineZoom); timelineZoom = levels[Math.max(0, Math.min(levels.length - 1, index + (zoom.dataset.ganttZoom === "in" ? 1 : -1)))]; }
-    renderTimeline();
-    const updatedShell = $(".gantt-shell", $("#timeline"));
-    if (updatedShell) updatedShell.scrollLeft = scrollLeft;
+    const anchorX = shell ? shell.clientWidth / 2 : 0;
+    applyGanttZoom(zoom.dataset.ganttZoom === "fit" ? 48 : timelineZoom + (zoom.dataset.ganttZoom === "in" ? 12 : -12), anchorX);
     return;
   }
   const view = e.target.closest("[data-gantt-view]");
@@ -920,6 +929,44 @@ $("#timeline").addEventListener("click", e => {
   if (open && open.dataset.kind === "task") { taskForm(open.dataset.timelineOpen); return; }
   if (open && open.dataset.kind === "milestone") { milestoneForm(open.dataset.timelineOpen); }
 });
+// Trackpad pinch / Ctrl+mouse-wheel zoom, anchored at the pointer.
+$("#timeline").addEventListener("wheel", e => {
+  const shell = e.target.closest(".gantt-shell");
+  if (!shell || !(e.ctrlKey || e.metaKey || e.shiftKey)) return;
+  e.preventDefault();
+  const rect = shell.getBoundingClientRect();
+  const anchorX = Math.max(0, Math.min(shell.clientWidth, e.clientX - rect.left));
+  applyGanttZoom(timelineZoom + (e.deltaY < 0 ? 12 : -12), anchorX);
+}, { passive: false });
+
+// Two-finger touch pinch zoom for touchscreens and mobile devices.
+let ganttPinchStart = null;
+$("#timeline").addEventListener("touchstart", e => {
+  if (!e.target.closest(".gantt-shell") || e.touches.length !== 2) return;
+  const shell = e.target.closest(".gantt-shell");
+  const rect = shell.getBoundingClientRect();
+  const distance = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+  ganttPinchStart = { distance, zoom: timelineZoom, midpoint: (e.touches[0].clientX+e.touches[1].clientX)/2-rect.left };
+}, { passive: true });
+$("#timeline").addEventListener("touchmove", e => {
+  if (!ganttPinchStart || e.touches.length !== 2) return;
+  e.preventDefault();
+  const distance = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+  const ratio = distance / Math.max(1, ganttPinchStart.distance);
+  const next = Math.max(24, Math.min(168, ganttPinchStart.zoom * ratio));
+  const shell = $(".gantt-shell", $("#timeline"));
+  if (shell) shell.style.setProperty("--gantt-live-zoom", String(next));
+  ganttPinchStart.nextZoom = next;
+}, { passive: false });
+$("#timeline").addEventListener("touchend", () => {
+  if (!ganttPinchStart) return;
+  const pinch = ganttPinchStart;
+  ganttPinchStart = null;
+  const shell = $(".gantt-shell", $("#timeline"));
+  if (shell) shell.style.removeProperty("--gantt-live-zoom");
+  if (pinch.nextZoom) applyGanttZoom(pinch.nextZoom, pinch.midpoint);
+}, { passive: true });
+
 $("#timeline").addEventListener("change", e => {
   if (e.target.id === "gantt-range") { timelineRange=e.target.value; renderTimeline(); }
   if (e.target.id === "gantt-type") { timelineType=e.target.value; renderTimeline(); }
