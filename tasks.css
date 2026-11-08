@@ -614,3 +614,106 @@ dialog#project-plan-modal[open] {
 .timeline-item.is-subtask .timeline-item-main{margin-left:22px;border-style:dashed}
 @media(max-width:900px){.timeline-controls{align-items:stretch}.timeline-mode{width:100%}.timeline-mode button{flex:1}.gantt-title,.gantt-axis,.gantt-row{grid-template-columns:minmax(120px,38%) minmax(180px,1fr)}.gantt-panel{overflow-x:auto}.gantt-title,.gantt-axis,.gantt-row{min-width:520px}}
 @media(max-width:600px){.timeline-controls{padding:13px 15px}.timeline-control-group{width:100%}.timeline-control-group label{flex:1;min-width:calc(50% - 8px)}.timeline-control-group select,.timeline-control-group input{width:100%;min-width:0}.gantt-panel{margin:14px 15px;padding:12px}.timeline-item.is-subtask .timeline-item-main{margin-left:10px}}
+
+
+/* -------------------------------------------------------------------------
+   Zyma Gantt — refined project-planning interface
+   ------------------------------------------------------------------------- */
+.gantt-panel{
+  --gantt-label-width: minmax(250px, 31%);
+  margin:18px 22px 22px;
+  padding:0;
+  overflow:hidden;
+  border:1px solid var(--border);
+  border-radius:14px;
+  background:var(--surface);
+  box-shadow:0 12px 32px rgba(0,0,0,.10);
+}
+.gantt-title{padding:19px 20px 15px;margin:0}
+.gantt-title h3{font-size:15px;letter-spacing:-.025em}
+.gantt-title>span{padding:6px 9px;border:1px solid var(--border);border-radius:999px;background:var(--surface-raised);font-size:10px;font-weight:650}
+.gantt-axis,.gantt-row{
+  grid-template-columns:var(--gantt-label-width) minmax(520px,1fr);
+  gap:0;
+}
+.gantt-axis{
+  position:sticky;top:0;z-index:3;
+  padding:12px 18px 11px;
+  background:var(--surface-raised);
+  border-top:1px solid var(--border-soft);
+  border-bottom:1px solid var(--border);
+  font-size:10px;font-weight:650;letter-spacing:.025em;
+}
+.gantt-axis>span{color:var(--muted);text-transform:uppercase;font-size:9px;letter-spacing:.08em}
+.gantt-axis>div{position:relative;min-height:17px;align-items:center}
+.gantt-axis>div span{flex:1;text-align:center;font-variant-numeric:tabular-nums}
+.gantt-axis>div span:first-child{text-align:left}
+.gantt-axis>div span:last-child{text-align:right}
+.gantt-row{
+  min-height:55px;
+  padding:0 18px;
+  transition:background .16s ease;
+}
+.gantt-row:hover{background:var(--surface-raised)}
+.gantt-label{
+  position:relative;z-index:1;
+  align-self:stretch;
+  grid-template-columns:20px minmax(0,1fr);
+  gap:8px;
+  align-content:center;
+  padding-right:16px;
+  background:transparent;
+}
+.gantt-label>span{
+  display:grid;place-items:center;
+  width:19px;height:19px;
+  border:1px solid var(--border);
+  border-radius:6px;
+  background:var(--surface-raised);
+  color:var(--orange);font-size:9px;
+}
+.gantt-label strong{font-size:11px;font-weight:650;letter-spacing:-.01em}
+.gantt-label small{margin-top:3px;font-size:9px;text-transform:capitalize}
+.gantt-track{
+  align-self:stretch;height:auto;min-height:55px;
+  border-radius:0;
+  background-color:transparent;
+  background-image:repeating-linear-gradient(90deg,transparent 0,transparent calc(14.2857% - 1px),var(--border-soft) calc(14.2857% - 1px),var(--border-soft) 14.2857%);
+}
+.gantt-track:before{
+  content:"";position:absolute;inset:0 auto 0 0;width:1px;background:var(--border-soft)
+}
+.gantt-bar{
+  top:50%;height:13px;min-width:7px;
+  transform:translateY(-50%);
+  border-radius:999px;
+  box-shadow:0 1px 3px rgba(0,0,0,.18);
+}
+.gantt-bar:after{
+  content:"";position:absolute;inset:0 auto 0 0;
+  width:var(--bar-progress,0%);max-width:100%;
+  border-radius:inherit;background:rgba(255,255,255,.22);
+}
+.gantt-bar.status-done{background:#159b70}
+.gantt-bar.status-blocked{background:#d65353}
+.gantt-bar.status-progress{background:#438bd5}
+.gantt-bar.status-planning{background:#806bd0}
+.gantt-bar.gantt-milestone{
+  top:50%;left:var(--gantt-position,0%);
+  width:13px!important;height:13px;min-width:13px;
+  border:2px solid var(--surface);
+  border-radius:3px;box-shadow:0 0 0 1px currentColor,0 2px 5px rgba(0,0,0,.2);
+  transform:translate(-50%,-50%) rotate(45deg);
+}
+.gantt-bar.gantt-milestone:after{display:none}
+@media(max-width:900px){
+  .gantt-panel{overflow-x:auto}
+  .gantt-title,.gantt-axis,.gantt-row{grid-template-columns:220px minmax(520px,1fr);min-width:760px}
+  .gantt-axis{position:static}
+}
+@media(max-width:600px){
+  .gantt-panel{margin:14px 15px;padding:0;border-radius:11px}
+  .gantt-title,.gantt-axis,.gantt-row{grid-template-columns:190px minmax(500px,1fr);min-width:710px}
+  .gantt-row{min-height:51px}
+  .gantt-track{min-height:51px}
+}
