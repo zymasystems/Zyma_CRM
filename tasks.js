@@ -190,6 +190,8 @@ let projectFilter = "all", pickerQuery = "";
 
 /* ---------- lookups ---------- */
 const project = id => state.projects.find(p => p.id === id);
+const isCompletedProject = p => String(p?.status || "").trim().toLowerCase() === "completed";
+const isActiveProjectId = id => { const p = project(id); return !!p && !isCompletedProject(p); };
 const pname = id => project(id)?.name || "Unassigned";
 const mname = id => state.milestones.find(m => m.id === id)?.title || "";
 const isOpen = t => t.status !== "Done";
@@ -212,10 +214,10 @@ function renderSidebarCounts() {
   setCount("meeting-nav-count", state.meetings.length);
   setCount("client-nav-count", state.clients.length);
   setCount("contact-nav-count", state.contacts.length);
-  setCount("project-nav-count", state.projects.length);
+  setCount("project-nav-count", state.projects.filter(p => !isCompletedProject(p)).length);
   // Count actionable items consistently: open tasks plus milestones not yet completed.
   // Match the main CRM badge: total task records plus total milestone records.
-  setCount("task-nav-count", state.tasks.length + state.milestones.length);
+  setCount("task-nav-count", state.tasks.filter(t => isActiveProjectId(t.projectId) && t.status === "In progress").length);
 }
 
 /* =========================================================
@@ -228,19 +230,20 @@ function renderPicker() {
   renderDataNote();
 }
 function renderPickerMetrics() {
-  const inDelivery = state.projects.filter(p => p.status !== "Completed").length;
+  const activeProjects = state.projects.filter(p => !isCompletedProject(p));
+  const inDelivery = activeProjects.length;
   const cards = [
-    ["Projects", state.projects.length, "blue", "▣", `${inDelivery} in delivery`],
-    ["Open tasks", state.tasks.filter(isOpen).length, "green", "☑", "Across all projects"],
-    ["In progress", state.tasks.filter(t => t.status === "In progress").length, "violet", "↗", "Currently being worked on"],
-    ["Overdue", state.tasks.filter(overdue).length, "orange", "◎", "Past their due date"]
+    ["Projects", activeProjects.length, "blue", "▣", `${inDelivery} in delivery`],
+    ["Open tasks", state.tasks.filter(t => isActiveProjectId(t.projectId) && isOpen(t)).length, "green", "☑", "Across active projects"],
+    ["In progress", state.tasks.filter(t => isActiveProjectId(t.projectId) && t.status === "In progress").length, "violet", "↗", "Currently being worked on"],
+    ["Overdue", state.tasks.filter(t => isActiveProjectId(t.projectId) && overdue(t)).length, "orange", "◎", "Past their due date"]
   ];
   $("#picker-metrics").innerHTML = cards.map(([label, value, color, icon, caption]) =>
     `<article class="metric-card"><div class="metric-top"><span class="metric-label">${esc(label)}</span><span class="metric-icon icon-${color}">${icon}</span></div><div class="metric-value">${pad(value)}</div><div class="metric-foot"><span class="metric-neutral">${esc(caption)}</span></div></article>`).join("");
 }
 function visiblePickerProjects() {
   const q = norm(pickerQuery);
-  return state.projects.filter(p => !q || [p.name, p.code, p.status, p.manager].join(" ").toLowerCase().includes(q));
+  return state.projects.filter(p => !isCompletedProject(p) && (!q || [p.name, p.code, p.status, p.manager].join(" ").toLowerCase().includes(q)));
 }
 function renderProjectCards() {
   const list = visiblePickerProjects();
@@ -334,8 +337,8 @@ function renderOptions() {
   $("#task-project").innerHTML = opts;
   $("#milestone-project").innerHTML = opts;
 }
-function scopedTasks() { return projectFilter === "all" ? state.tasks : state.tasks.filter(t => t.projectId === projectFilter); }
-function scopedMilestones() { return projectFilter === "all" ? state.milestones : state.milestones.filter(m => m.projectId === projectFilter); }
+function scopedTasks() { return projectFilter === "all" ? state.tasks.filter(t => isActiveProjectId(t.projectId)) : state.tasks.filter(t => t.projectId === projectFilter); }
+function scopedMilestones() { return projectFilter === "all" ? state.milestones.filter(m => isActiveProjectId(m.projectId)) : state.milestones.filter(m => m.projectId === projectFilter); }
 function visibleTasks() {
   const q = norm(query);
   return scopedTasks().filter(t =>
@@ -413,7 +416,25 @@ function renderMilestones() {
 }
 
 /* ---------- saving back into the shared CRM records ---------- */
+function deriveMilestoneStatus(milestoneId) {
+  const attached = state.tasks.filter(task => String(task.milestoneId || "") === String(milestoneId));
+  if (!attached.length) return "Planned";
+  if (attached.every(task => task.status === "Done")) return "Completed";
+  if (attached.some(task => task.status === "In progress" || task.status === "In review")) return "In progress";
+  return "Planned";
+}
+function syncMilestoneStatuses(changedTask, previousMilestoneId = "") {
+  const ids = new Set([String(previousMilestoneId || ""), String(changedTask?.milestoneId || "")].filter(Boolean));
+  ids.forEach(id => {
+    const milestone = state.milestones.find(item => String(item.id) === id);
+    if (milestone) milestone.status = deriveMilestoneStatus(id);
+  });
+}
 async function save(message, change = null) {
+  if (change?.kind === "task" && change.action !== "delete") {
+    const previousMilestoneId = change.record?._previousMilestoneId || "";
+    syncMilestoneStatuses(change.record, previousMilestoneId);
+  }
   if (apiMode && change) {
     const api = window.ZymaCrmApi;
     try {
@@ -424,6 +445,7 @@ async function save(message, change = null) {
       } else if (kind === "task") {
         const body = {
           projectId: record.projectId,
+          milestoneId: record.milestoneId || null,
           title: record.title,
           description: record.description || null,
           status: toApiStatus(record.status),
@@ -436,6 +458,19 @@ async function save(message, change = null) {
           method: action === "create" ? "POST" : "PUT",
           body: JSON.stringify(body)
         });
+        const milestoneIds = new Set([String(record._previousMilestoneId || ""), String(record.milestoneId || "")].filter(Boolean));
+        for (const milestoneId of milestoneIds) {
+          const linkedMilestone = state.milestones.find(item => String(item.id) === milestoneId);
+          if (!linkedMilestone) continue;
+          const milestoneBody = {
+            projectId: linkedMilestone.projectId,
+            title: linkedMilestone.title,
+            description: linkedMilestone.description || null,
+            status: toApiMilestoneStatus(deriveMilestoneStatus(linkedMilestone.id)),
+            targetDateUtc: apiDate(linkedMilestone.due)
+          };
+          await api.request(`/milestones/${encodeURIComponent(linkedMilestone.id)}`, { method: "PUT", body: JSON.stringify(milestoneBody) });
+        }
       } else {
         const body = {
           projectId: record.projectId,
@@ -449,6 +484,7 @@ async function save(message, change = null) {
           body: JSON.stringify(body)
         });
       }
+      if (change.kind === "task" && change.record) delete change.record._previousMilestoneId;
       const loaded = await loadApiState();
       if (!loaded) throw new Error(apiLoadError || "Could not refresh records from the API.");
       renderWorkspace();
@@ -545,8 +581,10 @@ function detail(id) {
   $("#detail-close").onclick = () => closeDialog(d);
   $("#detail-edit").onclick = () => { closeDialog(d); taskForm(t.id); };
   $("#detail-save").onclick = () => {
+    const previousMilestoneId = t.milestoneId || "";
     t.status = $("#detail-status").value; t.assignee = $("#detail-assignee").value.trim();
     t.startDate = $("#detail-start").value; t.due = $("#detail-due").value; t.milestoneId = $("#detail-milestone").value;
+    t._previousMilestoneId = previousMilestoneId;
     closeDialog(d); save("Task updated", { kind: "task", action: "update", record: t });
   };
   $("#detail-delete").onclick = () => {
@@ -682,7 +720,7 @@ $("#task-form").addEventListener("submit", e => {
   };
   if (id) {
     const old = state.tasks.find(x => String(x.id) === String(id));
-    t.sourceRecord = old?.sourceRecord; t.projectLabel = old?.projectLabel;
+    t.sourceRecord = old?.sourceRecord; t.projectLabel = old?.projectLabel; t._previousMilestoneId = old?.milestoneId || "";
     state.tasks = state.tasks.map(x => String(x.id) === String(id) ? t : x);
   } else state.tasks.unshift(t);
   closeDialog($("#task-modal"));
@@ -815,7 +853,7 @@ try {
   const requestedProject = new URLSearchParams(window.location.search).get("project");
   if (requestedProject) {
     const match = state.projects.find(item => String(item.id) === requestedProject || String(item.code) === requestedProject);
-    if (match) openProject(match.id);
+    if (match && !isCompletedProject(match)) openProject(match.id);
   }
 } catch { /* no query string support needed for the picker */ }
 })();
@@ -839,7 +877,7 @@ async function refreshTaskPageFromApi() {
     taskRefreshInProgress = false;
   }
 }
-window.setInterval(refreshTaskPageFromApi, 30000);
+window.setTimeout(() => window.location.reload(), 30 * 60 * 1000);
 window.addEventListener("focus", refreshTaskPageFromApi);
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") refreshTaskPageFromApi();

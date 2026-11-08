@@ -655,8 +655,11 @@ function renderMetricChangeBadges(metrics) {
 }
 function updateMetrics() {
   const openLeads = state.leads.filter(lead => !["Won", "Lost"].includes(lead.stage)).length;
-  const openTasks = state.tasks.filter(task => !task.done && !["Done", "Completed"].includes(task.status)).length;
-  const activeProjects = state.projects.filter(project => project.status !== "Completed").length;
+  const activeProjectsList = state.projects.filter(project => String(project.status).toLowerCase() !== "completed");
+  const activeProjectIds = new Set(activeProjectsList.map(project => String(project.id)));
+  const belongsToActiveProject = task => activeProjectIds.has(String(task.projectId || "")) || (!task.projectId && activeProjectsList.some(project => String(project.name).toLowerCase() === String(task.project || "").toLowerCase()));
+  const openTasks = state.tasks.filter(task => belongsToActiveProject(task) && !task.done && !["Done", "Completed"].includes(task.status)).length;
+  const activeProjects = activeProjectIds.size;
   const completedTasks = state.tasks.filter(task => task.done || ["Done", "Completed"].includes(String(task.status || ""))).length;
   const todayIso = new Date().toISOString().slice(0, 10);
   const overdueTasks = state.tasks.filter(task => {
@@ -678,14 +681,13 @@ function updateMetrics() {
   $("#metric-leads").textContent = String(openLeads).padStart(2, "0");
   $("#metric-tasks").textContent = String(openTasks).padStart(2, "0");
   renderMetricChangeBadges({ clients: state.clients.length, projects: activeProjects, leads: openLeads, tasks: openTasks });
-  // Sidebar badges reflect the total number of records in each section,
-  // including closed/won/lost leads and completed tasks.
+  // Sidebar badges show the actionable in-progress task count, excluding archived projects.
   if ($("#lead-nav-count")) $("#lead-nav-count").textContent = state.leads.length;
-  if ($("#task-nav-count")) $("#task-nav-count").textContent = state.tasks.length + state.milestones.length;
+  if ($("#task-nav-count")) $("#task-nav-count").textContent = state.tasks.filter(task => belongsToActiveProject(task) && String(task.status || "").toLowerCase() === "in progress" && !task.done).length;
   if ($("#meeting-nav-count")) $("#meeting-nav-count").textContent = state.meetings.length;
   if ($("#client-nav-count")) $("#client-nav-count").textContent = state.clients.length;
   if ($("#contact-nav-count")) $("#contact-nav-count").textContent = state.contacts.length;
-  if ($("#project-nav-count")) $("#project-nav-count").textContent = state.projects.length;
+  if ($("#project-nav-count")) $("#project-nav-count").textContent = activeProjects;
   $("#lead-total").textContent = String(openLeads).padStart(2, "0");
   $("#lead-discovery").textContent = String(state.leads.filter(lead => lead.stage === "Discovery").length).padStart(2, "0");
   $("#lead-proposal").textContent = String(state.leads.filter(lead => lead.stage === "Proposal").length).padStart(2, "0");
@@ -693,14 +695,14 @@ function updateMetrics() {
   $("#all-lead-count").textContent = state.leads.length;
   $("#lead-table-count").textContent = `Showing ${state.leads.length} leads`;
   $("#client-total").textContent = String(state.clients.length).padStart(2, "0");
-  if ($("#client-active-projects")) $("#client-active-projects").textContent = String(state.projects.filter(project => project.status !== "Completed").length).padStart(2, "0");
+  if ($("#client-active-projects")) $("#client-active-projects").textContent = String(state.projects.filter(project => String(project.status).toLowerCase() !== "completed").length).padStart(2, "0");
   $("#project-total").textContent = String(state.projects.length).padStart(2, "0");
   $("#report-clients").textContent = String(state.clients.length).padStart(2, "0");
   $("#report-leads").textContent = String(openLeads).padStart(2, "0");
 }
 
 function renderDashboardProjects() {
-  $("#dashboard-projects").innerHTML = state.projects.slice(0, 4).map(project => `
+  $("#dashboard-projects").innerHTML = state.projects.filter(project => String(project.status).toLowerCase() !== "completed").slice(0, 4).map(project => `
     <div class="project-row">
       <div class="project-main">
         <span class="project-mark">${esc(initials(project.name))}</span>
@@ -711,8 +713,25 @@ function renderDashboardProjects() {
     </div>`).join("") || `<p class="muted">No projects yet. Add a client, then create the first project.</p>`;
 }
 
+
+function renderCompletedProjectArchive() {
+  const target = $("#dashboard-completed-projects");
+  if (!target) return;
+  const completed = state.projects.filter(project => String(project.status).toLowerCase() === "completed");
+  target.innerHTML = completed.map(project => `
+    <article class="completed-project-row">
+      <div class="project-main"><span class="project-mark">${esc(initials(project.name))}</span><div><strong>${esc(project.name)}</strong><small>${esc(project.client || "Client not recorded")} · ${esc(project.code || "No reference")}</small></div></div>
+      <span class="status-pill status-done">Completed</span>
+      <button type="button" class="text-link" data-open-record="project" data-record-id="${esc(project.id)}">View project ↗</button>
+    </article>`).join("") || `<p class="muted">Completed projects will appear here when their status is set to Completed.</p>`;
+  const count = $("#dashboard-completed-count");
+  if (count) count.textContent = String(completed.length).padStart(2, "0");
+}
+
 function renderDashboardTasks() {
-  $("#dashboard-tasks").innerHTML = state.tasks.filter(task => !task.done).slice(0, 4).map(task => `
+  const activeProjectIds = new Set(state.projects.filter(project => String(project.status).toLowerCase() !== "completed").map(project => String(project.id)));
+  const activeProjectNames = new Set(state.projects.filter(project => String(project.status).toLowerCase() !== "completed").map(project => String(project.name).toLowerCase()));
+  $("#dashboard-tasks").innerHTML = state.tasks.filter(task => (activeProjectIds.has(String(task.projectId || "")) || (!task.projectId && activeProjectNames.has(String(task.project || "").toLowerCase()))) && !task.done).slice(0, 4).map(task => `
     <div class="task-row">
       <input class="task-check" type="checkbox" data-complete-task="${task.id}" aria-label="Mark ${esc(task.title)} complete">
       <div class="task-info"><strong>${esc(task.title)}</strong><small>${esc(task.project)} · ${esc(task.due)}</small></div>
@@ -1109,7 +1128,7 @@ function renderContacts() {
 
 function renderProjects() {
   const query = ($("#project-search")?.value || $("#global-search")?.value || "").trim().toLowerCase();
-  const filtered = state.projects.filter(project => {
+  const filtered = state.projects.filter(project => String(project.status).toLowerCase() !== "completed").filter(project => {
     const statusMatch = state.projectFilter === "all" || project.status === state.projectFilter;
     return statusMatch && [project.name, project.client, project.code, project.manager].join(" ").toLowerCase().includes(query);
   });
@@ -1706,6 +1725,7 @@ function renderAll() {
   syncRelationshipContacts();
   updateMetrics();
   renderDashboardProjects();
+  renderCompletedProjectArchive();
   renderDashboardTasks();
   renderActivity();
   renderPipeline();
@@ -2238,6 +2258,32 @@ document.addEventListener("click", async event => {
   }
 });
 
+function deriveAppMilestoneStatus(milestoneId) {
+  const attached = state.tasks.filter(item => String(item.milestoneId || "") === String(milestoneId));
+  if (!attached.length) return "Pending";
+  if (attached.every(item => item.done || ["Done", "Completed"].includes(String(item.status || "")))) return "Completed";
+  if (attached.some(item => ["In progress", "In review"].includes(String(item.status || "")))) return "In Progress";
+  return "Pending";
+}
+async function persistAppMilestoneStatus(milestoneId) {
+  const milestone = state.milestones.find(item => String(item.id) === String(milestoneId));
+  if (!milestone) return;
+  const status = deriveAppMilestoneStatus(milestoneId);
+  milestone.status = status;
+  if (LEADS_API_ENABLED) {
+    await window.ZymaCrmApi.request(`/milestones/${encodeURIComponent(milestoneId)}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        projectId: milestone.projectId,
+        title: milestone.title,
+        description: milestone.description || null,
+        status,
+        targetDateUtc: milestone.targetDateUtc || null
+      })
+    });
+  }
+}
+
 document.addEventListener("change", event => {
   const moveSelect = event.target.closest("[data-move-lead]");
   if (moveSelect) { moveLead(moveSelect.dataset.moveLead, moveSelect.value); return; }
@@ -2255,6 +2301,7 @@ document.addEventListener("change", event => {
       method: "PUT",
       body: JSON.stringify({
         projectId: task.projectId,
+        milestoneId: task.milestoneId || null,
         title: task.title,
         description: task.description || null,
         status: nextDone ? "Completed" : "To Do",
@@ -2264,6 +2311,7 @@ document.addEventListener("change", event => {
         dueDateUtc: task.dueDateUtc ? `${task.dueDateUtc}T00:00:00Z` : null
       })
     }).then(async () => {
+      if (task.milestoneId) await persistAppMilestoneStatus(task.milestoneId);
       await loadApiTasksAndMilestones();
       renderAll();
       toast(nextDone ? "Task marked complete." : "Task reopened.");
@@ -2277,6 +2325,7 @@ document.addEventListener("change", event => {
     });
     return;
   }
+  if (task.milestoneId) void persistAppMilestoneStatus(task.milestoneId).catch(error => console.warn("Milestone status could not be synchronized.", error));
   persistState(); renderAll();
   toast(task.done ? "Task marked complete." : "Task reopened.");
 });
@@ -2646,14 +2695,15 @@ async function refreshApiBackedData() {
 
 if (LEADS_API_ENABLED) {
   refreshApiBackedData();
-  // Poll while the CRM tab is visible so changes from other staff appear automatically.
-  window.setInterval(refreshApiBackedData, 60000);
+  // Reload on the requested 30-minute cadence; focus/visibility refreshes remain immediate.
   // Refresh promptly when returning to the tab after another user/session may have changed data.
   window.addEventListener("focus", refreshApiBackedData);
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") refreshApiBackedData();
   });
 }
+// Keep the CRM session fresh without the previous rapid polling/reload behaviour.
+window.setTimeout(() => window.location.reload(), 30 * 60 * 1000);
 const initialView = window.location.hash.replace("#", "");
 const [hashType, hashId] = initialView.split("/");
 if (hashId && recordCollections[hashType]) openRecordDetail(hashType, decodeURIComponent(hashId));
