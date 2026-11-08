@@ -606,7 +606,7 @@ dialog#project-plan-modal[open] {
    Zyma Project Timeline — professional Gantt refinement
    --------------------------------------------------------------- */
 .gantt-shell{margin:0 22px 24px;overflow:auto;border:1px solid var(--border);border-radius:15px;background:var(--surface);box-shadow:0 12px 34px #00000012;scrollbar-width:thin;scrollbar-color:var(--muted-2) transparent}
-.gantt-chart{grid-template-columns:420px max-content;min-width:max-content;position:relative;isolation:isolate}
+.gantt-chart{--gantt-label-width:420px;grid-template-columns:var(--gantt-label-width) max-content;min-width:max-content;position:relative;isolation:isolate}
 .gantt-left-head{position:sticky;left:0;z-index:8;display:flex;align-items:center;gap:10px;width:420px;height:78px;padding:0 20px;border-right:1px solid var(--border);background:var(--surface-raised);font-size:11px;letter-spacing:.04em;text-transform:uppercase}
 .gantt-left-head small{margin-left:auto;color:var(--muted);font-size:9px;letter-spacing:.08em}
 .gantt-date-head{position:sticky;top:0;z-index:7;display:block;height:78px;overflow:hidden;background:var(--surface-raised);border-bottom:1px solid var(--border)}
@@ -615,7 +615,7 @@ dialog#project-plan-modal[open] {
 .gantt-day-row{top:35px;height:43px}
 .gantt-month-band{position:absolute;top:0;bottom:0;display:flex;align-items:center;padding:0 12px;border-left:1px solid var(--border);color:var(--text);font-size:10px;font-weight:750;letter-spacing:.035em;white-space:nowrap}
 .gantt-day-cell{position:absolute;top:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-left:1px solid var(--border-soft);color:var(--text);font-size:11px;font-weight:650;font-variant-numeric:tabular-nums}
-.gantt-day-cell small{color:var(--muted);font-size:8px;font-weight:600;text-transform:uppercase}
+.gantt-day-cell small{color:var(--muted);font-size:8px;font-weight:600;text-transform:uppercase}.gantt-day-cell.is-today{background:color-mix(in srgb,var(--orange) 9%,var(--surface-raised));color:var(--orange);box-shadow:inset 0 2px 0 var(--orange)}.gantt-day-cell.is-today small{color:var(--orange)}
 .gantt-day-cell.is-weekend{background:color-mix(in srgb,var(--surface-raised) 75%,var(--text) 4%)}
 .gantt-label{width:420px;min-height:58px;height:58px;padding:8px 18px;gap:12px;background:var(--surface);border-right:1px solid var(--border);}
 .gantt-label>span:last-child{gap:5px;flex:1}
@@ -632,10 +632,9 @@ dialog#project-plan-modal[open] {
 .gantt-bar i{background:linear-gradient(90deg,#ffffff30,transparent 65%)}
 .gantt-milestone{top:23px;width:12px;height:12px;border-radius:3px;box-shadow:0 0 0 4px color-mix(in srgb,var(--orange) 12%,transparent),0 2px 6px #0002}
 .gantt-today-overlay{position:absolute;top:78px;width:2px;z-index:5;background:var(--orange);box-shadow:0 0 0 1px #f7931e20;pointer-events:none}
-.gantt-today-overlay b{position:sticky;top:84px;display:block;width:max-content;margin:5px 0 0 6px;padding:5px 8px;border-radius:5px;background:var(--orange);color:#17120d;font-size:9px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;box-shadow:0 3px 9px #f7931e35}
 .gantt-row{position:relative}
 .gantt-label:hover{background:var(--surface-raised)}
 .gantt-row:nth-of-type(even) .gantt-track{background:color-mix(in srgb,var(--surface) 94%,var(--text) 6%)}
 .gantt-row:nth-of-type(even) .gantt-label{background:color-mix(in srgb,var(--surface) 94%,var(--text) 6%)}
 .gantt-no-rows{padding:48px 24px;font-size:12px}
-@media(max-width:760px){.gantt-chart{grid-template-columns:300px max-content}.gantt-left-head,.gantt-label{width:300px}.gantt-today-overlay{left:calc(300px + var(--today-offset,0px))}.gantt-shell{margin-left:12px;margin-right:12px}.gantt-label{padding:8px 12px}}
+@media(max-width:760px){.gantt-chart{--gantt-label-width:300px;grid-template-columns:var(--gantt-label-width) max-content}.gantt-left-head,.gantt-label{width:300px}.gantt-shell{margin-left:12px;margin-right:12px}.gantt-label{padding:8px 12px}}

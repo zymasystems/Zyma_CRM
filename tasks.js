@@ -508,10 +508,11 @@ function renderTimeline() {
     const label = timelineRange === "project" && span > 70
       ? (d.getDay()===1 ? `<small>${esc(d.toLocaleDateString("en-ZA",{weekday:"short"}))}</small>${d.getDate()}` : `${d.getDate()}`)
       : `<small>${esc(d.toLocaleDateString("en-ZA",{weekday:"short"}))}</small>${d.getDate()}`;
-    dayLabels.push(`<span class="gantt-day-cell ${weekend?"is-weekend":""}" style="left:${i*dayWidth}px;width:${dayWidth}px">${label}</span>`);
+    const isToday = dayKey(d) === dayKey(today);
+    dayLabels.push(`<span class="gantt-day-cell ${weekend?"is-weekend":""} ${isToday?"is-today":""}" style="left:${i*dayWidth}px;width:${dayWidth}px">${label}</span>`);
   }
   const todayOffset = Math.round((today-min)/86400000);
-  const todayLine = todayOffset>=0 && todayOffset<span ? `<i class="gantt-today-overlay" style="left:${420+todayOffset*dayWidth+dayWidth/2}px;height:${scheduled.length*58}px"><b>Today</b></i>` : "";
+  const todayLine = todayOffset>=0 && todayOffset<span ? `<i class="gantt-today-overlay" style="left:calc(var(--gantt-label-width) + ${todayOffset*dayWidth+dayWidth/2}px);height:${scheduled.length*58}px" aria-hidden="true"></i>` : "";
   const barFor = item => {
     const start=toDay(item.start||item.due), end=toDay(item.due||item.start); if(!start||!end||end<min||start>max) return "";
     const left=Math.max(0,(start-min)/86400000)*dayWidth;
