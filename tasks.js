@@ -188,7 +188,7 @@ let state = loadState();
 let tab = "board", statusFilter = "all", priorityFilter = "all", query = "";
 let projectFilter = "all", pickerQuery = "";
 let timelineData = null, timelineLoading = false, timelineError = "";
-let timelineRange = "project", timelineView = "gantt", timelineType = "all", timelineFilter = "all", timelineSearch = "", timelineCustomStart = "", timelineCustomEnd = "";
+let timelineRange = "project", timelineView = "gantt", timelineType = "all", timelineFilter = "all", timelineSearch = "", timelineCustomStart = "", timelineCustomEnd = "", timelineZoom = 48;
 
 /* ---------- lookups ---------- */
 const project = id => state.projects.find(p => p.id === id);
@@ -473,7 +473,7 @@ function renderTimeline() {
   if (timelineRange === "custom" && timelineCustomStart && timelineCustomEnd) { min=toDay(timelineCustomStart); max=toDay(timelineCustomEnd); }
   if (max < min) max = new Date(min);
   const span = Math.max(1, Math.round((max-min)/86400000)+1);
-  const dayWidth = timelineRange === "week" ? 82 : timelineRange === "month" ? 52 : 48;
+  const dayWidth = timelineZoom;
   const gridWidth = span * dayWidth;
   const inRange = item => { const a=toDay(item.start||item.due), b=toDay(item.due||item.start); return a && b && b>=min && a<=max; };
   const filtered = items.filter(item => {
@@ -512,7 +512,7 @@ function renderTimeline() {
     dayLabels.push(`<span class="gantt-day-cell ${weekend?"is-weekend":""} ${isToday?"is-today":""}" style="left:${i*dayWidth}px;width:${dayWidth}px">${label}</span>`);
   }
   const todayOffset = Math.round((today-min)/86400000);
-  const todayLine = todayOffset>=0 && todayOffset<span ? `<i class="gantt-today-overlay" style="left:calc(var(--gantt-label-width) + ${todayOffset*dayWidth+dayWidth/2}px);height:${scheduled.length*58}px" aria-hidden="true"></i>` : "";
+  const todayInRange = todayOffset >= 0 && todayOffset < span;
   const barFor = item => {
     const start=toDay(item.start||item.due), end=toDay(item.due||item.start); if(!start||!end||end<min||start>max) return "";
     const left=Math.max(0,(start-min)/86400000)*dayWidth;
@@ -520,7 +520,7 @@ function renderTimeline() {
     const done=/completed|done/i.test(item.status), late=/overdue|delayed/i.test(item.status);
     return item.kind === "Milestone" ? `<span class="gantt-milestone ${done?"is-done":""}" style="left:${left+Math.max(0,width/2)-7}px" title="${esc(item.title)}"></span>` : `<span class="gantt-bar ${done?"is-done":late?"is-late":""}" style="left:${left+4}px;width:${width}px" title="${esc(item.title)} · ${esc(item.status)}"><i></i></span>`;
   };
-  const ganttRows = scheduled.map(item=>`<div class="gantt-row"><button type="button" class="gantt-label" data-timeline-open="${esc(item.id||"")}" data-kind="${item.kind.toLowerCase()}"><span class="gantt-kind ${item.kind.toLowerCase()}">${item.kind==="Milestone"?"◆":"●"}</span><span><strong>${esc(item.title)}</strong><small>${esc(item.kind)} · ${esc(item.assignee||item.status)}</small></span></button><div class="gantt-track" style="width:${gridWidth}px"><span class="gantt-grid-lines" style="background-size:${dayWidth}px 100%"></span>${barFor(item)}</div></div>`).join("");
+  const ganttRows = scheduled.map(item=>`<div class="gantt-row"><button type="button" class="gantt-label" data-timeline-open="${esc(item.id||"")}" data-kind="${item.kind.toLowerCase()}"><span class="gantt-kind ${item.kind.toLowerCase()}">${item.kind==="Milestone"?"◆":"●"}</span><span><strong>${esc(item.title)}</strong><small>${esc(item.kind)} · ${esc(item.assignee||item.status)}</small></span></button><div class="gantt-track" style="width:${gridWidth}px"><span class="gantt-grid-lines" style="background-size:${dayWidth}px 100%"></span>${todayInRange?`<i class="gantt-today-line" style="left:${todayOffset*dayWidth+dayWidth/2}px" aria-hidden="true"></i>`:""}${barFor(item)}</div></div>`).join("");
   const listRows = scheduled.map(item=>`<button type="button" class="timeline-schedule-row" data-timeline-open="${esc(item.id||"")}" data-kind="${item.kind.toLowerCase()}"><span class="gantt-list-name"><i class="gantt-kind ${item.kind.toLowerCase()}">${item.kind==="Milestone"?"◆":"●"}</i><strong>${esc(item.title)}</strong></span><span>${esc(timelineDate(item.start))}</span><span>${esc(timelineDate(item.due))}</span><span class="status-pill ${timelineStatusClass(item.status)}">${esc(item.status)}</span></button>`).join("");
   const metric=(label,value,note)=>`<article class="timeline-metric"><span>${label}</span><strong>${value}</strong><small>${note}</small></article>`;
   root.innerHTML = `
@@ -529,8 +529,8 @@ function renderTimeline() {
     <div class="timeline-project-dates"><div><span>Project start</span><strong>${esc(timelineDate(projectStart))}</strong></div><div><span>Target completion</span><strong>${esc(timelineDate(projectEnd))}</strong></div><div><span>Last generated</span><strong>${esc(timelineDate(timelineData.generatedAtUtc||timelineData.GeneratedAtUtc))}</strong></div></div>
     <div class="gantt-toolbar"><div class="gantt-control"><label for="gantt-range">Schedule range</label><select id="gantt-range"><option value="project" ${timelineRange==="project"?"selected":""}>Full project</option><option value="week" ${timelineRange==="week"?"selected":""}>This week</option><option value="month" ${timelineRange==="month"?"selected":""}>This month</option><option value="custom" ${timelineRange==="custom"?"selected":""}>Custom range</option></select></div><div class="gantt-control"><label for="gantt-type">Show</label><select id="gantt-type"><option value="all" ${timelineType==="all"?"selected":""}>All schedule items</option><option value="tasks" ${timelineType==="tasks"?"selected":""}>Tasks only</option><option value="milestones" ${timelineType==="milestones"?"selected":""}>Milestones only</option></select></div><div class="gantt-control"><label for="gantt-filter">Status</label><select id="gantt-filter"><option value="all" ${timelineFilter==="all"?"selected":""}>All statuses</option><option value="overdue" ${timelineFilter==="overdue"?"selected":""}>Overdue</option><option value="upcoming" ${timelineFilter==="upcoming"?"selected":""}>Upcoming / planned</option><option value="completed" ${timelineFilter==="completed"?"selected":""}>Completed</option></select></div><label class="gantt-search">⌕ <input id="gantt-search" type="search" value="${esc(timelineSearch)}" placeholder="Find a task or milestone"></label><div class="gantt-view-switch"><button type="button" data-gantt-view="gantt" class="${timelineView==="gantt"?"active":""}">Gantt chart</button><button type="button" data-gantt-view="list" class="${timelineView==="list"?"active":""}">Schedule list</button></div></div>
     ${timelineRange==="custom"?`<div class="gantt-custom-range"><label>From <input type="date" id="gantt-custom-start" value="${esc(timelineCustomStart)}"></label><label>To <input type="date" id="gantt-custom-end" value="${esc(timelineCustomEnd)}"></label></div>`:""}
-    <div class="gantt-legend"><span><i class="legend-task"></i> Task duration</span><span><i class="legend-done"></i> Completed</span><span><i class="legend-late"></i> Overdue</span><span><i class="legend-milestone"></i> Milestone</span><span><i class="legend-today"></i> Today</span><small>${scheduled.length} of ${filtered.length} matching items in range</small></div>
-    ${timelineView==="gantt"?`<div class="gantt-shell"><div class="gantt-chart"><div class="gantt-left-head">Work item <small>NAME / STATUS</small></div><div class="gantt-date-head" style="width:${gridWidth}px"><div class="gantt-month-row">${monthBands.join("")}</div><div class="gantt-day-row">${dayLabels.join("")}</div></div>${todayLine}${ganttRows||`<div class="gantt-no-rows">No scheduled items match these filters in the selected range.</div>`}</div></div>`:`<div class="gantt-list"><div class="timeline-schedule-head"><span>Item</span><span>Start</span><span>Target</span><span>Status</span></div>${listRows||`<div class="gantt-no-rows">No scheduled items match these filters in the selected range.</div>`}</div>`}
+    <div class="gantt-legend"><span><i class="legend-task"></i> Task duration</span><span><i class="legend-done"></i> Completed</span><span><i class="legend-late"></i> Overdue</span><span><i class="legend-milestone"></i> Milestone</span><span><i class="legend-today"></i> Today</span><div class="gantt-zoom" aria-label="Timeline zoom"><span>Zoom</span><button type="button" data-gantt-zoom="out" aria-label="Zoom out" title="Zoom out">−</button><strong>${dayWidth}px / day</strong><button type="button" data-gantt-zoom="in" aria-label="Zoom in" title="Zoom in">+</button><button type="button" data-gantt-zoom="fit" title="Reset zoom">Fit</button></div><small>${scheduled.length} of ${filtered.length} matching items in range</small></div>
+    ${timelineView==="gantt"?`<div class="gantt-shell"><div class="gantt-chart"><div class="gantt-left-head">Work item <small>NAME / STATUS</small></div><div class="gantt-date-head" style="width:${gridWidth}px"><div class="gantt-month-row">${monthBands.join("")}</div><div class="gantt-day-row">${dayLabels.join("")}</div></div>${ganttRows||`<div class="gantt-no-rows">No scheduled items match these filters in the selected range.</div>`}</div></div>`:`<div class="gantt-list"><div class="timeline-schedule-head"><span>Item</span><span>Start</span><span>Target</span><span>Status</span></div>${listRows||`<div class="gantt-no-rows">No scheduled items match these filters in the selected range.</div>`}</div>`}
     ${unscheduled.length?`<section class="gantt-unscheduled"><div><h3>Unscheduled items</h3><p>These items do not have a start or target date. Add dates when they are confirmed.</p></div><div>${unscheduled.map(i=>`<button type="button" data-timeline-open="${esc(i.id||"")}" data-kind="${i.kind.toLowerCase()}"><span class="gantt-kind ${i.kind.toLowerCase()}">${i.kind==="Milestone"?"◆":"●"}</span>${esc(i.title)}<small>${i.kind}</small></button>`).join("")}</div></section>`:""}`;
 }
 
@@ -902,6 +902,18 @@ $("#view-tabs").addEventListener("click", e => {
 });
 $("#timeline").addEventListener("click", e => {
   if (e.target.closest("#timeline-retry, #timeline-refresh")) { void loadProjectTimeline(); return; }
+  const zoom = e.target.closest("[data-gantt-zoom]");
+  if (zoom) {
+    const shell = $(".gantt-shell", $("#timeline"));
+    const scrollLeft = shell?.scrollLeft || 0;
+    const levels = [24, 32, 40, 48, 60, 76, 96, 120];
+    if (zoom.dataset.ganttZoom === "fit") timelineZoom = 48;
+    else { const index = levels.indexOf(timelineZoom); timelineZoom = levels[Math.max(0, Math.min(levels.length - 1, index + (zoom.dataset.ganttZoom === "in" ? 1 : -1)))]; }
+    renderTimeline();
+    const updatedShell = $(".gantt-shell", $("#timeline"));
+    if (updatedShell) updatedShell.scrollLeft = scrollLeft;
+    return;
+  }
   const view = e.target.closest("[data-gantt-view]");
   if (view) { timelineView = view.dataset.ganttView; renderTimeline(); return; }
   const open = e.target.closest("[data-timeline-open]");

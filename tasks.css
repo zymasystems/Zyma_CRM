@@ -638,3 +638,13 @@ dialog#project-plan-modal[open] {
 .gantt-row:nth-of-type(even) .gantt-label{background:color-mix(in srgb,var(--surface) 94%,var(--text) 6%)}
 .gantt-no-rows{padding:48px 24px;font-size:12px}
 @media(max-width:760px){.gantt-chart{--gantt-label-width:300px;grid-template-columns:var(--gantt-label-width) max-content}.gantt-left-head,.gantt-label{width:300px}.gantt-shell{margin-left:12px;margin-right:12px}.gantt-label{padding:8px 12px}}
+
+/* Gantt scrolling and zoom controls: the Today indicator lives inside each date track,
+   so it scrolls horizontally with the schedule instead of floating over the sticky labels. */
+.gantt-today-line{position:absolute;top:0;bottom:0;width:2px;z-index:3;background:var(--orange);opacity:.9;pointer-events:none;box-shadow:0 0 0 1px color-mix(in srgb,var(--orange) 12%,transparent)}
+.gantt-zoom{display:flex;align-items:center;gap:6px;margin-left:auto;padding:4px 6px;border:1px solid var(--border);border-radius:9px;background:var(--surface-raised)}
+.gantt-zoom>span{margin:0 4px;color:var(--muted);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.gantt-zoom button{display:grid;place-items:center;min-width:26px;height:25px;padding:0 7px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:14px;font-weight:700;cursor:pointer}
+.gantt-zoom button:hover{border-color:var(--orange);color:var(--orange)}
+.gantt-zoom strong{min-width:62px;color:var(--muted);font-size:9px;text-align:center;font-variant-numeric:tabular-nums}
+@media(max-width:760px){.gantt-zoom{margin-left:0}.gantt-legend{align-items:center}}
