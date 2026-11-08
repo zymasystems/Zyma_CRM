@@ -546,3 +546,47 @@ dialog#project-plan-modal[open] {
     max-height: calc(100dvh - 20px) !important;
   }
 }
+
+
+/* Project timeline */
+.timeline-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:18px; padding:22px 22px 16px; border-bottom:1px solid var(--border-soft); }
+.timeline-heading h2 { margin:0 0 6px; font:700 19px/1.3 Manrope,sans-serif; letter-spacing:-.03em; }
+.timeline-heading p:not(.eyebrow) { margin:0; color:var(--muted); font-size:11px; line-height:1.6; }
+.timeline-heading .eyebrow { margin:0 0 7px; }
+.timeline-metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; padding:16px 22px; }
+.timeline-metric { display:grid; gap:5px; padding:13px 14px; border:1px solid var(--border-soft); border-radius:10px; background:var(--surface-raised); }
+.timeline-metric span,.timeline-metric small { color:var(--muted); font-size:10px; }
+.timeline-metric strong { font:700 23px/1.2 Manrope,sans-serif; }
+.timeline-project-dates { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin:0 22px 18px; padding:14px; border:1px solid var(--border); border-radius:10px; background:var(--surface-raised); }
+.timeline-project-dates div { display:grid; gap:5px; min-width:0; }
+.timeline-project-dates span { color:var(--muted); font-size:10px; }
+.timeline-project-dates strong { font-size:11px; overflow-wrap:anywhere; }
+.timeline-list { padding:0 22px 22px; }
+.timeline-list-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+.timeline-list-heading h3 { margin:0; font:700 13px Manrope,sans-serif; }
+.timeline-list-heading span { color:var(--muted); font-size:10px; }
+.timeline-item { position:relative; display:grid; grid-template-columns:16px minmax(0,1fr); gap:13px; padding:0 0 18px; }
+.timeline-item:not(:last-child)::before { content:""; position:absolute; left:6px; top:13px; bottom:-1px; width:1px; background:var(--border); }
+.timeline-marker { z-index:1; width:13px; height:13px; margin-top:3px; border:3px solid var(--orange); border-radius:50%; background:var(--surface); }
+.timeline-marker.task-marker { border-color:var(--muted-2); }
+.timeline-item-main { min-width:0; padding:13px 15px; border:1px solid var(--border); border-radius:10px; background:var(--surface); }
+.timeline-item-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+.timeline-kind { color:var(--orange); font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+.timeline-item-heading h3 { margin:3px 0 0; font:700 12px/1.4 Manrope,sans-serif; }
+.timeline-item-main > p { margin:8px 0 0; color:var(--muted); font-size:10px; line-height:1.6; white-space:pre-wrap; }
+.timeline-dates { display:flex; flex-wrap:wrap; gap:8px 18px; margin-top:11px; color:var(--muted); font-size:9px; }
+.timeline-dates strong { color:var(--text); font-weight:600; }
+.timeline-empty { display:grid; justify-items:center; gap:7px; padding:42px 20px; color:var(--muted); text-align:center; font-size:11px; }
+.timeline-empty strong { color:var(--text); font-size:12px; }
+.timeline-empty p { max-width:460px; margin:0; line-height:1.6; }
+.timeline-spinner { width:20px; height:20px; border:2px solid var(--border); border-top-color:var(--orange); border-radius:50%; animation:timeline-spin .8s linear infinite; }
+@keyframes timeline-spin { to { transform:rotate(360deg); } }
+@media(max-width:900px) { .timeline-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:600px) {
+  .timeline-heading { flex-direction:column; padding:17px 15px 13px; }
+  .timeline-metrics { padding:13px 15px; gap:8px; }
+  .timeline-project-dates { grid-template-columns:1fr; margin:0 15px 15px; }
+  .timeline-list { padding:0 15px 16px; }
+  .timeline-item-heading { flex-direction:column; }
+  .timeline-dates { display:grid; gap:6px; }
+}

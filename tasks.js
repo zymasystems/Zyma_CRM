@@ -187,6 +187,7 @@ async function loadApiState() {
 let state = loadState();
 let tab = "board", statusFilter = "all", priorityFilter = "all", query = "";
 let projectFilter = "all", pickerQuery = "";
+let timelineData = null, timelineLoading = false, timelineError = "";
 
 /* ---------- lookups ---------- */
 const project = id => state.projects.find(p => p.id === id);
@@ -297,6 +298,7 @@ function openProject(id) {
   $("#project-picker-view").classList.add("hidden");
   $("#project-workspace-view").classList.remove("hidden");
   renderWorkspace();
+  if (tab === "timeline") void loadProjectTimeline();
   window.scrollTo(0, 0);
 }
 function closeProject() {
@@ -316,7 +318,8 @@ function renderWorkspace() {
   renderBoard();
   renderList();
   renderMilestones();
-  ["board", "list", "milestones"].forEach(name => $(`#${name}`).classList.toggle("hidden", tab !== name));
+  renderTimeline();
+  ["board", "list", "milestones", "timeline"].forEach(name => $(`#${name}`).classList.toggle("hidden", tab !== name));
   $$("#view-tabs [data-tab]").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
   $$("#filters [data-status]").forEach(b => b.classList.toggle("active", b.dataset.status === statusFilter));
 }
@@ -415,6 +418,117 @@ function renderMilestones() {
   $("#milestones").innerHTML = `<div class="table-toolbar"><div><h2 class="toolbar-title">Milestones</h2><p class="muted">${plural(ms.length, "milestone")}</p></div></div><div class="milestone-grid">${cards}</div>`;
 }
 
+/* ---------- project timeline (live API endpoint) ---------- */
+const readField = (value, camel, pascal) => value?.[camel] ?? value?.[pascal] ?? null;
+function timelineDate(value) {
+  const normalized = normalizeDate(value);
+  return normalized ? fmt(normalized) : "Date not set";
+}
+function timelineStatusClass(value) {
+  return ({
+    "Completed": "status-done", "Overdue": "status-blocked", "Delayed": "status-blocked",
+    "Upcoming": "status-progress", "On Schedule": "status-planning",
+    "Unscheduled": "status-hold", "Cancelled": "status-hold"
+  })[value] || "status-planning";
+}
+function renderTimeline() {
+  const root = $("#timeline");
+  if (!root) return;
+  if (projectFilter === "all") {
+    root.innerHTML = `<div class="timeline-empty"><strong>Select a project to view its timeline.</strong><p>The timeline is available within an individual project workspace.</p></div>`;
+    return;
+  }
+  if (timelineLoading) {
+    root.innerHTML = `<div class="timeline-empty"><span class="timeline-spinner"></span><strong>Loading project timeline…</strong></div>`;
+    return;
+  }
+  if (timelineError) {
+    root.innerHTML = `<div class="timeline-empty"><strong>Timeline could not be loaded.</strong><p>${esc(timelineError)}</p><button type="button" class="button button-secondary" id="timeline-retry">Try again</button></div>`;
+    return;
+  }
+  if (!timelineData) {
+    root.innerHTML = `<div class="timeline-empty"><strong>Project timeline not loaded.</strong><p>Open this tab while connected to the live CRM API.</p></div>`;
+    return;
+  }
+
+  const summary = timelineData.summary || {};
+  const projectData = timelineData.project || {};
+  const milestones = Array.isArray(timelineData.milestones) ? timelineData.milestones : [];
+  const tasks = Array.isArray(timelineData.tasks) ? timelineData.tasks : [];
+  const items = [
+    ...milestones.map(item => ({
+      id: readField(item, "id", "Id"), kind: "Milestone",
+      title: readField(item, "title", "Title") || "Untitled milestone",
+      description: readField(item, "description", "Description"),
+      status: readField(item, "scheduleStatus", "ScheduleStatus") || readField(item, "status", "Status") || "Unscheduled",
+      start: readField(item, "startDateUtc", "StartDateUtc"),
+      due: readField(item, "targetDateUtc", "TargetDateUtc"),
+      completed: readField(item, "completedAtUtc", "CompletedAtUtc")
+    })),
+    ...tasks.map(item => ({
+      id: readField(item, "id", "Id"), kind: "Task",
+      title: readField(item, "title", "Title") || "Untitled task",
+      description: readField(item, "description", "Description"),
+      status: readField(item, "scheduleStatus", "ScheduleStatus") || readField(item, "status", "Status") || "Unscheduled",
+      start: readField(item, "startDateUtc", "StartDateUtc"),
+      due: readField(item, "dueDateUtc", "DueDateUtc"),
+      completed: readField(item, "completedAtUtc", "CompletedAtUtc"),
+      assignee: readField(item, "assignedToName", "AssignedToName")
+    }))
+  ].sort((a, b) => {
+    const da = normalizeDate(a.start || a.due) || "9999-12-31";
+    const db = normalizeDate(b.start || b.due) || "9999-12-31";
+    return da.localeCompare(db) || a.kind.localeCompare(b.kind) || a.title.localeCompare(b.title);
+  });
+
+  const projectStart = readField(projectData, "startDateUtc", "StartDateUtc") || project(projectFilter)?.startDate;
+  const projectEnd = readField(projectData, "targetEndDateUtc", "TargetEndDateUtc") || project(projectFilter)?.due;
+  const metric = (label, value, note) => `<article class="timeline-metric"><span>${esc(label)}</span><strong>${esc(String(value ?? 0))}</strong><small>${esc(note)}</small></article>`;
+  const rows = items.map(item => `
+    <article class="timeline-item">
+      <span class="timeline-marker ${item.kind === "Milestone" ? "milestone-marker" : "task-marker"}"></span>
+      <div class="timeline-item-main">
+        <div class="timeline-item-heading"><div><span class="timeline-kind">${esc(item.kind)}</span><h3>${esc(item.title)}</h3></div><span class="status-pill ${timelineStatusClass(item.status)}">${esc(item.status)}</span></div>
+        ${item.description ? `<p>${esc(item.description)}</p>` : ""}
+        <div class="timeline-dates"><span>Start: <strong>${esc(timelineDate(item.start))}</strong></span><span>Target: <strong>${esc(timelineDate(item.due))}</strong></span>${item.assignee ? `<span>Assigned to: <strong>${esc(item.assignee)}</strong></span>` : ""}${item.completed ? `<span>Completed: <strong>${esc(timelineDate(item.completed))}</strong></span>` : ""}</div>
+      </div>
+    </article>`).join("");
+
+  root.innerHTML = `
+    <div class="timeline-heading"><div><p class="eyebrow">DELIVERY SCHEDULE</p><h2>Project timeline</h2><p>Planned dates, delivery milestones and task progress for ${esc(projectData.name || project(projectFilter)?.name || "this project")}.</p></div><button type="button" class="button button-secondary" id="timeline-refresh">↻ Refresh</button></div>
+    <div class="timeline-metrics">
+      ${metric("Milestones", summary.milestoneCount, `${summary.completedMilestones || 0} completed`)}
+      ${metric("Overdue milestones", summary.overdueMilestones, "Past target date")}
+      ${metric("Tasks", summary.taskCount, `${summary.completedTasks || 0} completed`)}
+      ${metric("Overdue tasks", summary.overdueTasks, `${summary.upcomingTasks || 0} due soon`)}
+    </div>
+    <div class="timeline-project-dates"><div><span>Project start</span><strong>${esc(timelineDate(projectStart))}</strong></div><div><span>Target completion</span><strong>${esc(timelineDate(projectEnd))}</strong></div><div><span>Last generated</span><strong>${esc(timelineDate(timelineData.generatedAtUtc || timelineData.GeneratedAtUtc))}</strong></div></div>
+    <div class="timeline-list"><div class="timeline-list-heading"><h3>Schedule</h3><span>${items.length} delivery items</span></div>${rows || `<div class="timeline-empty"><strong>No scheduled items yet.</strong><p>Add milestones and tasks with start or target dates to build the project timeline.</p></div>`}</div>`;
+}
+async function loadProjectTimeline() {
+  if (!apiMode || !window.ZymaCrmApi?.getToken()) {
+    timelineData = null;
+    timelineError = "The project timeline requires an authenticated connection to the CRM API.";
+    timelineLoading = false;
+    renderTimeline();
+    return;
+  }
+  if (projectFilter === "all") return;
+  timelineLoading = true;
+  timelineError = "";
+  renderTimeline();
+  try {
+    timelineData = await window.ZymaCrmApi.request(`/projects/${encodeURIComponent(projectFilter)}/timeline`);
+    if (!timelineData || typeof timelineData !== "object") throw new Error("The API returned an invalid timeline response.");
+  } catch (error) {
+    timelineData = null;
+    timelineError = error?.message || "Unable to retrieve the project timeline.";
+  } finally {
+    timelineLoading = false;
+    renderTimeline();
+  }
+}
+
 /* ---------- saving back into the shared CRM records ---------- */
 function deriveMilestoneStatus(milestoneId) {
   const attached = state.tasks.filter(task => String(task.milestoneId || "") === String(milestoneId));
@@ -489,6 +603,7 @@ async function save(message, change = null) {
       if (!loaded) throw new Error(apiLoadError || "Could not refresh records from the API.");
       renderWorkspace();
       renderPicker();
+      if (tab === "timeline") void loadProjectTimeline();
       if (message) toast(message);
     } catch (error) {
       const loaded = await loadApiState();
@@ -750,7 +865,14 @@ $("#filters").addEventListener("click", e => {
 });
 $("#view-tabs").addEventListener("click", e => {
   const b = e.target.closest("[data-tab]");
-  if (b) { tab = b.dataset.tab; renderWorkspace(); }
+  if (b) {
+    tab = b.dataset.tab;
+    renderWorkspace();
+    if (tab === "timeline") void loadProjectTimeline();
+  }
+});
+$("#timeline").addEventListener("click", e => {
+  if (e.target.closest("#timeline-retry, #timeline-refresh")) void loadProjectTimeline();
 });
 const inWorkspace = () => !$("#project-workspace-view").classList.contains("hidden");
 $("#task-search").addEventListener("input", e => { query = e.target.value; $("#global-search").value = query; renderWorkspace(); });
@@ -839,7 +961,10 @@ async function refresh() {
   const loaded = await loadApiState();
   if (!loaded) state = loadState();
   if (projectFilter !== "all" && !project(projectFilter)) { closeProject(); return; }
-  if (inWorkspace()) renderWorkspace(); else renderPicker();
+  if (inWorkspace()) {
+    renderWorkspace();
+    if (tab === "timeline") void loadProjectTimeline();
+  } else renderPicker();
 }
 window.addEventListener("pageshow", () => { void refresh(); });
 window.addEventListener("storage", e => {
