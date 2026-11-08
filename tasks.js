@@ -188,6 +188,8 @@ let state = loadState();
 let tab = "board", statusFilter = "all", priorityFilter = "all", query = "";
 let projectFilter = "all", pickerQuery = "";
 let timelineData = null, timelineLoading = false, timelineError = "";
+let timelineFilter = "all", timelineType = "all", timelineMode = "gantt", timelineRange = "project", timelineFrom = "", timelineTo = "";
+let timelineDependencies = {};
 
 /* ---------- lookups ---------- */
 const project = id => state.projects.find(p => p.id === id);
@@ -320,6 +322,7 @@ function renderWorkspace() {
   renderMilestones();
   renderTimeline();
   ["board", "list", "milestones", "timeline"].forEach(name => $(`#${name}`).classList.toggle("hidden", tab !== name));
+  $(".table-toolbar")?.classList.toggle("hidden", tab === "timeline");
   $$("#view-tabs [data-tab]").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
   $$("#filters [data-status]").forEach(b => b.classList.toggle("active", b.dataset.status === statusFilter));
 }
@@ -425,108 +428,111 @@ function timelineDate(value) {
   return normalized ? fmt(normalized) : "Date not set";
 }
 function timelineStatusClass(value) {
-  return ({
-    "Completed": "status-done", "Overdue": "status-blocked", "Delayed": "status-blocked",
-    "Upcoming": "status-progress", "On Schedule": "status-planning",
-    "Unscheduled": "status-hold", "Cancelled": "status-hold"
-  })[value] || "status-planning";
+  return ({ "Completed": "status-done", "Overdue": "status-blocked", "Delayed": "status-blocked", "Upcoming": "status-progress", "On Schedule": "status-planning", "Unscheduled": "status-hold", "Cancelled": "status-hold" })[value] || "status-planning";
+}
+function timelineItems() {
+  const milestones = Array.isArray(timelineData?.milestones) ? timelineData.milestones : [];
+  const tasks = Array.isArray(timelineData?.tasks) ? timelineData.tasks : [];
+  return [
+    ...milestones.map(item => ({
+      id: String(readField(item,"id","Id") ?? ""), kind:"Milestone", title:readField(item,"title","Title") || "Untitled milestone",
+      description:readField(item,"description","Description") || "", status:readField(item,"scheduleStatus","ScheduleStatus") || readField(item,"status","Status") || "Unscheduled",
+      start:normalizeDate(readField(item,"startDateUtc","StartDateUtc")), due:normalizeDate(readField(item,"targetDateUtc","TargetDateUtc")),
+      completed:readField(item,"completedAtUtc","CompletedAtUtc"), milestoneId:String(readField(item,"id","Id") ?? "")
+    })),
+    ...tasks.map(item => {
+      const id=String(readField(item,"id","Id") ?? "");
+      const localTask=state.tasks.find(t=>String(t.id)===id);
+      const rawDeps=readField(item,"dependencies","Dependencies") || readField(item,"dependencyIds","DependencyIds") || localTask?.sourceRecord?.dependencies || localTask?.sourceRecord?.Dependencies || [];
+      return { id, kind:"Task", title:readField(item,"title","Title") || "Untitled task", description:readField(item,"description","Description") || "",
+        status:readField(item,"scheduleStatus","ScheduleStatus") || readField(item,"status","Status") || "Unscheduled",
+        start:normalizeDate(readField(item,"startDateUtc","StartDateUtc")), due:normalizeDate(readField(item,"dueDateUtc","DueDateUtc")),
+        completed:readField(item,"completedAtUtc","CompletedAtUtc"), assignee:readField(item,"assignedToName","AssignedToName") || "",
+        milestoneId:String(readField(item,"milestoneId","MilestoneId") ?? localTask?.milestoneId ?? ""), parentTaskId:String(readField(item,"parentTaskId","ParentTaskId") ?? localTask?.sourceRecord?.parentTaskId ?? localTask?.sourceRecord?.ParentTaskId ?? ""),
+        dependencies:Array.isArray(rawDeps)?rawDeps.map(x=>String(typeof x==="object"?(x.id??x.taskId??x.TaskId??""):x)):[], priority:readField(item,"priority","Priority") || "" };
+    })
+  ].sort((a,b)=>(a.start||a.due||"9999-12-31").localeCompare(b.start||b.due||"9999-12-31") || a.kind.localeCompare(b.kind) || a.title.localeCompare(b.title));
+}
+function timelineWindow(items) {
+  const today=new Date(); today.setHours(0,0,0,0);
+  const projectData=timelineData?.project||{};
+  let start=normalizeDate(readField(projectData,"startDateUtc","StartDateUtc"));
+  let end=normalizeDate(readField(projectData,"targetEndDateUtc","TargetEndDateUtc"));
+  const dates=items.flatMap(x=>[x.start,x.due]).filter(Boolean).sort();
+  if(!start) start=dates[0]||ymd(today);
+  if(!end) end=dates[dates.length-1]||ymd(today);
+  let a=new Date(`${start}T00:00:00`), b=new Date(`${end}T00:00:00`);
+  if(timelineRange==="week") { a=new Date(today); a.setDate(a.getDate()-today.getDay()); b=new Date(a); b.setDate(b.getDate()+6); }
+  else if(timelineRange==="month") { a=new Date(today.getFullYear(),today.getMonth(),1); b=new Date(today.getFullYear(),today.getMonth()+1,0); }
+  else if(timelineRange==="custom" && timelineFrom && timelineTo) { a=new Date(`${timelineFrom}T00:00:00`); b=new Date(`${timelineTo}T00:00:00`); }
+  if(Number.isNaN(a.getTime())||Number.isNaN(b.getTime())||b<a) { a=new Date(today); b=new Date(today); b.setDate(b.getDate()+30); }
+  return {start:a,end:b,days:Math.max(1,Math.round((b-a)/86400000)+1)};
 }
 function renderTimeline() {
-  const root = $("#timeline");
-  if (!root) return;
-  if (projectFilter === "all") {
-    root.innerHTML = `<div class="timeline-empty"><strong>Select a project to view its timeline.</strong><p>The timeline is available within an individual project workspace.</p></div>`;
-    return;
-  }
-  if (timelineLoading) {
-    root.innerHTML = `<div class="timeline-empty"><span class="timeline-spinner"></span><strong>Loading project timeline…</strong></div>`;
-    return;
-  }
-  if (timelineError) {
-    root.innerHTML = `<div class="timeline-empty"><strong>Timeline could not be loaded.</strong><p>${esc(timelineError)}</p><button type="button" class="button button-secondary" id="timeline-retry">Try again</button></div>`;
-    return;
-  }
-  if (!timelineData) {
-    root.innerHTML = `<div class="timeline-empty"><strong>Project timeline not loaded.</strong><p>Open this tab while connected to the live CRM API.</p></div>`;
-    return;
-  }
-
-  const summary = timelineData.summary || {};
-  const projectData = timelineData.project || {};
-  const milestones = Array.isArray(timelineData.milestones) ? timelineData.milestones : [];
-  const tasks = Array.isArray(timelineData.tasks) ? timelineData.tasks : [];
-  const items = [
-    ...milestones.map(item => ({
-      id: readField(item, "id", "Id"), kind: "Milestone",
-      title: readField(item, "title", "Title") || "Untitled milestone",
-      description: readField(item, "description", "Description"),
-      status: readField(item, "scheduleStatus", "ScheduleStatus") || readField(item, "status", "Status") || "Unscheduled",
-      start: readField(item, "startDateUtc", "StartDateUtc"),
-      due: readField(item, "targetDateUtc", "TargetDateUtc"),
-      completed: readField(item, "completedAtUtc", "CompletedAtUtc")
-    })),
-    ...tasks.map(item => ({
-      id: readField(item, "id", "Id"), kind: "Task",
-      title: readField(item, "title", "Title") || "Untitled task",
-      description: readField(item, "description", "Description"),
-      status: readField(item, "scheduleStatus", "ScheduleStatus") || readField(item, "status", "Status") || "Unscheduled",
-      start: readField(item, "startDateUtc", "StartDateUtc"),
-      due: readField(item, "dueDateUtc", "DueDateUtc"),
-      completed: readField(item, "completedAtUtc", "CompletedAtUtc"),
-      assignee: readField(item, "assignedToName", "AssignedToName")
-    }))
-  ].sort((a, b) => {
-    const da = normalizeDate(a.start || a.due) || "9999-12-31";
-    const db = normalizeDate(b.start || b.due) || "9999-12-31";
-    return da.localeCompare(db) || a.kind.localeCompare(b.kind) || a.title.localeCompare(b.title);
+  const root=$("#timeline"); if(!root)return;
+  if(projectFilter==="all"){root.innerHTML=`<div class="timeline-empty"><strong>Select a project to view its timeline.</strong><p>The timeline is available within an individual project workspace.</p></div>`;return;}
+  if(timelineLoading){root.innerHTML=`<div class="timeline-empty"><span class="timeline-spinner"></span><strong>Loading project timeline…</strong></div>`;return;}
+  if(timelineError){root.innerHTML=`<div class="timeline-empty"><strong>Timeline could not be loaded.</strong><p>${esc(timelineError)}</p><button type="button" class="button button-secondary" id="timeline-retry">Try again</button></div>`;return;}
+  if(!timelineData){root.innerHTML=`<div class="timeline-empty"><strong>Project timeline not loaded.</strong><p>Open this tab while connected to the live CRM API.</p></div>`;return;}
+  const summary=timelineData.summary||{}, projectData=timelineData.project||{};
+  const all=timelineItems();
+  const range=timelineWindow(all), dayMs=86400000, startMs=range.start.getTime();
+  const items=all.filter(x=>{
+    const itemStart=x.start?new Date(`${x.start}T00:00:00`):null;
+    const itemEnd=x.due?new Date(`${x.due}T00:00:00`):itemStart;
+    const intersects=!itemStart&&!itemEnd ? timelineRange==="project" : (!itemEnd||itemEnd>=range.start)&&(!itemStart||itemStart<=range.end);
+    const status=String(x.status).toLowerCase();
+    const overdue=status==="overdue"||(!x.completed&&x.due&&x.due<todayStr());
+    const upcoming=status==="upcoming"||(!x.completed&&x.start&&x.start>todayStr()&&((new Date(x.start)-new Date())/86400000)<=7);
+    const done=status==="completed"||!!x.completed;
+    const match=timelineFilter==="all"||(timelineFilter==="overdue"&&overdue)||(timelineFilter==="upcoming"&&upcoming)||(timelineFilter==="completed"&&done);
+    const type=timelineType==="all"||x.kind.toLowerCase()===timelineType;
+    const q=norm(query); const search=!q||norm(`${x.title} ${x.description} ${x.assignee}`).includes(q);
+    return match&&type&&search&&intersects;
   });
-
-  const projectStart = readField(projectData, "startDateUtc", "StartDateUtc") || project(projectFilter)?.startDate;
-  const projectEnd = readField(projectData, "targetEndDateUtc", "TargetEndDateUtc") || project(projectFilter)?.due;
-  const metric = (label, value, note) => `<article class="timeline-metric"><span>${esc(label)}</span><strong>${esc(String(value ?? 0))}</strong><small>${esc(note)}</small></article>`;
-  const rows = items.map(item => `
-    <article class="timeline-item">
-      <span class="timeline-marker ${item.kind === "Milestone" ? "milestone-marker" : "task-marker"}"></span>
-      <div class="timeline-item-main">
-        <div class="timeline-item-heading"><div><span class="timeline-kind">${esc(item.kind)}</span><h3>${esc(item.title)}</h3></div><span class="status-pill ${timelineStatusClass(item.status)}">${esc(item.status)}</span></div>
-        ${item.description ? `<p>${esc(item.description)}</p>` : ""}
-        <div class="timeline-dates"><span>Start: <strong>${esc(timelineDate(item.start))}</strong></span><span>Target: <strong>${esc(timelineDate(item.due))}</strong></span>${item.assignee ? `<span>Assigned to: <strong>${esc(item.assignee)}</strong></span>` : ""}${item.completed ? `<span>Completed: <strong>${esc(timelineDate(item.completed))}</strong></span>` : ""}</div>
-      </div>
-    </article>`).join("");
-
-  root.innerHTML = `
-    <div class="timeline-heading"><div><p class="eyebrow">DELIVERY SCHEDULE</p><h2>Project timeline</h2><p>Planned dates, delivery milestones and task progress for ${esc(projectData.name || project(projectFilter)?.name || "this project")}.</p></div><button type="button" class="button button-secondary" id="timeline-refresh">↻ Refresh</button></div>
-    <div class="timeline-metrics">
-      ${metric("Milestones", summary.milestoneCount, `${summary.completedMilestones || 0} completed`)}
-      ${metric("Overdue milestones", summary.overdueMilestones, "Past target date")}
-      ${metric("Tasks", summary.taskCount, `${summary.completedTasks || 0} completed`)}
-      ${metric("Overdue tasks", summary.overdueTasks, `${summary.upcomingTasks || 0} due soon`)}
-    </div>
-    <div class="timeline-project-dates"><div><span>Project start</span><strong>${esc(timelineDate(projectStart))}</strong></div><div><span>Target completion</span><strong>${esc(timelineDate(projectEnd))}</strong></div><div><span>Last generated</span><strong>${esc(timelineDate(timelineData.generatedAtUtc || timelineData.GeneratedAtUtc))}</strong></div></div>
-    <div class="timeline-list"><div class="timeline-list-heading"><h3>Schedule</h3><span>${items.length} delivery items</span></div>${rows || `<div class="timeline-empty"><strong>No scheduled items yet.</strong><p>Add milestones and tasks with start or target dates to build the project timeline.</p></div>`}</div>`;
+  const pct=date=>date?Math.max(0,Math.min(100,((new Date(`${date}T00:00:00`).getTime()-startMs)/dayMs)/range.days*100)):null;
+  const metric=(label,value,note)=>`<article class="timeline-metric"><span>${esc(label)}</span><strong>${esc(String(value??0))}</strong><small>${esc(note)}</small></article>`;
+  const filteredRows=items.map(item=>{
+    const parent=item.parentTaskId?all.find(x=>x.id===item.parentTaskId):null;
+    const milestone=item.milestoneId?all.find(x=>x.kind==="Milestone"&&x.id===item.milestoneId):null;
+    const deps=item.dependencies?.length?item.dependencies:(timelineDependencies[item.id]||[]);
+    const dependencyNames=deps.map(id=>all.find(x=>x.id===id)?.title||`Task ${id}`).join(", ");
+    return `<article class="timeline-item ${item.parentTaskId?"is-subtask":""}"><span class="timeline-marker ${item.kind==="Milestone"?"milestone-marker":"task-marker"}"></span><div class="timeline-item-main"><div class="timeline-item-heading"><div><span class="timeline-kind">${esc(item.kind)}${item.parentTaskId?" · SUBTASK":""}</span><h3>${esc(item.title)}</h3></div><span class="status-pill ${timelineStatusClass(item.status)}">${esc(item.status)}</span></div>${item.description?`<p>${esc(item.description)}</p>`:""}<div class="timeline-dates"><span>Start: <strong>${esc(timelineDate(item.start))}</strong></span><span>Target: <strong>${esc(timelineDate(item.due))}</strong></span>${item.assignee?`<span>Assigned to: <strong>${esc(item.assignee)}</strong></span>`:""}${milestone?`<span>Milestone: <strong>${esc(milestone.title)}</strong></span>`:""}${parent?`<span>Parent task: <strong>${esc(parent.title)}</strong></span>`:""}${item.completed?`<span>Completed: <strong>${esc(timelineDate(item.completed))}</strong></span>`:""}</div>${dependencyNames?`<div class="timeline-dependencies"><strong>Depends on:</strong> ${esc(dependencyNames)}</div>`:""}</div></article>`;
+  }).join("");
+  const visibleForChart=items.filter(x=>x.start||x.due);
+  const ticks=Array.from({length:Math.min(8,range.days)},(_,i)=>{const d=new Date(startMs+Math.round(i*(range.days-1)/Math.max(1,Math.min(7,range.days-1)))*dayMs);return `<span>${esc(`${pad(d.getDate())} ${MONTHS[d.getMonth()]}`)}</span>`;}).join("");
+  const gantt=visibleForChart.map(item=>{
+    const s=item.start||item.due, e=item.due||item.start; const left=pct(s), right=pct(e); if(left===null||right===null||right<0||left>100)return "";
+    const width=Math.max(1,Math.min(100,right)-Math.max(0,left)); const offset=Math.max(0,left);
+    return `<div class="gantt-row"><div class="gantt-label"><span>${item.kind==="Milestone"?"◆":"●"}</span><strong title="${esc(item.title)}">${esc(item.title)}</strong><small>${esc(item.status)}</small></div><div class="gantt-track"><div class="gantt-bar ${item.kind==="Milestone"?"gantt-milestone":""} ${timelineStatusClass(item.status)}" style="left:${offset}%;width:${width}%" title="${esc(item.title)}: ${esc(timelineDate(s))} – ${esc(timelineDate(e))}"></div></div></div>`;
+  }).join("");
+  const projectStart=readField(projectData,"startDateUtc","StartDateUtc"), projectEnd=readField(projectData,"targetEndDateUtc","TargetEndDateUtc");
+  root.innerHTML=`
+    <div class="timeline-heading"><div><p class="eyebrow">DELIVERY SCHEDULE</p><h2>Project timeline</h2><p>Plan delivery dates, monitor dependencies and track project progress.</p></div><button type="button" class="button button-secondary" id="timeline-refresh">↻ Refresh</button></div>
+    <div class="timeline-metrics">${metric("Total delivery items",all.length,`${summary.completedTasks||0} tasks completed`)}${metric("Completed milestones",summary.completedMilestones||0,`of ${summary.milestoneCount||0} milestones`)}${metric("Overdue items",(summary.overdueTasks||0)+(summary.overdueMilestones||0),"Tasks and milestones past target")}${metric("Upcoming tasks",summary.upcomingTasks||0,"Due soon")}</div>
+    <div class="timeline-project-dates"><div><span>Project start</span><strong>${esc(timelineDate(projectStart))}</strong></div><div><span>Target completion</span><strong>${esc(timelineDate(projectEnd))}</strong></div><div><span>Last generated</span><strong>${esc(timelineDate(timelineData.generatedAtUtc||timelineData.GeneratedAtUtc))}</strong></div></div>
+    <div class="timeline-controls"><div class="timeline-control-group"><label>Schedule range<select id="timeline-range"><option value="project" ${timelineRange==="project"?"selected":""}>Full project</option><option value="week" ${timelineRange==="week"?"selected":""}>This week</option><option value="month" ${timelineRange==="month"?"selected":""}>This month</option><option value="custom" ${timelineRange==="custom"?"selected":""}>Custom dates</option></select></label>${timelineRange==="custom"?`<label>From<input type="date" id="timeline-from" value="${esc(timelineFrom)}"></label><label>To<input type="date" id="timeline-to" value="${esc(timelineTo)}"></label>`:""}</div><div class="timeline-control-group"><label>Show<select id="timeline-filter"><option value="all" ${timelineFilter==="all"?"selected":""}>All schedule items</option><option value="overdue" ${timelineFilter==="overdue"?"selected":""}>Overdue</option><option value="upcoming" ${timelineFilter==="upcoming"?"selected":""}>Upcoming</option><option value="completed" ${timelineFilter==="completed"?"selected":""}>Completed</option></select></label><label>Type<select id="timeline-type"><option value="all" ${timelineType==="all"?"selected":""}>Tasks & milestones</option><option value="task" ${timelineType==="task"?"selected":""}>Tasks only</option><option value="milestone" ${timelineType==="milestone"?"selected":""}>Milestones only</option></select></label></div><div class="timeline-mode"><button type="button" data-timeline-mode="gantt" class="${timelineMode==="gantt"?"active":""}">Gantt chart</button><button type="button" data-timeline-mode="list" class="${timelineMode==="list"?"active":""}">Schedule list</button></div></div>
+    ${timelineMode==="gantt"?`<section class="gantt-panel"><div class="gantt-title"><h3>Delivery plan</h3><span>${visibleForChart.length} dated items</span></div><div class="gantt-axis"><span>Task / milestone</span><div>${ticks}</div></div>${gantt||`<div class="timeline-empty"><strong>No dated items in this range.</strong><p>Set start and target dates to display schedule bars.</p></div>`}</section>`:""}
+    <div class="timeline-list"><div class="timeline-list-heading"><h3>${timelineMode==="gantt"?"Schedule details":"Project schedule"}</h3><span>${items.length} of ${all.length} items</span></div>${filteredRows||`<div class="timeline-empty"><strong>No matching schedule items.</strong><p>Change the filters or date range to see more items.</p></div>`}</div>`;
 }
 async function loadProjectTimeline() {
-  if (!apiMode || !window.ZymaCrmApi?.getToken()) {
-    timelineData = null;
-    timelineError = "The project timeline requires an authenticated connection to the CRM API.";
-    timelineLoading = false;
-    renderTimeline();
-    return;
-  }
-  if (projectFilter === "all") return;
-  timelineLoading = true;
-  timelineError = "";
-  renderTimeline();
+  if(!apiMode||!window.ZymaCrmApi?.getToken()){timelineData=null;timelineError="The project timeline requires an authenticated connection to the CRM API.";timelineLoading=false;renderTimeline();return;}
+  if(projectFilter==="all")return;
+  timelineLoading=true;timelineError="";renderTimeline();
   try {
-    timelineData = await window.ZymaCrmApi.request(`/projects/${encodeURIComponent(projectFilter)}/timeline`);
-    if (!timelineData || typeof timelineData !== "object") throw new Error("The API returned an invalid timeline response.");
-  } catch (error) {
-    timelineData = null;
-    timelineError = error?.message || "Unable to retrieve the project timeline.";
-  } finally {
-    timelineLoading = false;
-    renderTimeline();
-  }
+    timelineData=await window.ZymaCrmApi.request(`/projects/${encodeURIComponent(projectFilter)}/timeline`);
+    if(!timelineData||typeof timelineData!=="object")throw new Error("The API returned an invalid timeline response.");
+    const tasks=Array.isArray(timelineData.tasks)?timelineData.tasks:[];
+    const depResults=await Promise.allSettled(tasks.map(task=>window.ZymaCrmApi.request(`/tasks/${encodeURIComponent(readField(task,"id","Id"))}/dependencies`)));
+    timelineDependencies={};
+    depResults.forEach((result,index)=>{
+      if(result.status!=="fulfilled")return;
+      const payload=result.value; const list=Array.isArray(payload)?payload:(payload?.dependencies||payload?.Dependencies||[]);
+      const id=String(readField(tasks[index],"id","Id"));
+      timelineDependencies[id]=list.map(x=>String(typeof x==="object"?(x.dependencyTaskId??x.DependencyTaskId??x.dependsOnTaskId??x.DependsOnTaskId??x.taskId??x.TaskId??x.id??x.Id??""):x)).filter(Boolean);
+    });
+  } catch(error){timelineData=null;timelineError=error?.message||"Unable to retrieve the project timeline.";}
+  finally{timelineLoading=false;renderTimeline();}
 }
 
 /* ---------- saving back into the shared CRM records ---------- */
@@ -873,6 +879,17 @@ $("#view-tabs").addEventListener("click", e => {
 });
 $("#timeline").addEventListener("click", e => {
   if (e.target.closest("#timeline-retry, #timeline-refresh")) void loadProjectTimeline();
+});
+$("#timeline").addEventListener("change", e => {
+  if(e.target.id==="timeline-range") { timelineRange=e.target.value; renderTimeline(); }
+  if(e.target.id==="timeline-filter") { timelineFilter=e.target.value; renderTimeline(); }
+  if(e.target.id==="timeline-type") { timelineType=e.target.value; renderTimeline(); }
+  if(e.target.id==="timeline-from") { timelineFrom=e.target.value; renderTimeline(); }
+  if(e.target.id==="timeline-to") { timelineTo=e.target.value; renderTimeline(); }
+});
+$("#timeline").addEventListener("click", e => {
+  const mode=e.target.closest("[data-timeline-mode]");
+  if(mode) { timelineMode=mode.dataset.timelineMode; renderTimeline(); }
 });
 const inWorkspace = () => !$("#project-workspace-view").classList.contains("hidden");
 $("#task-search").addEventListener("input", e => { query = e.target.value; $("#global-search").value = query; renderWorkspace(); });
