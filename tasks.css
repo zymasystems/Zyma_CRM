@@ -852,3 +852,59 @@ dialog#project-plan-modal[open] {
     padding-right: 8px;
   }
 }
+
+/* Scroll chaining: let vertical wheel/touch gestures continue to the document. */
+.gantt-shell {
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto !important;
+  touch-action: pan-x pan-y !important;
+}
+.timeline-heading-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+#gantt-download { white-space:nowrap; }
+
+/* Mobile gets a purpose-built agenda/timeline instead of a compressed desktop grid. */
+.gantt-mobile-list { display:none; }
+@media (max-width: 760px) {
+  .gantt-shell { display:none !important; }
+  .gantt-mobile-list {
+    display:grid;
+    gap:10px;
+    margin:0 12px 20px;
+  }
+  .gantt-mobile-card {
+    display:grid;
+    gap:12px;
+    width:100%;
+    min-width:0;
+    padding:13px 14px 14px;
+    border:1px solid var(--border);
+    border-radius:13px;
+    background:var(--surface);
+    color:var(--text);
+    text-align:left;
+    box-shadow:0 3px 12px #00000008;
+    cursor:pointer;
+  }
+  .gantt-mobile-card:active { border-color:var(--orange); transform:scale(.995); }
+  .gantt-mobile-card-top { display:flex; align-items:center; gap:9px; min-width:0; }
+  .gantt-mobile-card-top strong { flex:1; min-width:0; font-size:12px; line-height:1.4; font-weight:750; }
+  .gantt-mobile-card-top em { flex:0 0 auto; max-width:105px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--muted); font-size:9px; font-style:normal; }
+  .gantt-mobile-card-top .gantt-kind { flex:0 0 27px; }
+  .gantt-mobile-dates { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:10px; font-weight:650; font-variant-numeric:tabular-nums; }
+  .gantt-mobile-dates span:first-child,
+  .gantt-mobile-dates span:last-child { color:var(--text); }
+  .gantt-mobile-track { position:relative; display:block; height:7px; overflow:visible; border-radius:99px; background:var(--surface-raised); }
+  .gantt-mobile-track i { position:absolute; top:0; height:7px; min-width:8px; border-radius:99px; background:linear-gradient(90deg,#a18be9,#7864c8); box-shadow:0 1px 4px #5945a52b; }
+  .gantt-mobile-track i.is-done { background:linear-gradient(90deg,#39c99a,#159b70); }
+  .gantt-mobile-track i.is-late { background:linear-gradient(90deg,#ef8585,#cf5555); }
+  .gantt-mobile-track i.is-milestone { top:-3px; width:13px !important; height:13px; border:2px solid var(--surface); border-radius:4px; background:var(--orange); transform:rotate(45deg); }
+  .timeline-heading { align-items:flex-start; }
+  .timeline-heading-actions { width:100%; }
+  .timeline-heading-actions button { flex:1; min-height:38px; font-size:10px; }
+}
+@media (max-width: 380px) {
+  .gantt-mobile-card { padding:11px; }
+  .gantt-mobile-card-top strong { font-size:11px; }
+  .gantt-mobile-card-top em { max-width:78px; }
+  .gantt-mobile-dates { font-size:9px; }
+}
