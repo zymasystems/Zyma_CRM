@@ -64,6 +64,7 @@ const state = {
   clientFilter: "all",
   contactFilter: "all",
   projectFilter: "all",
+  projectFolder: "active",
   taskFilter: "all",
   leads: [],
   clients: [],
@@ -160,7 +161,7 @@ function mapApiLead(apiLead) {
     service: apiLead.requirements || apiLead.Requirements || "",
     estimatedValue: apiLead.estimatedValue ?? apiLead.EstimatedValue ?? null,
     assignedToUserId: apiLead.assignedToUserId || apiLead.AssignedToUserId || null,
-    stage: apiLead.stage || apiLead.Stage || "New",
+    stage: normalizeLeadStage(apiLead.stage || apiLead.Stage || "New"),
     owner: "Unassigned",
     followUp: parsedDeadline
       ? parsedDeadline.toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" })
@@ -597,7 +598,7 @@ function setView(view) {
 }
 
 function stageClass(stage) {
-  return ({ New: "status-planning", Discovery: "status-progress", "Follow-up": "status-progress", Requirements: "status-progress", Proposal: "status-planning", Negotiation: "status-hold", Agreement: "status-hold", Won: "status-done", Lost: "status-hold" })[stage] || "status-planning";
+  return ({ New: "status-planning", Discoverycall: "status-progress", "Financial followup": "status-progress", Proposal: "status-planning", Won: "status-done", Lost: "status-hold" })[normalizeLeadStage(stage)] || "status-planning";
 }
 function projectStatusClass(status) {
   return ({ "In progress": "status-progress", Planning: "status-planning", Completed: "status-done", "On hold": "status-hold" })[status] || "status-planning";
@@ -689,14 +690,14 @@ function updateMetrics() {
   if ($("#contact-nav-count")) $("#contact-nav-count").textContent = state.contacts.length;
   if ($("#project-nav-count")) $("#project-nav-count").textContent = activeProjects;
   $("#lead-total").textContent = String(openLeads).padStart(2, "0");
-  $("#lead-discovery").textContent = String(state.leads.filter(lead => lead.stage === "Discovery").length).padStart(2, "0");
+  $("#lead-discovery").textContent = String(state.leads.filter(lead => normalizeLeadStage(lead.stage) === "Discoverycall").length).padStart(2, "0");
   $("#lead-proposal").textContent = String(state.leads.filter(lead => lead.stage === "Proposal").length).padStart(2, "0");
   $("#lead-won").textContent = String(state.leads.filter(lead => lead.stage === "Won").length).padStart(2, "0");
   $("#all-lead-count").textContent = state.leads.length;
   $("#lead-table-count").textContent = `Showing ${state.leads.length} leads`;
   $("#client-total").textContent = String(state.clients.length).padStart(2, "0");
   if ($("#client-active-projects")) $("#client-active-projects").textContent = String(state.projects.filter(project => String(project.status).toLowerCase() !== "completed").length).padStart(2, "0");
-  $("#project-total").textContent = String(state.projects.length).padStart(2, "0");
+  if ($("#project-total")) $("#project-total").textContent = String(state.projects.length).padStart(2, "0");
   $("#report-clients").textContent = String(state.clients.length).padStart(2, "0");
   $("#report-leads").textContent = String(openLeads).padStart(2, "0");
 }
@@ -748,33 +749,26 @@ function renderActivity() {
 }
 
 function renderPipeline() {
-  const stages = [
-    { name: "New", color: "#6aa9ff", hint: "Just added" },
-    { name: "Discovery", color: "#b09aff", hint: "Qualifying" },
-    { name: "Follow-up", color: "#52c69a", hint: "Next meeting" },
-    { name: "Requirements", color: "#6aa9ff", hint: "Scoping solution" },
-    { name: "Proposal", color: "#f28b35", hint: "Awaiting reply" },
-    { name: "Negotiation", color: "#52c69a", hint: "In discussion" },
-    { name: "Agreement", color: "#b09aff", hint: "Contract & deposit" }
-  ];
-  $("#pipeline-summary").innerHTML = stages.map(stage => {
-    const count = state.leads.filter(lead => lead.stage === stage.name).length;
+  $("#pipeline-summary").innerHTML = LEAD_STAGES.map(stage => {
+    const count = state.leads.filter(lead => normalizeLeadStage(lead.stage) === stage.name).length;
     return `<div class="pipeline-stage" style="--stage-color:${stage.color}"><small>${stage.name}</small><strong>${count}</strong><span>${stage.hint}</span></div>`;
   }).join("");
 }
 
 // Pipeline stages shown as board columns (same stage names used by filters, forms and the dashboard).
 const LEAD_STAGES = [
-  { name: "New", hint: "Just added", color: "var(--blue)" },
-  { name: "Discovery", hint: "Qualifying the need", color: "var(--violet)" },
-  { name: "Follow-up", hint: "Next meeting booked", color: "var(--green)" },
-  { name: "Requirements", hint: "Scoping the solution", color: "var(--blue)" },
-  { name: "Proposal", hint: "Offer sent, awaiting reply", color: "var(--orange)" },
-  { name: "Negotiation", hint: "Terms in discussion", color: "#f2c06b" },
-  { name: "Agreement", hint: "Contract & deposit", color: "var(--violet)" },
-  { name: "Won", hint: "Accepted & converted", color: "var(--green)" },
-  { name: "Lost", hint: "Rejected or went quiet", color: "var(--red)" }
+  { name: "New", hint: "New opportunity", color: "var(--blue)" },
+  { name: "Discoverycall", hint: "Understand the brief", color: "var(--violet)" },
+  { name: "Financial followup", hint: "Present pricing & terms", color: "var(--green)" },
+  { name: "Proposal", hint: "SLA sent for signature", color: "var(--orange)" },
+  { name: "Won", hint: "Signed & converted", color: "var(--green)" },
+  { name: "Lost", hint: "Opportunity closed", color: "var(--red)" }
 ];
+const LEAD_STAGE_ALIASES = { Discovery: "Discoverycall", "Follow-up": "Financial followup", Requirements: "Financial followup", Negotiation: "Proposal", Agreement: "Proposal" };
+function normalizeLeadStage(stage) {
+  const value = String(stage || "New").trim();
+  return LEAD_STAGE_ALIASES[value] || (LEAD_STAGES.some(item => item.name === value) ? value : "New");
+}
 const MONTH_ABBR = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 function parseDisplayDate(value) {
   const text = String(value || "").trim();
@@ -1111,14 +1105,56 @@ function renderContacts() {
   $$("[data-contact-filter]", $("#contact-filters")).forEach(button => button.classList.toggle("active", button.dataset.contactFilter === state.contactFilter));
 }
 
+const PROJECT_ARCHIVE_KEY = "zyma-crm-project-archive-v1";
+function readArchivedProjectIds() {
+  try { const value = JSON.parse(localStorage.getItem(PROJECT_ARCHIVE_KEY) || "[]"); return new Set(Array.isArray(value) ? value.map(String) : []); }
+  catch { return new Set(); }
+}
+let archivedProjectIds = readArchivedProjectIds();
+function setProjectArchived(projectId, archived) {
+  const id = String(projectId);
+  if (archived) archivedProjectIds.add(id); else archivedProjectIds.delete(id);
+  try { localStorage.setItem(PROJECT_ARCHIVE_KEY, JSON.stringify([...archivedProjectIds])); } catch {}
+}
 function renderProjects() {
   const query = ($("#project-search")?.value || $("#global-search")?.value || "").trim().toLowerCase();
-  const filtered = state.projects.filter(project => String(project.status).toLowerCase() !== "completed").filter(project => {
-    const statusMatch = state.projectFilter === "all" || project.status === state.projectFilter;
+  const completed = state.projects.filter(project => String(project.status).toLowerCase() === "completed");
+  const archived = completed.filter(project => archivedProjectIds.has(String(project.id)));
+  const active = state.projects.filter(project => String(project.status).toLowerCase() !== "completed");
+  const planning = active.filter(project => project.status === "Planning").length;
+  const set = (id, value) => { const el = $(id); if (el) el.textContent = String(value).padStart(2, "0"); };
+  set("#project-heading-count", state.projects.length); set("#project-active-count", active.length);
+  set("#project-planning-count", planning); set("#project-completed-count", completed.length);
+  set("#project-archived-count", archived.length); set("#project-tab-active", active.length);
+  set("#project-tab-completed", completed.length - archived.length); set("#project-tab-archived", archived.length);
+  const folders = { active: active, completed: completed.filter(p => !archivedProjectIds.has(String(p.id))), archived };
+  let rows = (folders[state.projectFolder] || active).filter(project => {
+    const statusMatch = state.projectFolder !== "active" || state.projectFilter === "all" || project.status === state.projectFilter;
     return statusMatch && [project.name, project.client, project.code, project.manager].join(" ").toLowerCase().includes(query);
   });
-  $("#projects-table").innerHTML = filtered.map(project => `
-    <tr><td><div class="table-primary">${companyMark(initials(project.name), project.color)}<div><button type="button" class="record-link" data-open-record="project" data-record-id="${esc(project.id)}">${esc(project.name)}</button><small>${esc(project.code)}</small></div></div></td><td>${esc(project.client)}</td><td><span class="status-pill ${projectStatusClass(project.status)}">${esc(project.status)}</span></td><td><div style="display:flex;align-items:center;gap:9px;min-width:105px"><div class="progress-track" style="flex:1"><div class="progress-fill ${calculatedProjectProgress(project) >= 70 ? "green" : "blue"}" style="width:${calculatedProjectProgress(project)}%"></div></div><span>${calculatedProjectProgress(project)}%</span></div></td><td>${esc(project.due)}</td><td>${esc(project.manager)}</td><td>${recordActionButtons("project", project.id)}</td></tr>`).join("") || `<tr><td colspan="7">No projects recorded yet. Create a client first, then create a project linked to that client.</td></tr>`;
+  const grid = $("#project-card-grid");
+  if (grid) grid.innerHTML = rows.map(project => {
+    const progress = calculatedProjectProgress(project);
+    const isCompleted = String(project.status).toLowerCase() === "completed";
+    const isArchived = archivedProjectIds.has(String(project.id));
+    const action = isArchived
+      ? `<button type="button" class="button button-secondary project-card-action" data-project-unarchive="${esc(project.id)}">Restore</button>`
+      : isCompleted
+        ? `<button type="button" class="button button-secondary project-card-action" data-project-archive="${esc(project.id)}">Archive project</button>`
+        : `<button type="button" class="button button-secondary project-card-action" data-edit-record="project" data-record-id="${esc(project.id)}">Manage</button>`;
+    return `<article class="project-portfolio-card ${isArchived ? "is-archived" : ""}">
+      <div class="project-card-topline"><span class="project-code">${esc(project.code || "PROJECT")}</span><span class="status-pill ${projectStatusClass(project.status)}">${esc(project.status)}</span></div>
+      <div class="project-card-identity">${companyMark(initials(project.name), project.color)}<div><button type="button" class="record-link project-card-title" data-open-record="project" data-record-id="${esc(project.id)}">${esc(project.name)}</button><p>${esc(project.client || "Client not linked")}</p></div></div>
+      <div class="project-progress-meta"><span>Delivery progress</span><strong>${progress}%</strong></div><div class="progress-track project-progress-track"><div class="progress-fill ${progress >= 70 ? "green" : "blue"}" style="width:${progress}%"></div></div>
+      <div class="project-card-meta"><span><small>Target date</small><strong>${esc(project.due || "Not set")}</strong></span><span><small>Project manager</small><strong>${esc(project.manager || "Unassigned")}</strong></span></div>
+      <div class="project-card-footer"><span>${state.tasks.filter(task => String(task.projectId || "") === String(project.id) || String(task.project || "").toLowerCase() === String(project.name).toLowerCase()).length} linked tasks</span><div>${action}<button type="button" class="icon-button" data-open-record="project" data-record-id="${esc(project.id)}" aria-label="Open project">↗</button></div></div>
+    </article>`;
+  }).join("") || `<div class="project-empty-state"><span>▣</span><h3>${state.projectFolder === "active" ? "No active projects found" : state.projectFolder === "completed" ? "No completed projects yet" : "Nothing in the archive yet"}</h3><p>${state.projectFolder === "completed" ? "Projects move here automatically when their status becomes Completed." : state.projectFolder === "archived" ? "Archive completed projects to keep your active workspace focused." : "Try changing your filters or create a new project."}</p></div>`;
+  const table = $("#projects-table");
+  if (table) table.innerHTML = rows.map(project => `<tr><td><div class="table-primary">${companyMark(initials(project.name), project.color)}<div><button type="button" class="record-link" data-open-record="project" data-record-id="${esc(project.id)}">${esc(project.name)}</button><small>${esc(project.code)}</small></div></div></td><td>${esc(project.client)}</td><td><span class="status-pill ${projectStatusClass(project.status)}">${esc(project.status)}</span></td><td>${calculatedProjectProgress(project)}%</td><td>${esc(project.due)}</td><td>${esc(project.manager)}</td><td>${recordActionButtons("project", project.id)}</td></tr>`).join("");
+  $("#project-results-count") && ($("#project-results-count").textContent = `${rows.length} ${rows.length === 1 ? "project" : "projects"}`);
+  $$("[data-project-folder]", $("#project-folder-tabs")).forEach(button => button.classList.toggle("active", button.dataset.projectFolder === state.projectFolder));
+  $("#project-filters")?.classList.toggle("is-hidden", state.projectFolder !== "active");
 }
 
 function renderTasks() {
@@ -1195,7 +1231,7 @@ function openRecordDetail(type, id) {
     const projects = state.projects.filter(p => p.client === record.name);
     related = detailSection("Contacts", contacts.map(c => relatedRecordLink("contact", c, c.name, `${c.relationship} · ${c.email}`)).join(""), "No contacts are linked to this client.") + detailSection("Projects", projects.map(p => relatedRecordLink("project", p, p.name, `${p.code} · ${p.status} · ${calculatedProjectProgress(p)}% complete`)).join(""), "No projects are linked to this client.") + detailSection("Leads", state.leads.filter(l => l.company === record.name).map(l => relatedRecordLink("lead", l, l.company, l.stage)).join(""), "No leads use this organization name.");
   } else if (type === "lead") {
-    fields = [detailValue("Company", record.company), detailValue("Contact person", record.contact), detailValue("Service interest", record.service), detailValue("Pipeline stage", record.stage), detailValue("Owner", record.owner), detailValue("Next follow-up", record.followUp), detailValue("Email", record.email)];
+    fields = [detailValue("Company", record.company), detailValue("Contact person", record.contact), detailValue("Service interest", record.service), detailValue("Pipeline stage", normalizeLeadStage(record.stage)), detailValue("Owner", record.owner), detailValue("Next follow-up", record.followUp), detailValue("Email", record.email), detailValue("Phone", record.phone), detailValue("Estimated value", record.estimatedValue == null ? "Not set" : formatRand(record.estimatedValue)), detailValue("Development fee", record.developmentFee == null ? "Not quoted" : formatRand(record.developmentFee)), detailValue("SLA status", record.slaStatus || record.proposalStatus || "Not sent")];
     related = detailSection("Related client", state.clients.filter(c => c.name.toLowerCase() === record.company.toLowerCase()).map(c => relatedRecordLink("client", c, c.name, c.industry)).join(""), "This lead has not been converted to a client.") + detailSection("Potentially related projects", state.projects.filter(p => p.client.toLowerCase() === record.company.toLowerCase()).map(p => relatedRecordLink("project", p, p.name, p.status)).join(""));
   } else if (type === "contact") {
     fields = [detailValue("Full name", record.name), detailValue("Job title", record.jobTitle), detailValue("Department", record.department), detailValue("Organization", record.organization), detailValue("Role in company", record.companyRole), detailValue("Industry", record.industry), detailValue("Work email", record.email), detailValue("Alternative email", record.alternateEmail), detailValue("Direct phone", record.phone), detailValue("Mobile", record.mobile), detailValue("Preferred contact", record.preferredContact), detailValue("LinkedIn", record.linkedin), detailValue("Company website", record.companyWebsite), detailValue("Company email", record.companyEmail), detailValue("Company phone", record.companyPhone), detailValue("Company size", record.companySize), detailValue("Registration number", record.registrationNumber), detailValue("VAT number", record.vatNumber), detailValue("Street address", record.address), detailValue("City", record.city), detailValue("Province / state", record.province), detailValue("Postal code", record.postalCode), detailValue("Country", record.country), detailValue("Relationship", record.relationship), detailValue("Contact source", record.source), detailValue("Last contacted", record.lastContactDate), detailValue("Next follow-up", record.nextFollowUp), detailValue("Notes", record.notes)];
@@ -1218,7 +1254,7 @@ function openRecordDetail(type, id) {
   detailView.innerHTML = `
     <div class="detail-back-row"><button class="button button-secondary" type="button" data-back-to-list>← Back to ${esc(type === "client" ? "clients" : type === "lead" ? "leads" : type === "contact" ? "contacts" : type === "project" ? "projects" : type === "meeting" ? "meetings" : "tasks")}</button><span class="eyebrow">${esc(subtitleMap[type] || "RECORD DETAILS")}</span></div>
     <div class="page-heading detail-heading"><div><p class="eyebrow">${esc(record.code || `ZS-${String(record.id).padStart(3,"0")}`)}</p><h1>${esc(title)}</h1><p class="page-subtitle">${esc(type === "client" ? record.industry : type === "lead" ? record.service : type === "contact" ? record.relationship : type === "project" ? record.client : type === "meeting" ? `${record.type || "Meeting"} · ${record.date || "Date not set"}` : record.project)}</p></div><div class="heading-actions"><button class="button button-secondary" type="button" data-edit-record="${esc(type)}" data-record-id="${esc(record.id)}">Edit record</button></div></div>
-    <div class="detail-layout"><div class="detail-main">${detailSection("Overview", `<div class="detail-fields">${fields.join("")}</div>`)}${related}</div><aside class="detail-side">${detailSection("Record activity", activities.map(a => `<div class="activity-item"><span class="activity-icon ${esc(a.color)}">${esc(a.icon)}</span><div class="activity-copy"><p>${a.text}</p><small>${esc(a.by)} · ${esc(a.time)}</small></div></div>`).join(""), "Activity history will appear here as actions are recorded.")}${detailSection("Record actions", `<div class="detail-action-stack">${type === "lead" && record.stage !== "Lost" && !state.clients.some(client => String(client.name).toLowerCase() === String(record.company).toLowerCase()) ? `<button class="button button-primary" type="button" data-convert-lead="${esc(record.id)}">Convert to client</button>` : ""}${type === "client" ? `<button class="button button-primary" type="button" data-create-project-for-client="${esc(record.id)}">＋ Create project for this client</button>${(record.portalAccess === true || record.hasPortalAccess === true) ? `<span class="status-pill status-done" title="This client has activated their portal account">Client portal active ✓</span>` : `<a class="button button-secondary" href="invite-client.html?clientId=${encodeURIComponent(record.id)}">Invite client to portal ↗</a>`}` : ""}${type === "project" ? `<a class="button button-primary" href="tasks.html?project=${encodeURIComponent(record.id)}">Manage tasks & milestones ↗</a>` : ""}<button class="button button-secondary" type="button" data-edit-record="${esc(type)}" data-record-id="${esc(record.id)}">Edit details</button>${type === "contact" && (record.sourceLeadId || record.sourceClientId) ? "" : `<button class="button button-secondary danger-text" type="button" data-delete-record="${esc(type)}" data-record-id="${esc(record.id)}">Delete record</button>`}</div>`)}</aside></div>${type === "lead" ? renderLeadWorkspace(record) : ""}`;
+    <div class="detail-layout"><div class="detail-main">${detailSection("Overview", `<div class="detail-fields">${fields.join("")}</div>`)}${related}</div><aside class="detail-side">${detailSection("Record activity", activities.map(a => `<div class="activity-item"><span class="activity-icon ${esc(a.color)}">${esc(a.icon)}</span><div class="activity-copy"><p>${a.text}</p><small>${esc(a.by)} · ${esc(a.time)}</small></div></div>`).join(""), "Activity history will appear here as actions are recorded.")}${detailSection("Record actions", `<div class="detail-action-stack">${type === "lead" && record.stage !== "Lost" && !state.clients.some(client => String(client.name).toLowerCase() === String(record.company).toLowerCase()) ? `<button class="button button-primary" type="button" data-convert-lead="${esc(record.id)}">Convert to client</button>` : ""}${type === "client" ? `<button class="button button-primary" type="button" data-create-project-for-client="${esc(record.id)}">＋ Create project for this client</button>${(record.portalAccess === true || record.hasPortalAccess === true) ? `<span class="status-pill status-done" title="This client has activated their portal account">Client portal active ✓</span>` : `<a class="button button-secondary" href="invite-client.html?clientId=${encodeURIComponent(record.id)}">Invite client to portal ↗</a>`}` : ""}${type === "project" ? `<a class="button button-primary" href="tasks.html?project=${encodeURIComponent(record.id)}">Manage tasks & milestones ↗</a>` : ""}<button class="button button-secondary" type="button" data-edit-record="${esc(type)}" data-record-id="${esc(record.id)}">Edit details</button>${type === "contact" && (record.sourceLeadId || record.sourceClientId) ? "" : `<button class="button button-secondary danger-text" type="button" data-delete-record="${esc(type)}" data-record-id="${esc(record.id)}">Delete record</button>`}</div>`)}</aside></div>${type === "contact" ? renderContactProfileHero(record) : ""}${type === "lead" ? renderLeadProfileProgress(record) + renderLeadWorkspace(record) : ""}`;
   setView("record-detail");
   if (type === "lead") updateCommercialCalculations();
   window.location.hash = `${type}/${id}`;
@@ -1251,6 +1287,29 @@ function renderMeetings() {
   $("#meeting-upcoming").textContent = String(state.meetings.filter(m => m.status === "Scheduled").length).padStart(2,"0");
   $("#meeting-completed").textContent = String(state.meetings.filter(m => m.status === "Completed").length).padStart(2,"0");
   $("#meeting-followup").textContent = String(state.meetings.filter(m => m.status === "Completed" && m.nextAction).length).padStart(2,"0");
+}
+
+function renderContactProfileHero(contact) {
+  const name = contact.name || "Unnamed contact";
+  const email = contact.email || contact.workEmail || "";
+  const phone = contact.phone || contact.mobile || "";
+  const phoneHref = String(phone).replace(/[^+\\d]/g, "");
+  return `<section class="contact-profile-hero panel">
+    <div class="contact-profile-identity"><span class="contact-profile-avatar">${esc(initials(name))}</span><div><p class="eyebrow">CONTACT RECORD</p><h2>${esc(name)}</h2><p>${esc(contact.jobTitle || contact.title || contact.position || "Role not provided")} · ${esc(contact.organization || "Organization not linked")}</p></div></div>
+    <div class="contact-profile-actions">${email ? `<a class="button button-secondary" href="mailto:${esc(email)}">✉ Email contact</a>` : ""}${phone ? `<a class="button button-primary" href="tel:${esc(phoneHref)}">☎ Call contact</a>` : ""}</div>
+  </section>`;
+}
+
+function renderLeadProfileProgress(lead) {
+  const current = normalizeLeadStage(lead.stage);
+  const stages = LEAD_STAGES.filter(stage => !["Won", "Lost"].includes(stage.name));
+  const currentIndex = stages.findIndex(stage => stage.name === current);
+  const terminal = ["Won", "Lost"].includes(current);
+  return `<section class="lead-profile-journey panel">
+    <div class="lead-journey-heading"><div><p class="eyebrow">SALES JOURNEY</p><h2>Opportunity progress</h2><p>Move the opportunity through Zyma's actual client acquisition process.</p></div><span class="status-pill ${stageClass(current)}">${esc(current)}</span></div>
+    <div class="lead-journey-steps">${stages.map((stage,index)=>`<div class="lead-journey-step ${index < currentIndex || current === stage.name || current === "Won" ? "is-done" : ""} ${current === stage.name ? "is-current" : ""}"><span>${index < currentIndex || current === "Won" ? "✓" : String(index+1).padStart(2,"0")}</span><strong>${esc(stage.name)}</strong></div>`).join("")}<div class="lead-journey-step lead-terminal-step ${current === "Won" ? "is-done is-current" : ""}"><span>${current === "Won" ? "✓" : "05"}</span><strong>Won</strong></div><div class="lead-journey-step lead-terminal-step is-lost ${current === "Lost" ? "is-done is-current" : ""}"><span>${current === "Lost" ? "✓" : "×"}</span><strong>Lost</strong></div></div>
+    <div class="lead-journey-actions">${stages.map((stage,index)=>`<button type="button" class="button ${current === stage.name ? "button-primary" : "button-secondary"}" data-lead-set-stage="${esc(lead.id)}" data-stage="${esc(stage.name)}" ${current === stage.name ? "disabled" : ""}>${esc(stage.name)}</button>`).join("")}<button type="button" class="button button-secondary" data-lead-set-stage="${esc(lead.id)}" data-stage="Lost" ${current === "Lost" ? "disabled" : ""}>Mark lost</button>${current === "Won" ? `<span class="lead-converted-note">Converted to client</span>` : ""}</div>
+  </section>`;
 }
 
 function renderLeadWorkspace(lead) {
@@ -1297,7 +1356,14 @@ function renderLeadWorkspace(lead) {
         ${workspaceField("zohoBillingDate","Zoho renewal / billing date",lead.zohoBillingDate,"date")}
         ${workspaceField("otherSubscriptions","Other subscriptions and renewal dates",lead.otherSubscriptions,"textarea","Service, amount, billing cycle, renewal date and who pays...")}
       </div></div>
-      <div class="workspace-form-actions"><span class="muted">Saved to this browser preview until the backend is connected.</span><button class="button button-primary" type="submit">Save lead workspace</button></div>
+      <div class="workspace-section"><div class="workspace-section-heading"><div><p class="eyebrow">04 · PROPOSAL & SERVICE LEVEL AGREEMENT</p><h3>Send, track and confirm the SLA</h3></div></div><div class="workspace-form-grid">
+        ${workspaceField("slaStatus","SLA status",lead.slaStatus || "Not sent","select","",false,"",["Not sent","Prepared","Sent to client","Awaiting signature","Signed","Declined"])}
+        ${workspaceField("slaDocumentUrl","SLA document link",lead.slaDocumentUrl,"text","Paste the shared document or signing link...")}
+        ${workspaceField("slaSentDate","Date SLA sent",lead.slaSentDate,"date")}
+        ${workspaceField("slaSignedDate","Date SLA signed",lead.slaSignedDate,"date")}
+        ${workspaceField("proposalNotes","Proposal / SLA notes",lead.proposalNotes,"textarea","Client feedback, requested changes, signature details...")}
+      </div><p class="form-hint">Move the lead to Won only after the client accepts the proposal and signs the SLA. The Won action converts the opportunity into a client record.</p></div>
+      <div class="workspace-form-actions"><span class="muted">Save discovery, pricing and SLA details to this lead record.</span><button class="button button-primary" type="submit">Save lead workspace</button></div>
     </form>
     <div class="workspace-section linked-meetings"><div class="panel-heading"><div><h3>Meetings for ${esc(lead.company)}</h3><p>Schedule the next meeting after the discovery call.</p></div><button class="button button-secondary" type="button" data-schedule-for-lead="${esc(lead.id)}">＋ Schedule meeting</button></div>
       ${linkedMeetings.length ? linkedMeetings.map(m=>`<div class="meeting-inline"><div><strong>${esc(m.title)}</strong><small>${esc(m.date)} · ${esc(m.time)} · ${esc(m.type)}</small><p>${esc(m.outcome || m.notes || "No meeting notes recorded yet.")}</p></div><span class="status-pill ${m.status === "Completed" ? "status-done" : "status-progress"}">${esc(m.status)}</span><button class="row-action-button" data-edit-record="meeting" data-record-id="${esc(m.id)}">Edit</button></div>`).join("") : `<p class="muted">No meetings recorded for this lead yet.</p>`}
@@ -1935,7 +2001,7 @@ const modalDefinitions = {
       { name: "projectLeadUserId", label: "Project lead", type: "select", full: true, options: [{value:"",label:"Unassigned"}] },
       { name: "startDate", label: "Start date", type: "date" },
       { name: "due", label: "Target completion date", type: "date" },
-      { name: "status", label: "Initial status", type: "select", required: true, options: [{value:"Planning",label:"Planning"},{value:"In progress",label:"In progress"},{value:"On hold",label:"On hold"}] },
+      { name: "status", label: "Initial status", type: "select", required: true, options: [{value:"Planning",label:"Planning"},{value:"In progress",label:"In progress"},{value:"On hold",label:"On hold"},{value:"Completed",label:"Completed"}] },
       { name: "scope", label: "Agreed scope / deliverables", type: "textarea", full: true, placeholder: "Record the agreed deliverables, boundaries and acceptance criteria." }
     ],
     async save(data) {
@@ -2514,6 +2580,32 @@ $("#contact-card-grid")?.addEventListener("click", event => {
   renderContacts();
 });
 $("#project-search").addEventListener("input", renderProjects);
+$("#project-folder-tabs")?.addEventListener("click", event => {
+  const button = event.target.closest("[data-project-folder]");
+  if (!button) return;
+  state.projectFolder = button.dataset.projectFolder;
+  state.projectFilter = "all";
+  $$("#project-filters [data-filter]").forEach(tab => tab.classList.toggle("active", tab.dataset.filter === "all"));
+  renderProjects();
+});
+document.addEventListener("click", async event => {
+  const stageButton = event.target.closest("[data-lead-set-stage]");
+  if (stageButton) {
+    const lead = state.leads.find(item => String(item.id) === String(stageButton.dataset.leadSetStage));
+    if (lead) {
+      const moved = await moveLead(lead.id, normalizeLeadStage(stageButton.dataset.stage));
+      if (moved && $("#view-record-detail").dataset.recordType === "lead") openRecordDetail("lead", lead.id);
+    }
+    return;
+  }
+  const archive = event.target.closest("[data-project-archive]");
+  const restore = event.target.closest("[data-project-unarchive]");
+  if (!archive && !restore) return;
+  const id = (archive || restore).dataset.projectArchive || (archive || restore).dataset.projectUnarchive;
+  setProjectArchived(id, Boolean(archive));
+  renderProjects();
+  toast(archive ? "Project moved to the archive." : "Project restored to the completed folder.");
+});
 $("#task-search").addEventListener("input", renderTasks);
 $("#meeting-search")?.addEventListener("input", renderMeetings);
 $("#reports-period")?.addEventListener("change", renderReportTrend);
@@ -2521,7 +2613,7 @@ $("#reports-period")?.addEventListener("change", renderReportTrend);
 $("#lead-filters").addEventListener("click", event => {
   const button = event.target.closest("[data-filter]");
   if (!button) return;
-  state.leadFilter = button.dataset.filter;
+  state.leadFilter = button.dataset.filter === "all" ? "all" : normalizeLeadStage(button.dataset.filter);
   $$(".filter-tab", $("#lead-filters")).forEach(tab => tab.classList.toggle("active", tab === button));
   renderLeads();
 });

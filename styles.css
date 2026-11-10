@@ -1166,3 +1166,174 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(245,130,3
 .completed-project-row .project-main strong { overflow-wrap: anywhere; }
 .completed-project-row .project-main small { color: var(--text-muted, #8b8b8b); }
 @media (max-width: 640px) { .completed-project-row { align-items: flex-start; flex-wrap: wrap; } .completed-project-row .text-link { margin-left: 48px; } }
+
+/* =========================================================
+   Zyma CRM refinement — responsive relationship & delivery UI
+   ========================================================= */
+.view-section.active { animation: zymaPageEnter .38s cubic-bezier(.2,.75,.25,1) both; }
+@keyframes zymaPageEnter { from { opacity:0; transform:translateY(9px); } to { opacity:1; transform:translateY(0); } }
+.metric-card, .panel, .contact-card, .client-card-polished, .project-portfolio-card, .lead-column, .meeting-workflow-card {
+  transition: border-color .22s ease, box-shadow .22s ease, transform .22s ease, background-color .22s ease;
+}
+.metric-card:hover { transform:translateY(-2px); }
+.contact-card { animation:zymaCardIn .35s ease both; }
+.contact-card:nth-child(2n) { animation-delay:35ms; }
+.contact-card:nth-child(3n) { animation-delay:70ms; }
+.project-portfolio-card { animation:zymaCardIn .36s ease both; }
+@keyframes zymaCardIn { from { opacity:0; transform:translateY(10px) scale(.99); } to { opacity:1; transform:translateY(0) scale(1); } }
+.contact-card:hover, .project-portfolio-card:hover { transform:translateY(-3px); box-shadow:0 15px 34px rgba(0,0,0,.09); border-color:color-mix(in srgb,var(--orange) 52%,var(--border)); }
+.contact-card:focus-within, .project-portfolio-card:focus-within { outline:2px solid color-mix(in srgb,var(--orange) 55%,transparent); outline-offset:2px; }
+.contact-directory-panel, .project-hub-panel { overflow:hidden; }
+.contact-directory-toolbar, .project-hub-toolbar { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:22px 22px 18px; border-bottom:1px solid var(--border-soft); }
+.contact-directory-toolbar h2, .project-hub-toolbar h2 { margin:0 0 6px; font:700 17px Manrope,sans-serif; letter-spacing:-.025em; }
+.contact-directory-toolbar .muted, .project-hub-toolbar .muted { margin:0; font-size:11px; line-height:1.6; }
+.contact-search-box, .project-search-box { width:min(360px,100%); flex:0 1 360px; }
+.contact-directory-controls { padding:13px 22px 0; }
+.contact-card-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; padding:18px 22px 22px; }
+.contact-card { min-height:100%; border-radius:15px; padding:18px; background:var(--surface); }
+.contact-card-top { align-items:center; }
+.contact-avatar { width:44px; height:44px; border-radius:14px; font-size:13px; font-weight:800; }
+.contact-card-identity { min-width:0; }
+.contact-card-identity h3 { margin:0; font-size:14px; }
+.contact-card-identity p { margin:4px 0 0; }
+.contact-organization { margin-top:16px; }
+.contact-info-list { gap:8px; }
+.contact-info-row { min-width:0; overflow-wrap:anywhere; }
+.contact-card-context { margin-top:auto; padding-top:14px; }
+.contact-card-footer { padding-top:13px; }
+.contact-empty-state, .project-empty-state { grid-column:1/-1; padding:42px 20px; text-align:center; color:var(--muted); }
+.contact-empty-state h3, .project-empty-state h3 { color:var(--text); margin:10px 0 5px; }
+.contact-empty-state p, .project-empty-state p { max-width:420px; margin:0 auto 14px; font-size:12px; line-height:1.6; }
+.contact-empty-state > span, .project-empty-state > span { display:inline-grid; place-items:center; width:46px; height:46px; border-radius:15px; background:var(--orange-soft); color:var(--orange); font-size:22px; }
+.project-hub-toolbar { padding-bottom:18px; }
+.project-folder-tabs { display:flex; gap:6px; padding:14px 22px 0; border-bottom:1px solid var(--border-soft); overflow-x:auto; scrollbar-width:thin; }
+.project-folder-tabs button { position:relative; display:inline-flex; align-items:center; gap:8px; flex:0 0 auto; padding:10px 13px 13px; border:0; border-bottom:2px solid transparent; background:transparent; color:var(--muted); font:600 11px Manrope,sans-serif; cursor:pointer; }
+.project-folder-tabs button span { display:inline-grid; place-items:center; min-width:20px; height:19px; padding:0 5px; border-radius:6px; background:var(--surface-hover); font-size:9px; }
+.project-folder-tabs button.active { color:var(--text); border-bottom-color:var(--orange); }
+.project-folder-tabs button.active span { background:var(--orange-soft); color:var(--orange); }
+.project-filter-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 22px 0; }
+.project-card-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; padding:18px 22px 22px; }
+.project-portfolio-card { min-width:0; padding:18px; border:1px solid var(--border); border-radius:15px; background:var(--surface); }
+.project-portfolio-card.is-archived { opacity:.88; }
+.project-card-topline, .project-progress-meta, .project-card-footer { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.project-code { color:var(--muted-2); font:700 9px Manrope,sans-serif; letter-spacing:.1em; }
+.project-card-identity { display:flex; align-items:center; gap:12px; margin:17px 0 20px; min-width:0; }
+.project-card-identity > div { min-width:0; }
+.project-card-identity .company-mark { width:42px; height:42px; border-radius:13px; flex:0 0 auto; }
+.project-card-title { display:block; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:700 14px Manrope,sans-serif; text-align:left; }
+.project-card-identity p { margin:4px 0 0; color:var(--muted); font-size:11px; }
+.project-progress-meta { margin-bottom:8px; color:var(--muted); font-size:10px; }
+.project-progress-meta strong { color:var(--text); font-size:11px; font-variant-numeric:tabular-nums; }
+.project-progress-track { height:7px; border-radius:10px; overflow:hidden; }
+.project-progress-track .progress-fill { border-radius:10px; transition:width .55s cubic-bezier(.2,.7,.2,1); }
+.project-card-meta { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:18px; padding:13px 0; border-top:1px solid var(--border-soft); border-bottom:1px solid var(--border-soft); }
+.project-card-meta span { display:flex; flex-direction:column; gap:5px; min-width:0; }
+.project-card-meta small { color:var(--muted-2); font-size:9px; }
+.project-card-meta strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text); font-size:10px; font-weight:650; }
+.project-card-footer { padding-top:13px; color:var(--muted); font-size:10px; }
+.project-card-footer > div { display:flex; align-items:center; gap:7px; }
+.project-card-action { min-height:30px; padding:6px 10px; font-size:10px; }
+.project-card-footer .icon-button { width:30px; height:30px; }
+.project-table-fallback { display:none; }
+.leads-board { gap:12px; padding-bottom:10px; }
+.lead-column { flex-basis:250px; border-radius:15px; }
+.lead-card { transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease; }
+.lead-card:hover { transform:translateY(-2px); box-shadow:0 9px 22px rgba(0,0,0,.08); }
+.lead-profile-journey { margin:18px 0; padding:22px; border-radius:16px; }
+.lead-journey-heading { display:flex; justify-content:space-between; align-items:flex-start; gap:14px; }
+.lead-journey-heading h2 { margin:0 0 5px; font:700 17px Manrope,sans-serif; }
+.lead-journey-heading p:not(.eyebrow) { margin:0; color:var(--muted); font-size:11px; }
+.lead-journey-steps { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:8px; margin:22px 0 17px; }
+.lead-journey-step { position:relative; display:flex; flex-direction:column; align-items:center; gap:8px; color:var(--muted-2); text-align:center; }
+.lead-journey-step:not(:last-child):after { content:""; position:absolute; top:15px; left:calc(50% + 20px); width:calc(100% - 30px); height:1px; background:var(--border); }
+.lead-journey-step span { z-index:1; display:grid; place-items:center; width:30px; height:30px; border:1px solid var(--border); border-radius:50%; background:var(--surface); font-size:10px; font-weight:800; }
+.lead-journey-step strong { font-size:9px; font-weight:650; }
+.lead-journey-step.is-done span { border-color:var(--orange); background:var(--orange-soft); color:var(--orange); }
+.lead-journey-step.is-current strong { color:var(--text); }
+.lead-journey-step.is-current span { box-shadow:0 0 0 4px var(--orange-soft); }
+.lead-journey-step.is-lost.is-current span { border-color:var(--red); background:color-mix(in srgb,var(--red) 12%,var(--surface)); color:var(--red); }
+.lead-journey-actions { display:flex; flex-wrap:wrap; align-items:center; gap:7px; padding-top:15px; border-top:1px solid var(--border-soft); }
+.lead-journey-actions .button { min-height:32px; padding:7px 10px; font-size:10px; }
+.lead-converted-note { color:var(--green); font-size:11px; font-weight:700; }
+.detail-heading { align-items:flex-start; }
+.detail-layout { min-width:0; }
+.detail-main, .detail-side { min-width:0; }
+.detail-panel { border-radius:15px; }
+.detail-fields { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.detail-field { min-width:0; }
+.detail-field strong { overflow-wrap:anywhere; }
+@media (max-width:1180px) {
+  .contact-card-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .project-card-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media (max-width:760px) {
+  .view-section { min-width:0; }
+  .page-heading, .contacts-page-heading, .projects-page-heading { align-items:flex-start; flex-direction:column; gap:14px; }
+  .page-heading > div:first-child { min-width:0; }
+  .page-heading h1 { font-size:clamp(25px,7vw,34px); }
+  .heading-actions { display:flex; width:100%; flex-wrap:wrap; gap:8px; }
+  .heading-actions .button { flex:1 1 auto; justify-content:center; }
+  .compact-metrics, .metric-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; }
+  .metric-card { min-width:0; padding:13px; }
+  .metric-value { font-size:25px; }
+  .contact-directory-toolbar, .project-hub-toolbar { align-items:stretch; flex-direction:column; gap:13px; padding:17px 15px 14px; }
+  .contact-search-box, .project-search-box { width:100%; flex:1 1 auto; }
+  .contact-directory-controls { display:block; padding:12px 15px 0; }
+  .contact-directory-controls .filter-tabs { flex-wrap:nowrap; overflow-x:auto; padding-bottom:8px; scrollbar-width:thin; }
+  .contact-directory-controls .filter-tab { flex:0 0 auto; }
+  .contact-card-grid { grid-template-columns:1fr; gap:10px; padding:13px 14px 16px; }
+  .contact-card { padding:15px; }
+  .contact-card-footer { flex-wrap:wrap; }
+  .project-folder-tabs { padding:12px 14px 0; }
+  .project-folder-tabs button { padding:9px 10px 12px; }
+  .project-filter-row { align-items:flex-start; flex-direction:column; padding:12px 14px 0; }
+  .project-filter-row .filter-tabs { display:flex; max-width:100%; overflow-x:auto; flex-wrap:nowrap; }
+  .project-filter-row .filter-tab { flex:0 0 auto; }
+  .project-card-grid { grid-template-columns:1fr; gap:10px; padding:13px 14px 16px; }
+  .project-portfolio-card { padding:15px; }
+  .project-card-meta { gap:8px; }
+  .leads-toolbar { align-items:stretch; flex-direction:column; gap:10px; }
+  .leads-toolbar .table-search { width:100%; }
+  .leads-board { display:flex; gap:10px; overflow-x:auto; overflow-y:hidden; padding:4px 2px 14px; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; }
+  .lead-column { flex:0 0 min(84vw,310px); min-height:300px; scroll-snap-align:start; }
+  .lead-profile-journey { padding:16px; }
+  .lead-journey-heading { align-items:flex-start; flex-direction:column; }
+  .lead-journey-steps { display:flex; gap:12px; overflow-x:auto; padding:5px 2px 12px; margin:16px 0 12px; scrollbar-width:thin; }
+  .lead-journey-step { flex:0 0 104px; }
+  .lead-journey-step:not(:last-child):after { left:calc(50% + 19px); width:calc(100% - 25px); }
+  .lead-journey-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .lead-journey-actions .button { width:100%; justify-content:center; }
+  .detail-heading .heading-actions { width:100%; }
+  .detail-layout { display:flex; flex-direction:column; gap:12px; }
+  .detail-fields { grid-template-columns:1fr; }
+  .detail-back-row { flex-wrap:wrap; gap:8px; }
+  .table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .table-wrap table { min-width:720px; }
+}
+@media (max-width:420px) {
+  .compact-metrics, .metric-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .metric-card { padding:11px; }
+  .metric-label { font-size:9px; }
+  .metric-value { font-size:22px; }
+  .project-card-meta strong { font-size:9px; }
+  .contact-card-top { gap:8px; }
+  .contact-relationship { max-width:52%; overflow:hidden; text-overflow:ellipsis; }
+}
+@media (prefers-reduced-motion:reduce) {
+  *,*::before,*::after { scroll-behavior:auto!important; animation-duration:.01ms!important; animation-iteration-count:1!important; transition-duration:.01ms!important; }
+}
+
+.contact-profile-hero { display:flex; align-items:center; justify-content:space-between; gap:18px; margin:16px 0; padding:19px 22px; border-radius:16px; }
+.contact-profile-identity { display:flex; align-items:center; gap:14px; min-width:0; }
+.contact-profile-avatar { display:grid; place-items:center; width:54px; height:54px; flex:0 0 auto; border-radius:17px; background:var(--orange-soft); color:var(--orange); font:800 15px Manrope,sans-serif; }
+.contact-profile-identity > div { min-width:0; }
+.contact-profile-identity .eyebrow { margin:0 0 4px; }
+.contact-profile-identity h2 { margin:0; font:800 19px Manrope,sans-serif; letter-spacing:-.03em; }
+.contact-profile-identity p:last-child { margin:4px 0 0; color:var(--muted); font-size:11px; }
+.contact-profile-actions { display:flex; flex-wrap:wrap; gap:8px; }
+.contact-profile-actions .button { min-height:35px; font-size:10px; }
+@media (max-width:760px) {
+  .contact-profile-hero { align-items:stretch; flex-direction:column; padding:16px; }
+  .contact-profile-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .contact-profile-actions .button { justify-content:center; }
+}
