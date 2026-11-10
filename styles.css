@@ -1337,3 +1337,162 @@ input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(245,130,3
   .contact-profile-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
   .contact-profile-actions .button { justify-content:center; }
 }
+
+
+
+/* =========================================================
+   ZYMA SIGNATURE UI — editorial SaaS polish
+   Visual inspiration: Linear, Stripe, Notion and Raycast.
+   Keeps the existing CRM DOM, data model and interactions.
+   ========================================================= */
+:root {
+  --zyma-glow: rgba(245,130,32,.16);
+  --zyma-glass: color-mix(in srgb, var(--surface) 84%, transparent);
+  --zyma-ring: 0 0 0 1px rgba(245,130,32,.18), 0 12px 36px rgba(245,130,32,.07);
+}
+html { scroll-behavior:smooth; }
+body {
+  background:
+    radial-gradient(ellipse at 78% -12%, rgba(245,130,32,.075), transparent 34rem),
+    radial-gradient(ellipse at 4% 68%, rgba(106,169,255,.035), transparent 30rem),
+    var(--bg);
+  background-attachment:fixed;
+}
+::selection { background:rgba(245,130,32,.28); color:var(--text); }
+::-webkit-scrollbar { width:9px; height:9px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:color-mix(in srgb,var(--muted-2) 42%,transparent); border:2px solid transparent; background-clip:padding-box; border-radius:20px; }
+::-webkit-scrollbar-thumb:hover { background:var(--orange); border:2px solid transparent; background-clip:padding-box; }
+.main-content, .workspace-main, main { min-width:0; }
+.view-section { animation:zyma-view-in .42s cubic-bezier(.2,.75,.25,1) both; }
+@keyframes zyma-view-in { from { opacity:0; transform:translateY(9px); } to { opacity:1; transform:translateY(0); } }
+.page-heading h1, .contacts-page-heading h1, .projects-page-heading h1 {
+  letter-spacing:-.055em;
+  text-wrap:balance;
+}
+.page-heading p, .page-subtitle { max-width:680px; line-height:1.65; }
+.eyebrow { letter-spacing:.16em!important; font-size:9px!important; font-weight:800!important; }
+.sidebar {
+  background:color-mix(in srgb,var(--sidebar) 92%,transparent);
+  backdrop-filter:blur(22px);
+  -webkit-backdrop-filter:blur(22px);
+  box-shadow:12px 0 44px rgba(0,0,0,.08);
+}
+.nav-item { position:relative; overflow:hidden; transition:background .22s,border-color .22s,color .22s,transform .22s; }
+.nav-item:before {
+  content:""; position:absolute; inset:8px auto 8px 0; width:2px; border-radius:4px;
+  background:var(--orange); opacity:0; transform:scaleY(.3); transition:.22s;
+}
+.nav-item:hover { transform:translateX(2px); }
+.nav-item.active:before { opacity:1; transform:scaleY(1); }
+.workspace-switcher, .sidebar-help { background:linear-gradient(135deg,rgba(255,255,255,.045),rgba(255,255,255,.012)); }
+.button, button.button, .icon-button {
+  transition:transform .2s cubic-bezier(.2,.8,.2,1),box-shadow .2s,border-color .2s,background .2s,filter .2s;
+}
+.button:hover:not(:disabled) { transform:translateY(-2px); filter:brightness(1.06); box-shadow:0 9px 24px rgba(0,0,0,.16); }
+.button:active:not(:disabled), .icon-button:active { transform:translateY(0) scale(.97); }
+.button-primary { box-shadow:0 5px 18px rgba(245,130,32,.16); }
+input,select,textarea {
+  transition:border-color .2s,box-shadow .2s,background .2s;
+}
+input:focus,select:focus,textarea:focus { box-shadow:0 0 0 3px var(--orange-soft); }
+.metric-card, .contact-card, .project-portfolio-card, .detail-panel, .lead-profile-journey, .panel, .card {
+  position:relative;
+  isolation:isolate;
+  transition:transform .24s cubic-bezier(.2,.8,.2,1),border-color .24s,box-shadow .24s,background .24s;
+}
+.metric-card {
+  overflow:hidden;
+  background:linear-gradient(145deg,color-mix(in srgb,var(--surface-raised) 92%,var(--orange) 8%),var(--surface));
+}
+.metric-card:after {
+  content:""; position:absolute; z-index:-1; width:130px; height:130px; right:-58px; top:-70px;
+  border-radius:50%; background:var(--zyma-glow); filter:blur(7px); transition:transform .4s;
+}
+.metric-card:hover { transform:translateY(-4px); border-color:color-mix(in srgb,var(--orange) 42%,var(--border)); box-shadow:var(--zyma-ring); }
+.metric-card:hover:after { transform:scale(1.65); }
+.contact-card, .project-portfolio-card {
+  overflow:hidden;
+  background:linear-gradient(145deg,color-mix(in srgb,var(--surface) 94%,white 6%),var(--surface));
+  box-shadow:0 3px 14px rgba(0,0,0,.055);
+}
+.contact-card:before, .project-portfolio-card:before {
+  content:""; position:absolute; inset:0 0 auto; height:1px;
+  background:linear-gradient(90deg,transparent,rgba(245,130,32,.55),transparent); opacity:0; transition:opacity .25s;
+}
+.contact-card:hover, .project-portfolio-card:hover {
+  transform:translateY(-4px);
+  border-color:color-mix(in srgb,var(--orange) 40%,var(--border));
+  box-shadow:0 16px 38px rgba(0,0,0,.14),0 0 0 1px rgba(245,130,32,.06);
+}
+.contact-card:hover:before, .project-portfolio-card:hover:before { opacity:1; }
+.contact-avatar, .contact-profile-avatar, .company-mark { box-shadow:0 5px 16px rgba(0,0,0,.12); }
+.contact-avatar { transition:transform .25s cubic-bezier(.2,.8,.2,1); }
+.contact-card:hover .contact-avatar { transform:rotate(-5deg) scale(1.06); }
+.project-progress-track { background:color-mix(in srgb,var(--border) 78%,transparent); }
+.project-progress-track .progress-fill { position:relative; overflow:hidden; }
+.project-progress-track .progress-fill:after {
+  content:""; position:absolute; inset:0; transform:translateX(-100%);
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.32),transparent);
+  animation:zyma-progress-shimmer 2.8s ease-in-out infinite;
+}
+@keyframes zyma-progress-shimmer { to { transform:translateX(100%); } }
+.project-folder-tabs button { transition:color .2s,border-color .2s,background .2s; }
+.project-folder-tabs button:hover { color:var(--text); background:rgba(255,255,255,.025); }
+.lead-column { background:color-mix(in srgb,var(--surface) 76%,transparent); border:1px solid var(--border-soft); backdrop-filter:blur(12px); }
+.lead-card {
+  border:1px solid var(--border-soft);
+  background:linear-gradient(145deg,var(--surface-raised),var(--surface));
+  box-shadow:0 3px 12px rgba(0,0,0,.06);
+}
+.lead-card:hover { transform:translateY(-4px) scale(1.008); border-color:rgba(245,130,32,.38); box-shadow:0 14px 28px rgba(0,0,0,.15),0 0 0 1px rgba(245,130,32,.06); }
+.lead-profile-journey {
+  overflow:hidden;
+  border:1px solid color-mix(in srgb,var(--orange) 20%,var(--border));
+  background:
+    radial-gradient(ellipse at 90% 0%,rgba(245,130,32,.12),transparent 55%),
+    linear-gradient(135deg,var(--surface-raised),var(--surface));
+  box-shadow:0 12px 34px rgba(0,0,0,.09);
+}
+.lead-journey-step span { transition:transform .2s,box-shadow .2s,background .2s; }
+.lead-journey-step.is-current span { animation:zyma-current-pulse 2.4s ease-in-out infinite; }
+@keyframes zyma-current-pulse { 0%,100% { box-shadow:0 0 0 4px var(--orange-soft); } 50% { box-shadow:0 0 0 7px rgba(245,130,32,.035); } }
+.detail-panel { box-shadow:0 4px 18px rgba(0,0,0,.055); }
+.detail-panel:hover { border-color:color-mix(in srgb,var(--orange) 22%,var(--border)); }
+.table-wrap { border-radius:14px; }
+table tbody tr { transition:background .18s; }
+table tbody tr:hover { background:color-mix(in srgb,var(--orange-soft) 45%,transparent); }
+.badge, .status-badge, .pill { letter-spacing:.015em; }
+.contact-profile-hero {
+  position:relative; overflow:hidden;
+  border:1px solid color-mix(in srgb,var(--orange) 20%,var(--border));
+  background:
+    radial-gradient(ellipse at 88% 0%,rgba(245,130,32,.14),transparent 48%),
+    linear-gradient(130deg,var(--surface-raised),var(--surface));
+  box-shadow:0 12px 34px rgba(0,0,0,.09);
+}
+.contact-profile-avatar { box-shadow:0 8px 22px rgba(245,130,32,.14); }
+.contact-profile-actions .button { white-space:nowrap; }
+.empty-state, .contact-empty-state, .project-empty-state { animation:zyma-view-in .35s ease both; }
+@keyframes zyma-float { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-4px); } }
+@media (min-width:761px) {
+  .contact-card-grid > *, .project-card-grid > * { animation:zyma-view-in .4s both; }
+  .contact-card-grid > *:nth-child(2), .project-card-grid > *:nth-child(2) { animation-delay:.035s; }
+  .contact-card-grid > *:nth-child(3), .project-card-grid > *:nth-child(3) { animation-delay:.07s; }
+  .contact-card-grid > *:nth-child(4), .project-card-grid > *:nth-child(4) { animation-delay:.105s; }
+  .contact-card-grid > *:nth-child(5), .project-card-grid > *:nth-child(5) { animation-delay:.14s; }
+  .contact-card-grid > *:nth-child(6), .project-card-grid > *:nth-child(6) { animation-delay:.175s; }
+}
+@media (max-width:760px) {
+  body { background-attachment:scroll; }
+  .sidebar { backdrop-filter:none; }
+  .metric-card:hover, .contact-card:hover, .project-portfolio-card:hover, .lead-card:hover { transform:none; }
+  .contact-card:active, .project-portfolio-card:active, .lead-card:active { transform:scale(.99); }
+  .project-folder-tabs, .filter-tabs { scrollbar-width:none; }
+  .project-folder-tabs::-webkit-scrollbar, .filter-tabs::-webkit-scrollbar { display:none; }
+  .contact-profile-hero, .lead-profile-journey { border-radius:14px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .view-section, .contact-card-grid > *, .project-card-grid > *, .lead-journey-step.is-current span { animation:none!important; }
+  .project-progress-track .progress-fill:after { animation:none!important; }
+}
