@@ -12,6 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="clients.css?v=20261110-client-redesign">
 </head>
 <body>
   <div class="app-shell">
@@ -173,14 +174,14 @@
         </section>
 
         <section class="view-section" id="view-clients" data-title="Clients">
-          <div class="page-heading clients-page-heading"><div><p class="eyebrow">RELATIONSHIP MANAGEMENT</p><h1>Clients <span class="heading-count" id="client-heading-count">0</span></h1><p class="page-subtitle">A clear view of every relationship, active project and client contact.</p></div><div class="heading-actions"><button class="button button-secondary" data-action="export">↧ Export</button><button class="button button-primary" data-action="new-client">＋ Add client</button></div></div>
+          <div class="page-heading clients-page-heading"><div><p class="eyebrow">Relationship management</p><h1>Clients <span class="heading-count" id="client-heading-count">0</span></h1><p class="page-subtitle">A clear view of every relationship, active project and client contact.</p></div><div class="heading-actions"><button class="button button-secondary" data-action="export">↧ Export</button><button class="button button-primary" data-action="new-client">＋ Add client</button></div></div>
           <div class="metric-grid compact-metrics clients-metrics">
             <article class="metric-card client-summary-card"><div class="client-summary-top"><span class="metric-label">Total clients</span><span class="client-summary-icon violet">♧</span></div><div class="metric-value" id="client-total">00</div><div class="client-summary-foot"><span class="summary-dot violet-dot"></span><span>Client organizations</span></div></article>
             <article class="metric-card client-summary-card"><div class="client-summary-top"><span class="metric-label">Active relationships</span><span class="client-summary-icon green">↗</span></div><div class="metric-value" id="client-active-count">00</div><div class="client-summary-foot"><span class="summary-dot green-dot"></span><span>Currently active</span></div></article>
             <article class="metric-card client-summary-card"><div class="client-summary-top"><span class="metric-label">Active projects</span><span class="client-summary-icon blue">▣</span></div><div class="metric-value" id="client-active-projects">03</div><div class="client-summary-foot"><span class="summary-dot blue-dot"></span><span>Across all clients</span></div></article>
             <article class="metric-card client-summary-card"><div class="client-summary-top"><span class="metric-label">Industries served</span><span class="client-summary-icon orange">◈</span></div><div class="metric-value" id="client-industry-count">00</div><div class="client-summary-foot"><span class="summary-dot orange-dot"></span><span>Portfolio diversity</span></div></article>
           </div>
-          <section class="panel client-directory-panel"><div class="client-directory-toolbar"><div><p class="eyebrow">YOUR PORTFOLIO</p><h2>Client directory</h2><p class="muted">Open a client to view its contacts, projects and relationship details.</p></div><label class="table-search client-search-box">⌕ <input id="client-search" placeholder="Search clients or industries..." type="search"></label></div><div class="client-directory-controls"><div class="filter-tabs" id="client-filters"><button type="button" class="filter-tab active" data-client-filter="all">All clients <span id="client-filter-all-count">00</span></button><button type="button" class="filter-tab" data-client-filter="Active">Active <span id="client-filter-active-count">00</span></button><button type="button" class="filter-tab" data-client-filter="Inactive">Inactive <span id="client-filter-inactive-count">00</span></button></div><span class="client-results-count" id="client-results-count">4 clients</span></div><div class="client-grid" id="client-grid"></div></section>
+          <section class="panel client-directory-panel"><div class="client-directory-toolbar"><div><p class="eyebrow">YOUR PORTFOLIO</p><h2>Client directory</h2><p class="muted">Open a client to view its contacts, projects and relationship details.</p></div><label class="table-search client-search-box">⌕ <input id="client-search" placeholder="Search clients or industries..." type="search"></label></div><div class="client-directory-controls"><div class="filter-tabs" id="client-filters"><button type="button" class="filter-tab active" data-client-filter="all">All clients <span id="client-filter-all-count">00</span></button><button type="button" class="filter-tab" data-client-filter="Active">Active <span id="client-filter-active-count">00</span></button><button type="button" class="filter-tab" data-client-filter="Inactive">Inactive <span id="client-filter-inactive-count">00</span></button></div><label class="cp-sort">Sort by <select id="client-sort" class="control-select"><option value="name">Name</option><option value="projects">Most projects</option><option value="newest">Newest first</option></select></label><span class="client-results-count" id="client-results-count">4 clients</span></div><div class="client-grid" id="client-grid"></div></section>
         </section>
 
         <section class="view-section" id="view-contacts" data-title="Contacts">
@@ -381,9 +382,11 @@
 
   <script src="auth-session.js"></script>
   <script src="crm-api.js"></script>
+  <script src="client-profile.js?v=20261110-client-redesign"></script>
   <script src="app.js?v=20261024-dashboard-api-stats"></script>
   <script src="workspace-access.js"></script>
   <script src="current-user.js"></script>
-  <script src="support-tickets.js?v=20261027-assignment"></script>\n  <script src="project-updates.js?v=20261027-3"></script>
+  <script src="support-tickets.js?v=20261027-assignment"></script>
+  <script src="project-updates.js?v=20261027-3"></script>
 </body>
 </html>

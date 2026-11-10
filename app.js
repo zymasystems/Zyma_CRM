@@ -988,24 +988,9 @@ function renderClients() {
   putText("#client-results-count", `${filtered.length} ${filtered.length === 1 ? "client" : "clients"}`);
   $$("#client-filters [data-client-filter]").forEach(button => button.classList.toggle("active", button.dataset.clientFilter === state.clientFilter));
 
-  $("#client-grid").innerHTML = filtered.map(client => {
-    const projects = state.projects.filter(project => String(project.client || "").trim().toLowerCase() === String(client.name || "").trim().toLowerCase());
-    const activeForClient = projects.filter(project => project.status !== "Completed" && project.status !== "Cancelled");
-    const avgProgress = projects.length ? Math.round(projects.reduce((total, project) => total + calculatedProjectProgress(project), 0) / projects.length) : 0;
-    const contactCount = state.contacts.filter(contact => String(contact.organization || "").trim().toLowerCase() === String(client.name || "").trim().toLowerCase()).length;
-    return `<article class="client-card client-card-polished">
-      <div class="client-card-head">
-        ${companyMark(client.short, client.color)}
-        <div class="client-card-identity"><h3><button type="button" class="record-link client-title-link" data-open-record="client" data-record-id="${esc(client.id)}">${esc(client.name)}</button></h3><p>${esc(client.industry || "Industry not set")}</p></div>
-        <span class="status-pill ${client.status === "Active" ? "status-done" : "status-hold"}">${esc(client.status || "Unclassified")}</span>
-      </div>
-      <div class="client-contact-line"><span class="client-contact-icon">✉</span><span title="${esc(client.email || "No email provided")}">${esc(client.email || "No email provided")}</span></div>
-      <div class="client-contact-line"><span class="client-contact-icon">♧</span><span>${esc(client.contact || "Primary contact not set")}</span></div>
-      <div class="client-project-summary"><div class="client-project-summary-top"><span>Project delivery</span><strong>${projects.length ? `${avgProgress}%` : "No projects"}</strong></div><div class="client-progress-track"><span style="width:${projects.length ? avgProgress : 0}%"></span></div><small>${activeForClient.length} active ${activeForClient.length === 1 ? "project" : "projects"}</small></div>
-      <div class="client-card-stats"><div><strong>${projects.length}</strong><span>Projects</span></div><div><strong>${contactCount}</strong><span>Contacts</span></div><div><strong>${esc(client.since || "—")}</strong><span>Client since</span></div></div>
-      <div class="client-card-footer"><span class="client-status-note"><span class="summary-dot ${client.status === "Active" ? "green-dot" : "orange-dot"}"></span>${client.status === "Active" ? "Relationship active" : "Review relationship"}</span><div class="client-card-actions">${recordActionButtons("client", client.id)}</div></div>
-    </article>`;
-  }).join("") || `<div class="client-empty-state"><span>⌕</span><h3>No clients found</h3><p>Try another search or change the status filter.</p><button type="button" class="button button-secondary" data-client-reset>Clear filters</button></div>`;
+  const sortMode = $("#client-sort")?.value || "name";
+  filtered.sort((a, b) => { const x = clientSortValue(a, sortMode), y = clientSortValue(b, sortMode); return x < y ? -1 : x > y ? 1 : 0; });
+  $("#client-grid").innerHTML = filtered.map(client => clientCardMarkup(client)).join("") || `<div class="client-empty-state"><span>⌕</span><h3>No clients found</h3><p>Try another search or change the status filter.</p><button type="button" class="button button-secondary" data-client-reset>Clear filters</button></div>`;
 }
 
 // Contacts are the people directory for the whole CRM: leads and clients must also
@@ -1175,6 +1160,12 @@ function openRecordDetail(type, id) {
   const collection = recordCollections[type];
   const record = collection && state[collection].find(item => String(item.id) === String(id));
   if (!record) return toast("Record not found.");
+  if (type === "client") {
+    openClientProfile(record);
+    setView("record-detail");
+    window.location.hash = `${type}/${id}`;
+    return;
+  }
 
   const title = record.name || record.company || record.title || record.code || "Record details";
   const subtitleMap = {meeting:"MEETING DETAILS",client:"CLIENT PROFILE",lead:"LEAD PROFILE",contact:"CONTACT PROFILE",project:"PROJECT DETAILS",task:"TASK DETAILS"};
@@ -1221,6 +1212,7 @@ function openRecordDetail(type, id) {
   }
 
   const detailView = $("#view-record-detail");
+  detailView.classList.remove("cp-view");
   detailView.dataset.recordType = type;
   detailView.dataset.recordId = String(id);
   detailView.innerHTML = `
@@ -1738,6 +1730,7 @@ function renderAll() {
   renderMeetings();
   renderCommunications();
   renderReports();
+  refreshClientProfile();
 }
 
 function fieldMarkup(field) {
@@ -2492,6 +2485,7 @@ $("#communication-list")?.addEventListener("click", event => {
 });
 
 $("#client-search").addEventListener("input", renderClients);
+$("#client-sort")?.addEventListener("change", renderClients);
 $("#client-filters")?.addEventListener("click", event => {
   const button = event.target.closest("[data-client-filter]");
   if (!button) return;
