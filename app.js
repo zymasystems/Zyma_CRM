@@ -1092,6 +1092,7 @@ function renderContacts() {
     const roleClass = /decision maker/i.test(relationship) ? "contact-role-decision" : /project/i.test(relationship) ? "contact-role-project" : /supplier|partner/i.test(relationship) ? "contact-role-partner" : "contact-role-client";
     const safePhone = phone.replace(/[^+\d]/g, "");
     return `<article class="contact-card">
+      <div class="contact-card-banner" aria-hidden="true"></div>
       <div class="contact-card-top"><span class="contact-avatar">${esc(initials(name))}</span><span class="contact-relationship ${roleClass}">${esc(relationship)}</span></div>
       <div class="contact-card-identity"><h3><button type="button" class="record-link contact-name-link" data-open-record="contact" data-record-id="${esc(contact.id)}">${esc(name)}</button></h3><p>${esc(title)}</p></div>
       <div class="contact-organization"><span class="contact-info-icon">▦</span><span><small>Organization</small><strong>${esc(organization)}</strong></span></div>
@@ -1143,6 +1144,7 @@ function renderProjects() {
         ? `<button type="button" class="button button-secondary project-card-action" data-project-archive="${esc(project.id)}">Archive project</button>`
         : `<button type="button" class="button button-secondary project-card-action" data-edit-record="project" data-record-id="${esc(project.id)}">Manage</button>`;
     return `<article class="project-portfolio-card ${isArchived ? "is-archived" : ""}">
+      <div class="project-card-banner" aria-hidden="true"></div>
       <div class="project-card-topline"><span class="project-code">${esc(project.code || "PROJECT")}</span><span class="status-pill ${projectStatusClass(project.status)}">${esc(project.status)}</span></div>
       <div class="project-card-identity">${companyMark(initials(project.name), project.color)}<div><button type="button" class="record-link project-card-title" data-open-record="project" data-record-id="${esc(project.id)}">${esc(project.name)}</button><p>${esc(project.client || "Client not linked")}</p></div></div>
       <div class="project-progress-meta"><span>Delivery progress</span><strong>${progress}%</strong></div><div class="progress-track project-progress-track"><div class="progress-fill ${progress >= 70 ? "green" : "blue"}" style="width:${progress}%"></div></div>
