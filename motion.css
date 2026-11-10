@@ -1,0 +1,86 @@
+/* Zyma CRM — motion and effects layer, shared by every workspace page.
+ * One orchestrated entrance each time a page opens, a few tactile effects (spotlight, ripple, shine),
+ * and a very quiet ambient glow. Everything is switched off for people who prefer reduced motion. */
+
+@keyframes mo-rise { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
+@keyframes mo-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes mo-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes mo-ring { from { stroke-dasharray: 0 400; } }
+@keyframes mo-drift { 0% { transform: translate3d(0,0,0) scale(1); } 50% { transform: translate3d(3%,2%,0) scale(1.08); } 100% { transform: translate3d(-2%,3%,0) scale(1); } }
+@keyframes mo-ripple { to { transform: scale(4); opacity: 0; } }
+@keyframes mo-pop { 0% { transform: scale(.6); opacity: 0; } 70% { transform: scale(1.08); } 100% { transform: scale(1); opacity: 1; } }
+
+/* ---------- Ambient glow behind the workspace ---------- */
+body::before {
+  content: ""; position: fixed; inset: -20% -10% auto auto; z-index: -1; width: 70vw; height: 70vh; pointer-events: none;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--orange) 11%, transparent), transparent 70%);
+  filter: blur(30px); animation: mo-drift 28s ease-in-out infinite alternate;
+}
+body::after {
+  content: ""; position: fixed; inset: auto auto -25% -10%; z-index: -1; width: 60vw; height: 60vh; pointer-events: none;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--violet) 9%, transparent), transparent 70%);
+  filter: blur(36px); animation: mo-drift 34s ease-in-out infinite alternate-reverse;
+}
+:root[data-theme="light"] body::before { background: radial-gradient(closest-side, color-mix(in srgb, var(--orange) 14%, transparent), transparent 70%); }
+
+/* ---------- Scroll progress ---------- */
+.mo-scrollbar { position: fixed; inset: 0 0 auto 0; z-index: 60; height: 2px; transform-origin: left; transform: scaleX(var(--mo-scroll, 0)); background: linear-gradient(90deg, var(--orange), #ffc078); pointer-events: none; }
+
+/* ---------- Page entrance (runs once each time a page opens) ---------- */
+.view-section.mo-fresh .page-heading > div:first-child > * { animation: mo-rise .55s cubic-bezier(.2,.75,.25,1) both; }
+.view-section.mo-fresh .page-heading > div:first-child > :nth-child(2) { animation-delay: 50ms; }
+.view-section.mo-fresh .page-heading > div:first-child > :nth-child(3) { animation-delay: 100ms; }
+.view-section.mo-fresh .page-heading .heading-actions { animation: mo-fade .6s .15s both; }
+.mo-fresh :is(.cp-card-grid,.client-grid,.contact-card-grid,.pj-grid,.pj-folder-body,.cp-list,.lead-stack,.lp-funnel,.pj-stats,.cp-kpis,.metric-grid,.pipeline-summary,.communication-list,.cp-upcoming,.cp-timeline) > * { animation: mo-rise .55s cubic-bezier(.2,.75,.25,1) both; }
+.mo-fresh .lead-column { animation: mo-rise .6s cubic-bezier(.2,.75,.25,1) both; }
+.mo-fresh .lead-column:nth-child(2) { animation-delay: 60ms; } .mo-fresh .lead-column:nth-child(3) { animation-delay: 120ms; }
+.mo-fresh .lead-column:nth-child(4) { animation-delay: 180ms; } .mo-fresh .lead-column:nth-child(5) { animation-delay: 240ms; } .mo-fresh .lead-column:nth-child(6) { animation-delay: 300ms; }
+.mo-fresh .cp-card-panel, .mo-fresh .pj-stepper-panel, .mo-fresh .cp-tabs { animation: mo-rise .55s .12s cubic-bezier(.2,.75,.25,1) both; }
+.mo-fresh .pj-folder { animation: mo-rise .5s cubic-bezier(.2,.75,.25,1) both; }
+.mo-fresh :is(.cp-card-grid,.client-grid,.contact-card-grid,.pj-grid,.pj-folder-body,.cp-list,.lead-stack,.lp-funnel,.pj-stats,.cp-kpis,.metric-grid,.pipeline-summary,.communication-list,.cp-upcoming,.cp-timeline) > :nth-child(1) { animation-delay: 125ms; }
+.mo-fresh :is(.cp-card-grid,.client-grid,.contact-card-grid,.pj-grid,.pj-folder-body,.cp-list,.lead-stack,.lp-funnel,.pj-stats,.cp-kpis,.metric-grid,.pipeline-summary,.communication-list,.cp-upcoming,.cp-timeline) > :nth-child(2) { animation-delay: 170ms; }
+.mo-fresh :is(.cp-card-grid,.client-grid,.contact-card-grid,.pj-grid,.pj-folder-body,.cp-list,.lead-stack,.lp-funnel,.pj-stats,.cp-kpis,.metric-grid,.pipeline-summary,.communication-list,.cp-upcoming,.cp-timeline) > :nth-child(3) { animation-delay: 215ms; }
+.mo-fresh :is(.cp-card-grid,.client-grid,.contact-card-grid,.pj-grid,.pj-folder-body,.cp-list,.lead-stack,.lp-funnel,.pj-stats,.cp-kpis,.metric-grid,.pipeline-summary,.communication-list,.cp-upcoming,.cp-timeline) > :nth-child(4) { animation-delay: 260ms; }
+.mo-fresh :is(.cp-card-grid,.client-grid,.contact-card-grid,.pj-grid,.pj-folder-body,.cp-list,.lead-stack,.lp-funnel,.pj-stats,.cp-kpis,.metric-grid,.pipeline-summary,.communication-list,.cp-upcoming,.cp-timeline) > :nth-child(5) { animation-delay: 305ms; }
+.mo-fresh :is(.cp-card-grid,.client-grid,.contact-card-grid,.pj-grid,.pj-folder-body,.cp-list,.lead-stack,.lp-funnel,.pj-stats,.cp-kpis,.metric-grid,.pipeline-summary,.communication-list,.cp-upcoming,.cp-timeline) > :nth-child(6) { animation-delay: 350ms; }
+.mo-fresh :is(.cp-card-grid,.client-grid,.contact-card-grid,.pj-grid,.pj-folder-body,.cp-list,.lead-stack,.lp-funnel,.pj-stats,.cp-kpis,.metric-grid,.pipeline-summary,.communication-list,.cp-upcoming,.cp-timeline) > :nth-child(7) { animation-delay: 395ms; }
+.mo-fresh :is(.cp-card-grid,.client-grid,.contact-card-grid,.pj-grid,.pj-folder-body,.cp-list,.lead-stack,.lp-funnel,.pj-stats,.cp-kpis,.metric-grid,.pipeline-summary,.communication-list,.cp-upcoming,.cp-timeline) > :nth-child(8) { animation-delay: 440ms; }
+.mo-fresh :is(.cp-card-grid,.client-grid,.contact-card-grid,.pj-grid,.pj-folder-body,.cp-list,.lead-stack,.lp-funnel,.pj-stats,.cp-kpis,.metric-grid,.pipeline-summary,.communication-list,.cp-upcoming,.cp-timeline) > :nth-child(9) { animation-delay: 485ms; }
+.mo-fresh :is(.cp-card-grid,.client-grid,.contact-card-grid,.pj-grid,.pj-folder-body,.cp-list,.lead-stack,.lp-funnel,.pj-stats,.cp-kpis,.metric-grid,.pipeline-summary,.communication-list,.cp-upcoming,.cp-timeline) > :nth-child(10) { animation-delay: 530ms; }
+.mo-fresh :is(.cp-card-grid,.client-grid,.contact-card-grid,.pj-grid,.pj-folder-body,.cp-list,.lead-stack,.lp-funnel,.pj-stats,.cp-kpis,.metric-grid,.pipeline-summary,.communication-list,.cp-upcoming,.cp-timeline) > :nth-child(11) { animation-delay: 575ms; }
+.mo-fresh :is(.cp-card-grid,.client-grid,.contact-card-grid,.pj-grid,.pj-folder-body,.cp-list,.lead-stack,.lp-funnel,.pj-stats,.cp-kpis,.metric-grid,.pipeline-summary,.communication-list,.cp-upcoming,.cp-timeline) > :nth-child(12) { animation-delay: 620ms; }
+/* progress bars grow, rings draw, steps pop */
+.mo-fresh :is(.cp-bar > span, .progress-fill, .client-progress-track span, .lp-bar > span, .chart-bar) { transform-origin: left; animation: mo-grow .95s .15s cubic-bezier(.2,.75,.25,1) both; }
+.mo-fresh .cp-ring-value { animation: mo-ring 1.1s .15s cubic-bezier(.2,.75,.25,1) both; }
+.mo-fresh :is(.pj-step-dot, .lp-step-dot, .lp-dot) { animation: mo-pop .5s .2s both; }
+.mo-fresh .cp-mono, .mo-fresh .cp-avatar-lg { animation: mo-pop .6s .05s cubic-bezier(.2,.75,.25,1) both; }
+
+/* ---------- Spotlight that follows the pointer over cards ---------- */
+:is(.pj-card, .cp-card, .ct-card, .lead-card, .metric-card, .cp-card-panel, .pj-stat, .cp-kpi, .lp-card) {
+  background-image: radial-gradient(340px circle at var(--mx, -500px) var(--my, -500px), color-mix(in srgb, var(--cp-accent, var(--orange)) 10%, transparent), transparent 65%);
+  background-repeat: no-repeat;
+}
+
+/* ---------- Buttons: shine and ripple ---------- */
+.button { position: relative; overflow: hidden; }
+.button-primary::after { content: ""; position: absolute; inset: 0; background: linear-gradient(105deg, transparent 35%, rgba(255,255,255,.35) 50%, transparent 65%); transform: translateX(-120%); transition: transform .6s ease; pointer-events: none; }
+.button-primary:hover::after { transform: translateX(120%); }
+.mo-ripple { position: absolute; border-radius: 50%; width: 40px; height: 40px; margin: -20px 0 0 -20px; background: currentColor; opacity: .22; transform: scale(0); animation: mo-ripple .6s ease-out forwards; pointer-events: none; }
+
+/* ---------- Navigation ---------- */
+.nav-item { position: relative; }
+.nav-item.active::before { content: ""; position: absolute; left: -15px; top: 9px; bottom: 9px; width: 3px; border-radius: 0 3px 3px 0; background: var(--orange); animation: mo-pop .35s both; }
+.filter-tab, .cp-tab { transition: background-color .2s ease, color .2s ease, box-shadow .2s ease; }
+.cp-tab.is-active, .filter-tab.active { animation: mo-pop .3s both; }
+[data-cp-panel]:not([hidden]) { animation: mo-fade .35s both; }
+
+@media (prefers-reduced-motion: reduce) {
+  body::before, body::after { animation: none; }
+  .view-section.mo-fresh *, .mo-fresh * { animation: none !important; }
+  .mo-scrollbar { display: none; }
+  .button-primary::after { display: none; }
+}
+@media (max-width: 720px) {
+  body::before, body::after { filter: blur(22px); opacity: .8; }
+  .nav-item.active::before { left: -8px; }
+}

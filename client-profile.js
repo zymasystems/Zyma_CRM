@@ -300,7 +300,7 @@ function refreshClientProfile() {
 function cpSetTab(key) {
   CP_STATE.tab = key;
   $$("[data-cp-panel]").forEach(panel => { panel.hidden = panel.dataset.cpPanel !== key; });
-  $$(".cp-tab").forEach(btn => {
+  $$(".cp-tab[data-cp-tab]").forEach(btn => {
     const on = btn.dataset.cpTab === key;
     btn.classList.toggle("is-active", on);
     btn.setAttribute("aria-selected", String(on));
@@ -316,9 +316,9 @@ document.addEventListener("click", event => {
   else $(".cp-tabs")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
 });
 document.addEventListener("keydown", event => {
-  const tab = event.target.closest?.(".cp-tab");
+  const tab = event.target.closest?.(".cp-tab[data-cp-tab]");
   if (!tab || !["ArrowRight", "ArrowLeft", "Home", "End"].includes(event.key)) return;
-  const tabs = $$(".cp-tab");
+  const tabs = $$(".cp-tab[data-cp-tab]");
   let index = tabs.indexOf(tab);
   if (event.key === "ArrowRight") index = (index + 1) % tabs.length;
   if (event.key === "ArrowLeft") index = (index - 1 + tabs.length) % tabs.length;

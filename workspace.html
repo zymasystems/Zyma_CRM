@@ -11,8 +11,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20261110-client-parity-v4">
-  <link rel="stylesheet" href="clients.css?v=20261110-client-parity-v4">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="clients.css?v=20261110-client-redesign">
+  <link rel="stylesheet" href="leads.css?v=20261110-lead-flow">
+  <link rel="stylesheet" href="contacts.css?v=20261110-contacts">
+  <link rel="stylesheet" href="projects.css?v=20261110-projects">
+  <link rel="stylesheet" href="motion.css?v=20261110-motion">
+  <link rel="stylesheet" href="mobile.css?v=20261110-mobile">
 </head>
 <body>
   <div class="app-shell">
@@ -151,16 +156,17 @@
         </section>
 
         <section class="view-section" id="view-leads" data-title="Leads">
-          <div class="page-heading"><div><p class="eyebrow">GROWTH & OPPORTUNITIES</p><h1>Leads</h1><p class="page-subtitle">Track each opportunity through your sales process: New → Discoverycall → Financial followup → Proposal → Won or Lost.</p></div><div class="heading-actions"><button class="button button-secondary" data-action="export">↧ Export</button><button class="button button-primary" data-action="new-lead">＋ New lead</button></div></div>
+          <div class="page-heading"><div><p class="eyebrow">Growth and opportunities</p><h1>Leads</h1><p class="page-subtitle">From first contact to a signed SLA. Drag a lead to the next step as the conversation moves forward.</p></div><div class="heading-actions"><button class="button button-secondary" data-action="export">↧ Export</button><button class="button button-primary" data-action="new-lead">＋ New lead</button></div></div>
           <div class="metric-grid compact-metrics">
             <article class="metric-card"><span class="metric-label">Open opportunities</span><div class="metric-value" id="lead-total">08</div><span class="metric-caption">Across all stages</span></article>
-            <article class="metric-card"><span class="metric-label">Discovery</span><div class="metric-value" id="lead-discovery">00</div><span class="metric-caption">Needs qualification</span></article>
-            <article class="metric-card"><span class="metric-label">Proposals sent</span><div class="metric-value" id="lead-proposal">00</div><span class="metric-caption">Awaiting response</span></article>
+            <article class="metric-card"><span class="metric-label">Discovery calls</span><div class="metric-value" id="lead-discovery">00</div><span class="metric-caption">Learning what they need</span></article>
+            <article class="metric-card"><span class="metric-label">Awaiting SLA</span><div class="metric-value" id="lead-proposal">00</div><span class="metric-caption">Proposal sent, not yet signed</span></article>
             <article class="metric-card"><span class="metric-label">Won this quarter</span><div class="metric-value" id="lead-won">00</div><span class="metric-caption">Won opportunities</span></article>
           </div>
+          <div class="lp-funnel" id="lead-funnel" aria-label="Leads at each step"></div>
           <div class="leads-toolbar"><div class="table-tabs view-switch" id="lead-view-tabs"><button class="filter-tab active" data-lead-view="board">▦ Board</button><button class="filter-tab" data-lead-view="table">☷ Table</button></div><label class="table-search">⌕ <input id="lead-search" placeholder="Search leads..." type="search"></label></div>
           <section class="leads-board" id="leads-board" aria-label="Lead pipeline board"></section>
-          <section class="panel table-panel is-hidden" id="leads-table-panel"><div class="table-toolbar"><div class="table-tabs" id="lead-filters"><button class="filter-tab active" data-filter="all">All leads <span id="all-lead-count">0</span></button><button class="filter-tab" data-filter="New">New</button><button class="filter-tab" data-filter="Discoverycall">Discoverycall</button><button class="filter-tab" data-filter="Financial followup">Financial followup</button><button class="filter-tab" data-filter="Proposal">Proposal</button><button class="filter-tab" data-filter="Won">Won</button><button class="filter-tab" data-filter="Lost">Lost</button></div></div><div class="table-wrap"><table><thead><tr><th>Lead / Company</th><th>Service interest</th><th>Stage</th><th>Owner</th><th>Next follow-up</th><th></th></tr></thead><tbody id="leads-table"></tbody></table></div><div class="table-footer"><span id="lead-table-count">Showing 0 leads</span><span class="muted">No leads recorded yet</span></div></section>
+          <section class="panel table-panel is-hidden" id="leads-table-panel"><div class="table-toolbar"><div class="table-tabs" id="lead-filters"><button class="filter-tab active" data-filter="all">All leads <span id="all-lead-count">0</span></button><button class="filter-tab" data-filter="New">New</button><button class="filter-tab" data-filter="Discovery">Discovery call</button><button class="filter-tab" data-filter="Follow-up">Financial follow-up</button><button class="filter-tab" data-filter="Proposal">Proposal</button><button class="filter-tab" data-filter="Won">Won</button><button class="filter-tab" data-filter="Lost">Lost</button></div></div><div class="table-wrap"><table><thead><tr><th>Lead / Company</th><th>Service interest</th><th>Stage</th><th>Owner</th><th>Next follow-up</th><th></th></tr></thead><tbody id="leads-table"></tbody></table></div><div class="table-footer"><span id="lead-table-count">Showing 0 leads</span><span class="muted">No leads recorded yet</span></div></section>
         </section>
 
         <section class="view-section" id="view-meetings" data-title="Meetings">
@@ -185,7 +191,7 @@
         </section>
 
         <section class="view-section" id="view-contacts" data-title="Contacts">
-          <div class="page-heading contacts-page-heading"><div><p class="eyebrow">PEOPLE & ORGANIZATIONS</p><h1>Contacts <span class="heading-count" id="contact-heading-count">0</span></h1><p class="page-subtitle">Build a complete picture of the people behind every business relationship.</p></div><div class="heading-actions"><button class="button button-secondary" data-action="export">↧ Export</button><button class="button button-primary" data-action="new-contact">＋ Add contact</button></div></div>
+          <div class="page-heading contacts-page-heading"><div><p class="eyebrow">People and organizations</p><h1>Contacts <span class="heading-count" id="contact-heading-count">0</span></h1><p class="page-subtitle">Build a complete picture of the people behind every business relationship.</p></div><div class="heading-actions"><button class="button button-secondary" data-action="export">↧ Export</button><button class="button button-primary" data-action="new-contact">＋ Add contact</button></div></div>
           <div class="metric-grid compact-metrics contacts-metrics">
             <article class="metric-card contact-summary-card"><div class="client-summary-top"><span class="metric-label">Total contacts</span><span class="client-summary-icon violet">◎</span></div><div class="metric-value" id="contact-total">00</div><div class="client-summary-foot"><span class="summary-dot violet-dot"></span><span>People in your directory</span></div></article>
             <article class="metric-card contact-summary-card"><div class="client-summary-top"><span class="metric-label">Organizations</span><span class="client-summary-icon blue">▦</span></div><div class="metric-value" id="contact-org-count">00</div><div class="client-summary-foot"><span class="summary-dot blue-dot"></span><span>Businesses represented</span></div></article>
@@ -194,25 +200,23 @@
           </div>
           <section class="panel contact-directory-panel">
             <div class="contact-directory-toolbar"><div><p class="eyebrow">RELATIONSHIP DIRECTORY</p><h2>All contacts</h2><p class="muted">Select a person to view their profile and relationship details.</p></div><label class="table-search contact-search-box">⌕ <input id="contact-search" placeholder="Search people, companies, email..." type="search"></label></div>
-            <div class="contact-directory-controls"><div class="filter-tabs" id="contact-filters"><button type="button" class="filter-tab active" data-contact-filter="all">All contacts <span id="contact-filter-all-count">00</span></button><button type="button" class="filter-tab" data-contact-filter="Decision maker">Decision makers <span id="contact-filter-decision-count">01</span></button><button type="button" class="filter-tab" data-contact-filter="Project contact">Project contacts <span id="contact-filter-project-count">01</span></button><button type="button" class="filter-tab" data-contact-filter="Client contact">Client contacts <span id="contact-filter-client-count">00</span></button><button type="button" class="filter-tab" data-contact-filter="Prospect">Leads / prospects <span id="contact-filter-prospect-count">00</span></button></div><span class="client-results-count" id="contact-results-count">4 contacts</span></div>
+            <div class="contact-directory-controls"><div class="filter-tabs" id="contact-filters"><button type="button" class="filter-tab active" data-contact-filter="all">All contacts <span id="contact-filter-all-count">00</span></button><button type="button" class="filter-tab" data-contact-filter="Decision maker">Decision makers <span id="contact-filter-decision-count">01</span></button><button type="button" class="filter-tab" data-contact-filter="Project contact">Project contacts <span id="contact-filter-project-count">01</span></button><button type="button" class="filter-tab" data-contact-filter="Client contact">Client contacts <span id="contact-filter-client-count">00</span></button><button type="button" class="filter-tab" data-contact-filter="Prospect">Leads / prospects <span id="contact-filter-prospect-count">00</span></button></div><label class="cp-sort">Sort by <select id="contact-sort" class="control-select"><option value="name">Name</option><option value="organization">Organization</option><option value="followup">Next follow-up</option></select></label><span class="client-results-count" id="contact-results-count">4 contacts</span></div>
             <div class="contact-card-grid" id="contact-card-grid"></div>
           </section>
         </section>
 
         <section class="view-section" id="view-projects" data-title="Projects">
-          <div class="page-heading projects-page-heading"><div><p class="eyebrow">DELIVERY & EXECUTION</p><h1>Projects <span class="heading-count" id="project-heading-count">00</span></h1><p class="page-subtitle">A focused command centre for delivery, milestones and completed work.</p></div><div class="heading-actions"><button class="button button-secondary" data-action="export">↧ Export</button><button class="button button-primary" data-action="new-project">＋ New project</button></div></div>
-          <div class="metric-grid compact-metrics projects-metrics">
-            <article class="metric-card"><span class="metric-label">Active projects</span><div class="metric-value" id="project-active-count">00</div><span class="metric-caption">Currently being delivered</span></article>
-            <article class="metric-card"><span class="metric-label">Planning</span><div class="metric-value" id="project-planning-count">00</div><span class="metric-caption">Preparing to start</span></article>
-            <article class="metric-card"><span class="metric-label">Completed</span><div class="metric-value" id="project-completed-count">00</div><span class="metric-caption">Ready for close-out</span></article>
-            <article class="metric-card"><span class="metric-label">Archived</span><div class="metric-value" id="project-archived-count">00</div><span class="metric-caption">Stored project history</span></article>
+          <div class="page-heading"><div><p class="eyebrow">Delivery and execution</p><h1>Projects</h1><p class="page-subtitle">Everything in delivery, what needs attention, and a tidy archive of what you have finished.</p></div><div class="heading-actions"><button class="button button-secondary" data-action="export">↧ Export</button><button class="button button-primary" data-action="new-project">＋ New project</button></div></div>
+          <div class="pj-stats" aria-label="Project summary">
+            <div class="pj-stat"><span>All projects</span><strong id="project-total">00</strong><small>Active and archived</small></div>
+            <div class="pj-stat"><span>In delivery</span><strong id="pj-delivery">00</strong><small>Work under way</small></div>
+            <div class="pj-stat"><span>Planning</span><strong id="pj-planning">00</strong><small>Not started yet</small></div>
+            <div class="pj-stat is-attention"><span>Needs attention</span><strong id="pj-attention">00</strong><small>Overdue or on hold</small></div>
+            <div class="pj-stat"><span>Archived</span><strong id="pj-archived">00</strong><small>Completed projects</small></div>
           </div>
-          <section class="panel project-hub-panel">
-            <div class="project-hub-toolbar"><div><p class="eyebrow">PROJECT WORKSPACE</p><h2>Project portfolio</h2><p class="muted">Keep active delivery separate from completed and archived work.</p></div><label class="table-search project-search-box">⌕ <input id="project-search" placeholder="Search projects, clients, managers..." type="search"></label></div>
-            <div class="project-folder-tabs" id="project-folder-tabs"><button class="active" type="button" data-project-folder="active">Active <span id="project-tab-active">00</span></button><button type="button" data-project-folder="completed">Completed <span id="project-tab-completed">00</span></button><button type="button" data-project-folder="archived">Archived <span id="project-tab-archived">00</span></button></div>
-            <div class="project-filter-row"><div class="filter-tabs" id="project-filters"><button class="filter-tab active" data-filter="all">All active</button><button class="filter-tab" data-filter="In progress">In progress</button><button class="filter-tab" data-filter="Planning">Planning</button><button class="filter-tab" data-filter="On hold">On hold</button></div><span class="client-results-count" id="project-results-count">0 projects</span></div>
-            <div class="project-card-grid" id="project-card-grid"></div>
-            <div class="table-wrap project-table-fallback"><table><thead><tr><th>Project</th><th>Client</th><th>Status</th><th>Progress</th><th>Target date</th><th>Project manager</th><th>Actions</th></tr></thead><tbody id="projects-table"></tbody></table></div>
+          <section class="panel pj-panel"><div class="pj-toolbar"><div class="filter-tabs" id="project-filters"><button type="button" class="filter-tab active" data-filter="all">Active <span id="pj-count-all">00</span></button><button type="button" class="filter-tab" data-filter="In progress">In progress <span id="pj-count-progress">00</span></button><button type="button" class="filter-tab" data-filter="Planning">Planning <span id="pj-count-planning">00</span></button><button type="button" class="filter-tab" data-filter="On hold">On hold <span id="pj-count-hold">00</span></button><button type="button" class="filter-tab pj-archive-tab" data-filter="Completed"><span class="pj-folder-icon" aria-hidden="true"></span>Completed archive <span id="pj-count-archive">00</span></button></div><label class="table-search">⌕ <input id="project-search" placeholder="Search projects..." type="search"></label></div>
+            <div class="pj-grid" id="projects-grid"></div>
+            <div class="pj-archive" id="projects-archive" hidden></div>
           </section>
         </section>
 
@@ -393,8 +397,13 @@
 
   <script src="auth-session.js"></script>
   <script src="crm-api.js"></script>
-  <script src="client-profile.js?v=20261110-client-parity-v4"></script>
-  <script src="app.js?v=20261110-client-parity-v4"></script>
+  <script src="client-profile.js?v=20261110-client-redesign"></script>
+  <script src="projects.js?v=20261110-projects"></script>
+  <script src="lead-profile.js?v=20261110-lead-flow"></script>
+  <script src="contact-profile.js?v=20261110-contacts"></script>
+  <script src="app.js?v=20261024-dashboard-api-stats"></script>
+  <script src="motion.js?v=20261110-motion"></script>
+  <script src="mobile.js?v=20261110-mobile"></script>
   <script src="workspace-access.js"></script>
   <script src="current-user.js"></script>
   <script src="support-tickets.js?v=20261027-assignment"></script>

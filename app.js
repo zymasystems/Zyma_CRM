@@ -64,7 +64,6 @@ const state = {
   clientFilter: "all",
   contactFilter: "all",
   projectFilter: "all",
-  projectFolder: "active",
   taskFilter: "all",
   leads: [],
   clients: [],
@@ -161,7 +160,7 @@ function mapApiLead(apiLead) {
     service: apiLead.requirements || apiLead.Requirements || "",
     estimatedValue: apiLead.estimatedValue ?? apiLead.EstimatedValue ?? null,
     assignedToUserId: apiLead.assignedToUserId || apiLead.AssignedToUserId || null,
-    stage: normalizeLeadStage(apiLead.stage || apiLead.Stage || "New"),
+    stage: apiLead.stage || apiLead.Stage || "New",
     owner: "Unassigned",
     followUp: parsedDeadline
       ? parsedDeadline.toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" })
@@ -598,7 +597,7 @@ function setView(view) {
 }
 
 function stageClass(stage) {
-  return ({ New: "status-planning", Discoverycall: "status-progress", "Financial followup": "status-progress", Proposal: "status-planning", Won: "status-done", Lost: "status-hold" })[normalizeLeadStage(stage)] || "status-planning";
+  return ({ New: "status-planning", Discovery: "status-progress", "Follow-up": "status-progress", Proposal: "status-planning", Won: "status-done", Lost: "status-hold" })[stage] || "status-planning";
 }
 function projectStatusClass(status) {
   return ({ "In progress": "status-progress", Planning: "status-planning", Completed: "status-done", "On hold": "status-hold" })[status] || "status-planning";
@@ -690,14 +689,14 @@ function updateMetrics() {
   if ($("#contact-nav-count")) $("#contact-nav-count").textContent = state.contacts.length;
   if ($("#project-nav-count")) $("#project-nav-count").textContent = activeProjects;
   $("#lead-total").textContent = String(openLeads).padStart(2, "0");
-  $("#lead-discovery").textContent = String(state.leads.filter(lead => normalizeLeadStage(lead.stage) === "Discoverycall").length).padStart(2, "0");
+  $("#lead-discovery").textContent = String(state.leads.filter(lead => lead.stage === "Discovery").length).padStart(2, "0");
   $("#lead-proposal").textContent = String(state.leads.filter(lead => lead.stage === "Proposal").length).padStart(2, "0");
   $("#lead-won").textContent = String(state.leads.filter(lead => lead.stage === "Won").length).padStart(2, "0");
   $("#all-lead-count").textContent = state.leads.length;
   $("#lead-table-count").textContent = `Showing ${state.leads.length} leads`;
   $("#client-total").textContent = String(state.clients.length).padStart(2, "0");
   if ($("#client-active-projects")) $("#client-active-projects").textContent = String(state.projects.filter(project => String(project.status).toLowerCase() !== "completed").length).padStart(2, "0");
-  if ($("#project-total")) $("#project-total").textContent = String(state.projects.length).padStart(2, "0");
+  $("#project-total").textContent = String(state.projects.length).padStart(2, "0");
   $("#report-clients").textContent = String(state.clients.length).padStart(2, "0");
   $("#report-leads").textContent = String(openLeads).padStart(2, "0");
 }
@@ -749,26 +748,14 @@ function renderActivity() {
 }
 
 function renderPipeline() {
-  $("#pipeline-summary").innerHTML = LEAD_STAGES.map(stage => {
-    const count = state.leads.filter(lead => normalizeLeadStage(lead.stage) === stage.name).length;
-    return `<div class="pipeline-stage" style="--stage-color:${stage.color}"><small>${stage.name}</small><strong>${count}</strong><span>${stage.hint}</span></div>`;
+  $("#pipeline-summary").innerHTML = LEAD_FLOW.filter(stage => stage.key !== "Lost").map(stage => {
+    const count = state.leads.filter(lead => lead.stage === stage.key).length;
+    return `<div class="pipeline-stage" style="--stage-color:${stage.hex}"><small>${esc(stage.label)}</small><strong>${count}</strong><span>${esc(stage.hint)}</span></div>`;
   }).join("");
 }
 
 // Pipeline stages shown as board columns (same stage names used by filters, forms and the dashboard).
-const LEAD_STAGES = [
-  { name: "New", hint: "New opportunity", color: "var(--blue)" },
-  { name: "Discoverycall", hint: "Understand the brief", color: "var(--violet)" },
-  { name: "Financial followup", hint: "Present pricing & terms", color: "var(--green)" },
-  { name: "Proposal", hint: "SLA sent for signature", color: "var(--orange)" },
-  { name: "Won", hint: "Signed & converted", color: "var(--green)" },
-  { name: "Lost", hint: "Opportunity closed", color: "var(--red)" }
-];
-const LEAD_STAGE_ALIASES = { Discovery: "Discoverycall", "Follow-up": "Financial followup", Requirements: "Financial followup", Negotiation: "Proposal", Agreement: "Proposal" };
-function normalizeLeadStage(stage) {
-  const value = String(stage || "New").trim();
-  return LEAD_STAGE_ALIASES[value] || (LEAD_STAGES.some(item => item.name === value) ? value : "New");
-}
+const LEAD_STAGES = LEAD_FLOW.map(stage => ({ name: stage.key, label: stage.label, hint: stage.hint, color: stage.color }));
 const MONTH_ABBR = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 function parseDisplayDate(value) {
   const text = String(value || "").trim();
@@ -792,27 +779,7 @@ function leadFee(lead) {
 }
 const formatRand = value => `R ${Math.round(value).toLocaleString("en-ZA")}`;
 
-function leadCard(lead) {
-  const fee = leadFee(lead);
-  const stageOptions = LEAD_STAGES.map(stage => `<option value="${esc(stage.name)}" ${stage.name === lead.stage ? "selected" : ""}>${esc(stage.name)}</option>`).join("");
-  const dateText = lead.followUp && lead.followUp !== "—" ? lead.followUp : "No follow-up";
-  return `<article class="lead-card${leadFollowUpOverdue(lead) ? " is-overdue" : ""}" draggable="true" data-lead-card="${esc(lead.id)}">
-    <div class="lead-card-top">
-      ${companyMark(lead.initials || initials(lead.company), lead.color)}
-      <div class="lead-card-title"><button type="button" class="record-link" data-open-record="lead" data-record-id="${esc(lead.id)}">${esc(lead.company)}</button><small>${esc(lead.contact)}</small></div>
-    </div>
-    <p class="lead-service">${esc(lead.service)}</p>
-    ${fee ? `<span class="lead-fee">${esc(formatRand(fee))}</span>` : ""}
-    <div class="lead-card-meta">
-      <span class="lead-owner"><i class="mini-avatar">${esc(initials(lead.owner || "?"))}</i>${esc(lead.owner || "Unassigned")}</span>
-      <span class="lead-date" title="Next follow-up">${leadFollowUpOverdue(lead) ? "⚠ " : "◷ "}${esc(dateText)}</span>
-    </div>
-    <div class="lead-card-foot">
-      <select class="lead-move" data-move-lead="${esc(lead.id)}" aria-label="Move ${esc(lead.company)} to another stage">${stageOptions}</select>
-      <button type="button" class="row-action-button" data-edit-record="lead" data-record-id="${esc(lead.id)}">Edit</button>
-    </div>
-  </article>`;
-}
+function leadCard(lead) { return leadCardMarkup(lead); }
 
 function renderLeadBoard(leads) {
   const board = $("#leads-board");
@@ -822,9 +789,9 @@ function renderLeadBoard(leads) {
     const total = items.reduce((sum, lead) => sum + leadFee(lead), 0);
     return `<div class="lead-column stage-${esc(stage.name.toLowerCase().replace(/[^a-z]/g, ""))}" data-lead-column="${esc(stage.name)}" style="--stage-color:${stage.color}">
       <div class="lead-column-head">
-        <div><strong>${esc(stage.name)}</strong><small>${esc(stage.hint)}</small></div>
+        <div><strong>${esc(stage.label)}</strong><small>${esc(stage.hint)}</small></div>
         <span class="lead-count">${items.length}</span>
-        <button type="button" class="lead-add" data-add-lead-stage="${esc(stage.name)}" aria-label="Add a lead to ${esc(stage.name)}">＋</button>
+        <button type="button" class="lead-add" data-add-lead-stage="${esc(stage.name)}" aria-label="Add a lead to ${esc(stage.label)}">＋</button>
       </div>
       ${total ? `<div class="lead-column-total">${esc(formatRand(total))} quoted</div>` : ""}
       <div class="lead-stack">${items.map(leadCard).join("") || `<div class="lead-empty">Drop a lead here</div>`}</div>
@@ -850,9 +817,9 @@ async function moveLead(id, stage) {
   try {
     if (LEADS_API_ENABLED && lead.apiBacked) await updateApiLead(nextLead);
     lead.stage = stage;
-    state.activities.unshift({ icon: "↗", color: stage === "Lost" ? "orange" : "blue", text: `<strong>Lead moved to ${esc(stage)}</strong> — ${esc(lead.company)} (was ${esc(previous)})`, by: currentActorName(), time: "Just now" });
+    state.activities.unshift({ icon: "↗", color: stage === "Lost" ? "orange" : "blue", text: `<strong>Lead moved to ${esc(leadStageLabel(stage))}</strong> — ${esc(lead.company)} (was ${esc(leadStageLabel(previous))})`, by: currentActorName(), time: "Just now" });
     persistState(); renderAll();
-    toast(`${lead.company} moved to ${stage}${LEADS_API_ENABLED && lead.apiBacked ? " and saved to the CRM database." : "."}`);
+    toast(`${lead.company} moved to ${leadStageLabel(stage)}${LEADS_API_ENABLED && lead.apiBacked ? " and saved to the CRM database." : "."}`);
     return true;
   } catch (error) {
     toast(`Could not update lead stage. ${error.message || "Please try again."}`);
@@ -942,11 +909,12 @@ function renderLeads() {
     <tr>
       <td><div class="table-primary">${companyMark(lead.initials, lead.color)}<div><button type="button" class="record-link" data-open-record="lead" data-record-id="${esc(lead.id)}">${esc(lead.company)}</button><small>${esc(lead.contact)}</small></div></div></td>
       <td>${esc(lead.service)}</td>
-      <td><span class="status-pill ${stageClass(lead.stage)}">${esc(lead.stage)}</span></td>
+      <td><span class="status-pill ${stageClass(lead.stage)}">${esc(leadStageLabel(lead.stage))}</span></td>
       <td>${esc(lead.owner)}</td><td>${esc(lead.followUp)}</td>
       <td>${recordActionButtons("lead", lead.id)}</td>
     </tr>`).join("") || `<tr><td colspan="6">No leads recorded yet. Select “New lead” to add an opportunity.</td></tr>`;
   renderLeadBoard(searched);
+  renderLeadFunnel(state.leads);
   const showBoard = state.leadView !== "table";
   $("#leads-board").classList.toggle("is-hidden", !showBoard);
   $("#leads-table-panel").classList.toggle("is-hidden", showBoard);
@@ -1082,82 +1050,15 @@ function renderContacts() {
   });
   const grid = $("#contact-card-grid");
   if (!grid) return;
-  grid.innerHTML = filtered.map(contact => {
-    const name = contact.name || "Unnamed contact";
-    const organization = contact.organization || "Organization not set";
-    const relationship = contact.relationship || "Contact";
-    const email = contact.email || contact.workEmail || "";
-    const phone = contact.phone || contact.mobile || "";
-    const title = contact.jobTitle || contact.title || contact.position || "Role not provided";
-    const roleClass = /decision maker/i.test(relationship) ? "contact-role-decision" : /project/i.test(relationship) ? "contact-role-project" : /supplier|partner/i.test(relationship) ? "contact-role-partner" : "contact-role-client";
-    const safePhone = phone.replace(/[^+\d]/g, "");
-    return `<article class="contact-card">
-      <div class="contact-card-banner" aria-hidden="true"></div>
-      <div class="contact-card-top"><span class="contact-avatar">${esc(initials(name))}</span><span class="contact-relationship ${roleClass}">${esc(relationship)}</span></div>
-      <div class="contact-card-identity"><h3><button type="button" class="record-link contact-name-link" data-open-record="contact" data-record-id="${esc(contact.id)}">${esc(name)}</button></h3><p>${esc(title)}</p></div>
-      <div class="contact-organization"><span class="contact-info-icon">▦</span><span><small>Organization</small><strong>${esc(organization)}</strong></span></div>
-      <div class="contact-info-list">${email ? `<a class="contact-info-row" href="mailto:${esc(email)}"><span class="contact-info-icon">✉</span><span>${esc(email)}</span></a>` : `<div class="contact-info-row contact-info-muted"><span class="contact-info-icon">✉</span><span>Email not provided</span></div>`}${phone ? `<a class="contact-info-row" href="tel:${esc(safePhone)}"><span class="contact-info-icon">⌕</span><span>${esc(phone)}</span></a>` : `<div class="contact-info-row contact-info-muted"><span class="contact-info-icon">⌕</span><span>Phone not provided</span></div>`}</div>
-      <div class="contact-card-context"><span class="contact-context-label">${esc(contact.linkedRecordType || (contact.source === "Lead" ? "Lead" : contact.source === "Client" ? "Client" : "Contact"))}</span><span>${Number(contact.linkedProjectCount || 0)} ${Number(contact.linkedProjectCount || 0) === 1 ? "project" : "projects"} linked</span></div>
-      <div class="contact-card-footer"><span class="contact-updated-note">${contact.nextFollowUp ? `Follow-up · ${esc(contact.nextFollowUp)}` : contact.department ? esc(contact.department) : (contact.source ? `${esc(contact.source)} relationship` : "Contact profile")}</span><div class="contact-card-actions">${recordActionButtons("contact", contact.id)}</div></div>
-    </article>`;
-  }).join("") || `<div class="contact-empty-state"><span>◎</span><h3>No contacts found</h3><p>Try a different search or filter, or add a new contact to your directory.</p><button type="button" class="button button-secondary" data-contact-reset>Clear filters</button></div>`;
+  const contactSort = $("#contact-sort")?.value || "name";
+  filtered.sort((a, b) => contactSortValue(a, contactSort).localeCompare(contactSortValue(b, contactSort)));
+  grid.innerHTML = filtered.map(contact => contactCardMarkup(contact)).join("") || `<div class="contact-empty-state"><span>◎</span><h3>No contacts found</h3><p>Try a different search or filter, or add a new contact to your directory.</p><button type="button" class="button button-secondary" data-contact-reset>Clear filters</button></div>`;
   const resultCount = $("#contact-results-count");
   if (resultCount) resultCount.textContent = `${filtered.length} ${filtered.length === 1 ? "contact" : "contacts"}`;
   $$("[data-contact-filter]", $("#contact-filters")).forEach(button => button.classList.toggle("active", button.dataset.contactFilter === state.contactFilter));
 }
 
-const PROJECT_ARCHIVE_KEY = "zyma-crm-project-archive-v1";
-function readArchivedProjectIds() {
-  try { const value = JSON.parse(localStorage.getItem(PROJECT_ARCHIVE_KEY) || "[]"); return new Set(Array.isArray(value) ? value.map(String) : []); }
-  catch { return new Set(); }
-}
-let archivedProjectIds = readArchivedProjectIds();
-function setProjectArchived(projectId, archived) {
-  const id = String(projectId);
-  if (archived) archivedProjectIds.add(id); else archivedProjectIds.delete(id);
-  try { localStorage.setItem(PROJECT_ARCHIVE_KEY, JSON.stringify([...archivedProjectIds])); } catch {}
-}
-function renderProjects() {
-  const query = ($("#project-search")?.value || $("#global-search")?.value || "").trim().toLowerCase();
-  const completed = state.projects.filter(project => String(project.status).toLowerCase() === "completed");
-  const archived = completed.filter(project => archivedProjectIds.has(String(project.id)));
-  const active = state.projects.filter(project => String(project.status).toLowerCase() !== "completed");
-  const planning = active.filter(project => project.status === "Planning").length;
-  const set = (id, value) => { const el = $(id); if (el) el.textContent = String(value).padStart(2, "0"); };
-  set("#project-heading-count", state.projects.length); set("#project-active-count", active.length);
-  set("#project-planning-count", planning); set("#project-completed-count", completed.length);
-  set("#project-archived-count", archived.length); set("#project-tab-active", active.length);
-  set("#project-tab-completed", completed.length - archived.length); set("#project-tab-archived", archived.length);
-  const folders = { active: active, completed: completed.filter(p => !archivedProjectIds.has(String(p.id))), archived };
-  let rows = (folders[state.projectFolder] || active).filter(project => {
-    const statusMatch = state.projectFolder !== "active" || state.projectFilter === "all" || project.status === state.projectFilter;
-    return statusMatch && [project.name, project.client, project.code, project.manager].join(" ").toLowerCase().includes(query);
-  });
-  const grid = $("#project-card-grid");
-  if (grid) grid.innerHTML = rows.map(project => {
-    const progress = calculatedProjectProgress(project);
-    const isCompleted = String(project.status).toLowerCase() === "completed";
-    const isArchived = archivedProjectIds.has(String(project.id));
-    const action = isArchived
-      ? `<button type="button" class="button button-secondary project-card-action" data-project-unarchive="${esc(project.id)}">Restore</button>`
-      : isCompleted
-        ? `<button type="button" class="button button-secondary project-card-action" data-project-archive="${esc(project.id)}">Archive project</button>`
-        : `<button type="button" class="button button-secondary project-card-action" data-edit-record="project" data-record-id="${esc(project.id)}">Manage</button>`;
-    return `<article class="project-portfolio-card ${isArchived ? "is-archived" : ""}">
-      <div class="project-card-banner" aria-hidden="true"></div>
-      <div class="project-card-topline"><span class="project-code">${esc(project.code || "PROJECT")}</span><span class="status-pill ${projectStatusClass(project.status)}">${esc(project.status)}</span></div>
-      <div class="project-card-identity">${companyMark(initials(project.name), project.color)}<div><button type="button" class="record-link project-card-title" data-open-record="project" data-record-id="${esc(project.id)}">${esc(project.name)}</button><p>${esc(project.client || "Client not linked")}</p></div></div>
-      <div class="project-progress-meta"><span>Delivery progress</span><strong>${progress}%</strong></div><div class="progress-track project-progress-track"><div class="progress-fill ${progress >= 70 ? "green" : "blue"}" style="width:${progress}%"></div></div>
-      <div class="project-card-meta"><span><small>Target date</small><strong>${esc(project.due || "Not set")}</strong></span><span><small>Project manager</small><strong>${esc(project.manager || "Unassigned")}</strong></span></div>
-      <div class="project-card-footer"><span>${state.tasks.filter(task => String(task.projectId || "") === String(project.id) || String(task.project || "").toLowerCase() === String(project.name).toLowerCase()).length} linked tasks</span><div>${action}<button type="button" class="icon-button" data-open-record="project" data-record-id="${esc(project.id)}" aria-label="Open project">↗</button></div></div>
-    </article>`;
-  }).join("") || `<div class="project-empty-state"><span>▣</span><h3>${state.projectFolder === "active" ? "No active projects found" : state.projectFolder === "completed" ? "No completed projects yet" : "Nothing in the archive yet"}</h3><p>${state.projectFolder === "completed" ? "Projects move here automatically when their status becomes Completed." : state.projectFolder === "archived" ? "Archive completed projects to keep your active workspace focused." : "Try changing your filters or create a new project."}</p></div>`;
-  const table = $("#projects-table");
-  if (table) table.innerHTML = rows.map(project => `<tr><td><div class="table-primary">${companyMark(initials(project.name), project.color)}<div><button type="button" class="record-link" data-open-record="project" data-record-id="${esc(project.id)}">${esc(project.name)}</button><small>${esc(project.code)}</small></div></div></td><td>${esc(project.client)}</td><td><span class="status-pill ${projectStatusClass(project.status)}">${esc(project.status)}</span></td><td>${calculatedProjectProgress(project)}%</td><td>${esc(project.due)}</td><td>${esc(project.manager)}</td><td>${recordActionButtons("project", project.id)}</td></tr>`).join("");
-  $("#project-results-count") && ($("#project-results-count").textContent = `${rows.length} ${rows.length === 1 ? "project" : "projects"}`);
-  $$("[data-project-folder]", $("#project-folder-tabs")).forEach(button => button.classList.toggle("active", button.dataset.projectFolder === state.projectFolder));
-  $("#project-filters")?.classList.toggle("is-hidden", state.projectFolder !== "active");
-}
+function renderProjects() { renderProjectsPage(); }
 
 function renderTasks() {
   const query = ($("#task-search")?.value || $("#global-search")?.value || "").trim().toLowerCase();
@@ -1198,6 +1099,24 @@ function openRecordDetail(type, id) {
   const collection = recordCollections[type];
   const record = collection && state[collection].find(item => String(item.id) === String(id));
   if (!record) return toast("Record not found.");
+  if (type === "contact") {
+    openContactProfile(record);
+    setView("record-detail");
+    window.location.hash = `${type}/${id}`;
+    return;
+  }
+  if (type === "project") {
+    openProjectProfile(record);
+    setView("record-detail");
+    window.location.hash = `${type}/${id}`;
+    return;
+  }
+  if (type === "lead") {
+    openLeadProfile(record);
+    setView("record-detail");
+    window.location.hash = `${type}/${id}`;
+    return;
+  }
   if (type === "client") {
     openClientProfile(record);
     setView("record-detail");
@@ -1233,7 +1152,7 @@ function openRecordDetail(type, id) {
     const projects = state.projects.filter(p => p.client === record.name);
     related = detailSection("Contacts", contacts.map(c => relatedRecordLink("contact", c, c.name, `${c.relationship} · ${c.email}`)).join(""), "No contacts are linked to this client.") + detailSection("Projects", projects.map(p => relatedRecordLink("project", p, p.name, `${p.code} · ${p.status} · ${calculatedProjectProgress(p)}% complete`)).join(""), "No projects are linked to this client.") + detailSection("Leads", state.leads.filter(l => l.company === record.name).map(l => relatedRecordLink("lead", l, l.company, l.stage)).join(""), "No leads use this organization name.");
   } else if (type === "lead") {
-    fields = [detailValue("Company", record.company), detailValue("Contact person", record.contact), detailValue("Service interest", record.service), detailValue("Pipeline stage", normalizeLeadStage(record.stage)), detailValue("Owner", record.owner), detailValue("Next follow-up", record.followUp), detailValue("Email", record.email), detailValue("Phone", record.phone), detailValue("Estimated value", record.estimatedValue == null ? "Not set" : formatRand(record.estimatedValue)), detailValue("Development fee", record.developmentFee == null ? "Not quoted" : formatRand(record.developmentFee)), detailValue("SLA status", record.slaStatus || record.proposalStatus || "Not sent")];
+    fields = [detailValue("Company", record.company), detailValue("Contact person", record.contact), detailValue("Service interest", record.service), detailValue("Pipeline stage", record.stage), detailValue("Owner", record.owner), detailValue("Next follow-up", record.followUp), detailValue("Email", record.email)];
     related = detailSection("Related client", state.clients.filter(c => c.name.toLowerCase() === record.company.toLowerCase()).map(c => relatedRecordLink("client", c, c.name, c.industry)).join(""), "This lead has not been converted to a client.") + detailSection("Potentially related projects", state.projects.filter(p => p.client.toLowerCase() === record.company.toLowerCase()).map(p => relatedRecordLink("project", p, p.name, p.status)).join(""));
   } else if (type === "contact") {
     fields = [detailValue("Full name", record.name), detailValue("Job title", record.jobTitle), detailValue("Department", record.department), detailValue("Organization", record.organization), detailValue("Role in company", record.companyRole), detailValue("Industry", record.industry), detailValue("Work email", record.email), detailValue("Alternative email", record.alternateEmail), detailValue("Direct phone", record.phone), detailValue("Mobile", record.mobile), detailValue("Preferred contact", record.preferredContact), detailValue("LinkedIn", record.linkedin), detailValue("Company website", record.companyWebsite), detailValue("Company email", record.companyEmail), detailValue("Company phone", record.companyPhone), detailValue("Company size", record.companySize), detailValue("Registration number", record.registrationNumber), detailValue("VAT number", record.vatNumber), detailValue("Street address", record.address), detailValue("City", record.city), detailValue("Province / state", record.province), detailValue("Postal code", record.postalCode), detailValue("Country", record.country), detailValue("Relationship", record.relationship), detailValue("Contact source", record.source), detailValue("Last contacted", record.lastContactDate), detailValue("Next follow-up", record.nextFollowUp), detailValue("Notes", record.notes)];
@@ -1256,7 +1175,7 @@ function openRecordDetail(type, id) {
   detailView.innerHTML = `
     <div class="detail-back-row"><button class="button button-secondary" type="button" data-back-to-list>← Back to ${esc(type === "client" ? "clients" : type === "lead" ? "leads" : type === "contact" ? "contacts" : type === "project" ? "projects" : type === "meeting" ? "meetings" : "tasks")}</button><span class="eyebrow">${esc(subtitleMap[type] || "RECORD DETAILS")}</span></div>
     <div class="page-heading detail-heading"><div><p class="eyebrow">${esc(record.code || `ZS-${String(record.id).padStart(3,"0")}`)}</p><h1>${esc(title)}</h1><p class="page-subtitle">${esc(type === "client" ? record.industry : type === "lead" ? record.service : type === "contact" ? record.relationship : type === "project" ? record.client : type === "meeting" ? `${record.type || "Meeting"} · ${record.date || "Date not set"}` : record.project)}</p></div><div class="heading-actions"><button class="button button-secondary" type="button" data-edit-record="${esc(type)}" data-record-id="${esc(record.id)}">Edit record</button></div></div>
-    <div class="detail-layout"><div class="detail-main">${detailSection("Overview", `<div class="detail-fields">${fields.join("")}</div>`)}${related}</div><aside class="detail-side">${detailSection("Record activity", activities.map(a => `<div class="activity-item"><span class="activity-icon ${esc(a.color)}">${esc(a.icon)}</span><div class="activity-copy"><p>${a.text}</p><small>${esc(a.by)} · ${esc(a.time)}</small></div></div>`).join(""), "Activity history will appear here as actions are recorded.")}${detailSection("Record actions", `<div class="detail-action-stack">${type === "lead" && record.stage !== "Lost" && !state.clients.some(client => String(client.name).toLowerCase() === String(record.company).toLowerCase()) ? `<button class="button button-primary" type="button" data-convert-lead="${esc(record.id)}">Convert to client</button>` : ""}${type === "client" ? `<button class="button button-primary" type="button" data-create-project-for-client="${esc(record.id)}">＋ Create project for this client</button>${(record.portalAccess === true || record.hasPortalAccess === true) ? `<span class="status-pill status-done" title="This client has activated their portal account">Client portal active ✓</span>` : `<a class="button button-secondary" href="invite-client.html?clientId=${encodeURIComponent(record.id)}">Invite client to portal ↗</a>`}` : ""}${type === "project" ? `<a class="button button-primary" href="tasks.html?project=${encodeURIComponent(record.id)}">Manage tasks & milestones ↗</a>` : ""}<button class="button button-secondary" type="button" data-edit-record="${esc(type)}" data-record-id="${esc(record.id)}">Edit details</button>${type === "contact" && (record.sourceLeadId || record.sourceClientId) ? "" : `<button class="button button-secondary danger-text" type="button" data-delete-record="${esc(type)}" data-record-id="${esc(record.id)}">Delete record</button>`}</div>`)}</aside></div>${type === "contact" ? renderContactProfileHero(record) : ""}${type === "lead" ? renderLeadProfileProgress(record) + renderLeadWorkspace(record) : ""}`;
+    <div class="detail-layout"><div class="detail-main">${detailSection("Overview", `<div class="detail-fields">${fields.join("")}</div>`)}${related}</div><aside class="detail-side">${detailSection("Record activity", activities.map(a => `<div class="activity-item"><span class="activity-icon ${esc(a.color)}">${esc(a.icon)}</span><div class="activity-copy"><p>${a.text}</p><small>${esc(a.by)} · ${esc(a.time)}</small></div></div>`).join(""), "Activity history will appear here as actions are recorded.")}${detailSection("Record actions", `<div class="detail-action-stack">${type === "lead" && record.stage !== "Lost" && !state.clients.some(client => String(client.name).toLowerCase() === String(record.company).toLowerCase()) ? `<button class="button button-primary" type="button" data-convert-lead="${esc(record.id)}">Convert to client</button>` : ""}${type === "client" ? `<button class="button button-primary" type="button" data-create-project-for-client="${esc(record.id)}">＋ Create project for this client</button>${(record.portalAccess === true || record.hasPortalAccess === true) ? `<span class="status-pill status-done" title="This client has activated their portal account">Client portal active ✓</span>` : `<a class="button button-secondary" href="invite-client.html?clientId=${encodeURIComponent(record.id)}">Invite client to portal ↗</a>`}` : ""}${type === "project" ? `<a class="button button-primary" href="tasks.html?project=${encodeURIComponent(record.id)}">Manage tasks & milestones ↗</a>` : ""}<button class="button button-secondary" type="button" data-edit-record="${esc(type)}" data-record-id="${esc(record.id)}">Edit details</button>${type === "contact" && (record.sourceLeadId || record.sourceClientId) ? "" : `<button class="button button-secondary danger-text" type="button" data-delete-record="${esc(type)}" data-record-id="${esc(record.id)}">Delete record</button>`}</div>`)}</aside></div>${type === "lead" ? renderLeadWorkspace(record) : ""}`;
   setView("record-detail");
   if (type === "lead") updateCommercialCalculations();
   window.location.hash = `${type}/${id}`;
@@ -1291,38 +1210,15 @@ function renderMeetings() {
   $("#meeting-followup").textContent = String(state.meetings.filter(m => m.status === "Completed" && m.nextAction).length).padStart(2,"0");
 }
 
-function renderContactProfileHero(contact) {
-  const name = contact.name || "Unnamed contact";
-  const email = contact.email || contact.workEmail || "";
-  const phone = contact.phone || contact.mobile || "";
-  const phoneHref = String(phone).replace(/[^+\\d]/g, "");
-  return `<section class="contact-profile-hero panel">
-    <div class="contact-profile-identity"><span class="contact-profile-avatar">${esc(initials(name))}</span><div><p class="eyebrow">CONTACT RECORD</p><h2>${esc(name)}</h2><p>${esc(contact.jobTitle || contact.title || contact.position || "Role not provided")} · ${esc(contact.organization || "Organization not linked")}</p></div></div>
-    <div class="contact-profile-actions">${email ? `<a class="button button-secondary" href="mailto:${esc(email)}">✉ Email contact</a>` : ""}${phone ? `<a class="button button-primary" href="tel:${esc(phoneHref)}">☎ Call contact</a>` : ""}</div>
-  </section>`;
-}
-
-function renderLeadProfileProgress(lead) {
-  const current = normalizeLeadStage(lead.stage);
-  const stages = LEAD_STAGES.filter(stage => !["Won", "Lost"].includes(stage.name));
-  const currentIndex = stages.findIndex(stage => stage.name === current);
-  const terminal = ["Won", "Lost"].includes(current);
-  return `<section class="lead-profile-journey panel">
-    <div class="lead-journey-heading"><div><p class="eyebrow">SALES JOURNEY</p><h2>Opportunity progress</h2><p>Move the opportunity through Zyma's actual client acquisition process.</p></div><span class="status-pill ${stageClass(current)}">${esc(current)}</span></div>
-    <div class="lead-journey-steps">${stages.map((stage,index)=>`<div class="lead-journey-step ${index < currentIndex || current === stage.name || current === "Won" ? "is-done" : ""} ${current === stage.name ? "is-current" : ""}"><span>${index < currentIndex || current === "Won" ? "✓" : String(index+1).padStart(2,"0")}</span><strong>${esc(stage.name)}</strong></div>`).join("")}<div class="lead-journey-step lead-terminal-step ${current === "Won" ? "is-done is-current" : ""}"><span>${current === "Won" ? "✓" : "05"}</span><strong>Won</strong></div><div class="lead-journey-step lead-terminal-step is-lost ${current === "Lost" ? "is-done is-current" : ""}"><span>${current === "Lost" ? "✓" : "×"}</span><strong>Lost</strong></div></div>
-    <div class="lead-journey-actions">${stages.map((stage,index)=>`<button type="button" class="button ${current === stage.name ? "button-primary" : "button-secondary"}" data-lead-set-stage="${esc(lead.id)}" data-stage="${esc(stage.name)}" ${current === stage.name ? "disabled" : ""}>${esc(stage.name)}</button>`).join("")}<button type="button" class="button button-secondary" data-lead-set-stage="${esc(lead.id)}" data-stage="Lost" ${current === "Lost" ? "disabled" : ""}>Mark lost</button>${current === "Won" ? `<span class="lead-converted-note">Converted to client</span>` : ""}</div>
-  </section>`;
-}
-
 function renderLeadWorkspace(lead) {
   const money = value => value === "" || value == null ? "Not set" : `R ${Number(value).toLocaleString("en-ZA", {minimumFractionDigits:2, maximumFractionDigits:2})}`;
   const depositRequired = Number(lead.developmentFee || 0) * Number(lead.minimumDepositPercent || 0) / 100;
   const outstandingDeposit = Math.max(0, depositRequired - Number(lead.depositPaid || 0));
   const linkedMeetings = state.meetings.filter(m => String(m.leadId) === String(lead.id) || m.lead === lead.company);
   return `<section class="lead-workspace panel">
-    <div class="panel-heading"><div><h2>Lead workspace</h2><p>Capture the discovery outcome, solution scope and commercial terms before converting this lead.</p></div><span class="status-pill ${stageClass(lead.stage)}">${esc(lead.stage)}</span></div>
+    <div class="panel-heading"><div><h2>Lead workspace</h2><p>Capture the discovery outcome, solution scope and commercial terms before converting this lead.</p></div><span class="status-pill ${stageClass(lead.stage)}">${esc(leadStageLabel(lead.stage))}</span></div>
     <form id="lead-workspace-form" data-lead-id="${esc(lead.id)}">
-      <div class="workspace-section"><div class="workspace-section-heading"><div><p class="eyebrow">01 · DISCOVERY & REQUIREMENTS</p><h3>What does the client need?</h3></div><button type="button" class="button button-secondary" data-export-discovery-pdf>Download PDF</button></div><div class="workspace-form-grid">
+      <div class="workspace-section"><div class="workspace-section-heading"><div><p class="eyebrow">Discovery call</p><h3>What does the client need?</h3></div><button type="button" class="button button-secondary" data-export-discovery-pdf>Download PDF</button></div><div class="workspace-form-grid">
         ${workspaceField("discoveryNotes","Discovery call notes",lead.discoveryNotes,"textarea","What did the client explain? Current process, pain points, goals...",true)}
         ${workspaceField("requirements","Application requirements",lead.requirements,"textarea","Business problem, expected outcomes and core requirements...",true)}
         ${workspaceField("requiredFeatures","Required features",lead.requiredFeatures,"textarea","Feature list, workflows, dashboards, reports and user actions...",true)}
@@ -1333,7 +1229,7 @@ function renderLeadWorkspace(lead) {
         ${workspaceField("acceptanceCriteria","Acceptance criteria",lead.acceptanceCriteria,"textarea","How will the client confirm that the solution is complete?")}
         ${workspaceField("targetDeadline","Required deadline",lead.targetDeadline,"date")}
       </div></div>
-      <div class="workspace-section"><div class="workspace-section-heading"><div><p class="eyebrow">02 · PRICING & PAYMENT TERMS</p><h3>Commercial agreement</h3></div><p class="muted">Amounts are in South African rand (ZAR).</p></div><div class="workspace-form-grid">
+      <div class="workspace-section"><div class="workspace-section-heading"><div><p class="eyebrow">Financial follow-up</p><h3>Commercial agreement</h3></div><p class="muted">Amounts are in South African rand (ZAR).</p></div><div class="workspace-form-grid">
         ${workspaceField("developmentFee","Once-off development fee (R)",lead.developmentFee,"number","",false,"min=0 step=0.01")}
         ${workspaceField("minimumDepositPercent","Minimum deposit (%)",lead.minimumDepositPercent,"select","",false,"",["Select after financial meeting","30","40","50"])}
         ${workspaceField("depositPaid","Deposit received (R)",lead.depositPaid,"number","",false,"min=0 step=0.01")}
@@ -1344,11 +1240,16 @@ function renderLeadWorkspace(lead) {
         ${workspaceField("freeMonths","Free months after deployment",lead.freeMonths,"number","",false,"min=0 step=1")}
         ${workspaceField("deploymentDate","Expected / actual deployment date",lead.deploymentDate,"date")}
         ${workspaceField("recurringPaymentDay","Recurring payment day",lead.recurringPaymentDay || "01", "select", "", false, "", ["15","22","25","30","01"])}
-        ${workspaceField("recurringPaymentDay","Recurring payment day",lead.recurringPaymentDay || "01", "select", "", false, "", ["15","22","25","30","01"])}
         ${workspaceField("firstRecurringDate","First recurring payment date",lead.firstRecurringDate,"date")}
         ${workspaceField("commercialNotes","Additional commercial terms",lead.commercialNotes,"textarea","Contract term, cancellation notice, annual increases, exclusions...")}
       </div><div class="financial-summary"><div><span>Minimum deposit required</span><strong id="calc-deposit-required">${money(depositRequired)}</strong></div><div><span>Deposit received</span><strong id="calc-deposit-paid">${money(lead.depositPaid)}</strong></div><div><span>Deposit outstanding</span><strong id="calc-deposit-outstanding">${money(outstandingDeposit)}</strong></div><div><span>Remaining development balance</span><strong id="calc-development-balance">${money(Math.max(0,Number(lead.developmentFee||0)-Number(lead.depositPaid||0)))}</strong></div><div><span>Monthly recurring total</span><strong id="calc-recurring-total">${money(Number(lead.monthlyFee||0)+Number(lead.zohoMonthlyFee||0))}</strong></div></div><p class="form-hint">Project start should be confirmed only after the required deposit is received and the agreement is signed. These figures are planning aids, not payment confirmations.</p></div>
-      <div class="workspace-section"><div class="workspace-section-heading"><div><p class="eyebrow">03 · ZOHO & THIRD-PARTY SUBSCRIPTIONS</p><h3>Recurring services</h3></div></div><div class="workspace-form-grid">
+      <div class="workspace-section"><div class="workspace-section-heading"><div><p class="eyebrow">Proposal</p><h3>SLA and signing</h3></div><p class="muted">Send the service level agreement, then record when the client signs it.</p></div><div class="workspace-form-grid">
+        ${workspaceField("slaReference","SLA reference",lead.slaReference,"text","e.g. SLA-2026-014")}
+        ${workspaceField("slaSentDate","SLA sent on",lead.slaSentDate,"date")}
+        ${workspaceField("slaSignedDate","SLA signed on",lead.slaSignedDate,"date")}
+        ${workspaceField("slaNotes","SLA notes",lead.slaNotes,"textarea","Changes the client asked for, who signed, where the signed copy is stored...",true)}
+      </div></div>
+      <div class="workspace-section"><div class="workspace-section-heading"><div><p class="eyebrow">Subscriptions</p><h3>Recurring services</h3></div></div><div class="workspace-form-grid">
         ${workspaceField("zohoProduct","Zoho service",lead.zohoProduct,"select","",false,"",["Not selected","Zoho Mail","Zoho Workplace"])}
         ${workspaceField("zohoPlan","Zoho plan",lead.zohoPlan,"select","",false,"",["Not selected","Mail Lite","Mail Premium","Workplace Standard","Workplace Professional"])}
         ${workspaceField("zohoBillingPeriod","Zoho billing period",lead.zohoBillingPeriod,"select","",false,"",["Annual billing","Monthly billing"])}
@@ -1358,14 +1259,7 @@ function renderLeadWorkspace(lead) {
         ${workspaceField("zohoBillingDate","Zoho renewal / billing date",lead.zohoBillingDate,"date")}
         ${workspaceField("otherSubscriptions","Other subscriptions and renewal dates",lead.otherSubscriptions,"textarea","Service, amount, billing cycle, renewal date and who pays...")}
       </div></div>
-      <div class="workspace-section"><div class="workspace-section-heading"><div><p class="eyebrow">04 · PROPOSAL & SERVICE LEVEL AGREEMENT</p><h3>Send, track and confirm the SLA</h3></div></div><div class="workspace-form-grid">
-        ${workspaceField("slaStatus","SLA status",lead.slaStatus || "Not sent","select","",false,"",["Not sent","Prepared","Sent to client","Awaiting signature","Signed","Declined"])}
-        ${workspaceField("slaDocumentUrl","SLA document link",lead.slaDocumentUrl,"text","Paste the shared document or signing link...")}
-        ${workspaceField("slaSentDate","Date SLA sent",lead.slaSentDate,"date")}
-        ${workspaceField("slaSignedDate","Date SLA signed",lead.slaSignedDate,"date")}
-        ${workspaceField("proposalNotes","Proposal / SLA notes",lead.proposalNotes,"textarea","Client feedback, requested changes, signature details...")}
-      </div><p class="form-hint">Move the lead to Won only after the client accepts the proposal and signs the SLA. The Won action converts the opportunity into a client record.</p></div>
-      <div class="workspace-form-actions"><span class="muted">Save discovery, pricing and SLA details to this lead record.</span><button class="button button-primary" type="submit">Save lead workspace</button></div>
+      <div class="workspace-form-actions"><span class="muted">Saved to this browser preview until the backend is connected.</span><button class="button button-primary" type="submit">Save lead workspace</button></div>
     </form>
     <div class="workspace-section linked-meetings"><div class="panel-heading"><div><h3>Meetings for ${esc(lead.company)}</h3><p>Schedule the next meeting after the discovery call.</p></div><button class="button button-secondary" type="button" data-schedule-for-lead="${esc(lead.id)}">＋ Schedule meeting</button></div>
       ${linkedMeetings.length ? linkedMeetings.map(m=>`<div class="meeting-inline"><div><strong>${esc(m.title)}</strong><small>${esc(m.date)} · ${esc(m.time)} · ${esc(m.type)}</small><p>${esc(m.outcome || m.notes || "No meeting notes recorded yet.")}</p></div><span class="status-pill ${m.status === "Completed" ? "status-done" : "status-progress"}">${esc(m.status)}</span><button class="row-action-button" data-edit-record="meeting" data-record-id="${esc(m.id)}">Edit</button></div>`).join("") : `<p class="muted">No meetings recorded for this lead yet.</p>`}
@@ -1447,9 +1341,8 @@ function renderLeadTrendChart() {
 }
 
 function renderDashboardCharts() {
-  const leadStages = ["New", "Discovery", "Follow-up", "Requirements", "Proposal", "Negotiation", "Agreement", "Won", "Lost"];
-  const stageColors = ["#6aa9ff", "#b09aff", "#52c69a", "#7db8ff", "#f58220", "#e7b65c", "#b09aff", "#52c69a", "#ff7b83"];
-  const leadCounts = leadStages.map(name => ({ name, value: state.leads.filter(lead => lead.stage === name).length }));
+  const stageColors = LEAD_FLOW.map(stage => stage.hex);
+  const leadCounts = LEAD_FLOW.map(stage => ({ name: stage.label, value: state.leads.filter(lead => lead.stage === stage.key).length }));
   const maxLeadCount = Math.max(1, ...leadCounts.map(item => item.value));
   const leadChart = $("#chart-lead-stages");
   if (leadChart) leadChart.innerHTML = leadCounts.map((item, i) => `
@@ -1624,7 +1517,7 @@ function renderReportTrend() {
 function renderReports() {
   const openLeads=state.leads.filter(x=>!["Won","Lost"].includes(x.stage)).length, activeProjects=state.projects.filter(x=>!["Completed","Cancelled"].includes(x.status)).length, openTasks=state.tasks.filter(x=>!isTaskComplete(x)).length;
   $("#report-clients").textContent=String(state.clients.length).padStart(2,"0"); $("#report-leads").textContent=String(openLeads).padStart(2,"0"); $("#report-projects").textContent=String(activeProjects).padStart(2,"0"); $("#report-tasks").textContent=String(openTasks).padStart(2,"0");
-  const names=["New","Discovery","Follow-up","Requirements","Proposal","Negotiation","Agreement","Won","Lost"], colors=["#6aa9ff","#b09aff","#52c69a","#7db8ff","#f58220","#e7b65c","#b09aff","#52c69a","#ff7b83"], stages=names.map((name,i)=>({name,count:state.leads.filter(x=>x.stage===name).length,color:colors[i]})), maxStage=Math.max(1,...stages.map(x=>x.count));
+  const stages=LEAD_FLOW.map(stage=>({name:stage.label,count:state.leads.filter(x=>x.stage===stage.key).length,color:stage.hex})), maxStage=Math.max(1,...stages.map(x=>x.count));
   const stageTarget=$("#report-lead-stages"); if(stageTarget)stageTarget.innerHTML=stages.map(x=>`<div class="chart-bar-row"><span class="chart-axis-label">${esc(x.name)}</span><div class="chart-bar-track"><div class="chart-bar" style="--bar-color:${x.color};width:${x.count/maxStage*100}%"></div></div><strong class="chart-value">${x.count}</strong></div>`).join("")+`<p class="chart-footnote">${state.leads.length} total lead records.</p>`;
   const won=state.leads.filter(x=>x.stage==="Won").length,lost=state.leads.filter(x=>x.stage==="Lost").length,conversion=state.leads.length?Math.round(won/state.leads.length*100):0, conv=$("#report-conversion");
   if(conv){
@@ -1782,6 +1675,8 @@ function exportReport(type) {
 }
 
 function renderAll() {
+  normalizeLeadStages();
+  syncProjectArchive();
   syncRelationshipContacts();
   updateMetrics();
   renderDashboardProjects();
@@ -1799,6 +1694,9 @@ function renderAll() {
   renderCommunications();
   renderReports();
   refreshClientProfile();
+  refreshLeadProfile();
+  refreshContactProfile();
+  refreshProjectProfile();
 }
 
 function fieldMarkup(field) {
@@ -1824,7 +1722,7 @@ const modalDefinitions = {
       { name: "contact", label: "Contact person", required: true, placeholder: "Full name" },
       { name: "email", label: "Email address", type: "email", required: true, placeholder: "name@company.co.za" },
       { name: "service", label: "Service interest", required: true, full: true, placeholder: "e.g. Workflow automation" },
-      { name: "stage", label: "Pipeline stage", type: "select", options: [{value:"New",label:"New"},{value:"Discovery",label:"Discovery"},{value:"Follow-up",label:"Follow-up meeting"},{value:"Requirements",label:"Requirements & scoping"},{value:"Proposal",label:"Proposal"},{value:"Negotiation",label:"Negotiation"},{value:"Agreement",label:"Agreement & deposit"},{value:"Won",label:"Won / converted"},{value:"Lost",label:"Lost"}] },
+      { name: "stage", label: "Pipeline stage", type: "select", options: LEAD_FLOW.map(stage => ({ value: stage.key, label: stage.label }))  },
       { name: "followUp", label: "Next follow-up", type: "date" }
     ],
     async save(data) {
@@ -2003,7 +1901,7 @@ const modalDefinitions = {
       { name: "projectLeadUserId", label: "Project lead", type: "select", full: true, options: [{value:"",label:"Unassigned"}] },
       { name: "startDate", label: "Start date", type: "date" },
       { name: "due", label: "Target completion date", type: "date" },
-      { name: "status", label: "Initial status", type: "select", required: true, options: [{value:"Planning",label:"Planning"},{value:"In progress",label:"In progress"},{value:"On hold",label:"On hold"},{value:"Completed",label:"Completed"}] },
+      { name: "status", label: "Initial status", type: "select", required: true, options: [{value:"Planning",label:"Planning"},{value:"In progress",label:"In progress"},{value:"On hold",label:"On hold"},{value:"Completed",label:"Completed — move to the archive"}] },
       { name: "scope", label: "Agreed scope / deliverables", type: "textarea", full: true, placeholder: "Record the agreed deliverables, boundaries and acceptance criteria." }
     ],
     async save(data) {
@@ -2568,6 +2466,7 @@ $("#client-grid")?.addEventListener("click", event => {
   renderClients();
 });
 $("#contact-search").addEventListener("input", renderContacts);
+$("#contact-sort")?.addEventListener("change", renderContacts);
 $("#contact-filters")?.addEventListener("click", event => {
   const button = event.target.closest("[data-contact-filter]");
   if (!button) return;
@@ -2582,32 +2481,6 @@ $("#contact-card-grid")?.addEventListener("click", event => {
   renderContacts();
 });
 $("#project-search").addEventListener("input", renderProjects);
-$("#project-folder-tabs")?.addEventListener("click", event => {
-  const button = event.target.closest("[data-project-folder]");
-  if (!button) return;
-  state.projectFolder = button.dataset.projectFolder;
-  state.projectFilter = "all";
-  $$("#project-filters [data-filter]").forEach(tab => tab.classList.toggle("active", tab.dataset.filter === "all"));
-  renderProjects();
-});
-document.addEventListener("click", async event => {
-  const stageButton = event.target.closest("[data-lead-set-stage]");
-  if (stageButton) {
-    const lead = state.leads.find(item => String(item.id) === String(stageButton.dataset.leadSetStage));
-    if (lead) {
-      const moved = await moveLead(lead.id, normalizeLeadStage(stageButton.dataset.stage));
-      if (moved && $("#view-record-detail").dataset.recordType === "lead") openRecordDetail("lead", lead.id);
-    }
-    return;
-  }
-  const archive = event.target.closest("[data-project-archive]");
-  const restore = event.target.closest("[data-project-unarchive]");
-  if (!archive && !restore) return;
-  const id = (archive || restore).dataset.projectArchive || (archive || restore).dataset.projectUnarchive;
-  setProjectArchived(id, Boolean(archive));
-  renderProjects();
-  toast(archive ? "Project moved to the archive." : "Project restored to the completed folder.");
-});
 $("#task-search").addEventListener("input", renderTasks);
 $("#meeting-search")?.addEventListener("input", renderMeetings);
 $("#reports-period")?.addEventListener("change", renderReportTrend);
@@ -2615,7 +2488,7 @@ $("#reports-period")?.addEventListener("change", renderReportTrend);
 $("#lead-filters").addEventListener("click", event => {
   const button = event.target.closest("[data-filter]");
   if (!button) return;
-  state.leadFilter = button.dataset.filter === "all" ? "all" : normalizeLeadStage(button.dataset.filter);
+  state.leadFilter = button.dataset.filter;
   $$(".filter-tab", $("#lead-filters")).forEach(tab => tab.classList.toggle("active", tab === button));
   renderLeads();
 });

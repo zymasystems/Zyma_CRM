@@ -1,0 +1,106 @@
+/* Zyma CRM — contacts directory and contact profile. Builds on clients.css. */
+
+#view-contacts .eyebrow { letter-spacing: 0; font-size: 12px; font-weight: 600; color: var(--muted); }
+#view-contacts .page-heading h1 { font-size: 30px; letter-spacing: -.035em; }
+#view-contacts .page-subtitle { font-size: 13px; max-width: 58ch; }
+#view-contacts .contacts-metrics {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin-bottom: 18px; overflow: hidden;
+  border: 1px solid var(--border); border-radius: var(--cp-radius); background: var(--surface);
+}
+#view-contacts .contacts-metrics > .contact-summary-card { min-height: 0; padding: 20px 24px; border: 0; border-left: 1px solid var(--border-soft); border-radius: 0; background: transparent; box-shadow: none; transform: none; }
+#view-contacts .contacts-metrics > .contact-summary-card:first-child { border-left: 0; }
+#view-contacts .contacts-metrics > .contact-summary-card:hover { transform: none; box-shadow: none; background: var(--surface-raised); }
+#view-contacts .contact-summary-card .metric-label { font-size: 12px; color: var(--muted); }
+#view-contacts .contact-summary-card .metric-value { margin-top: 8px; font-size: 32px; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+#view-contacts .client-summary-foot { font-size: 12px; }
+#view-contacts .contact-directory-panel { border-radius: var(--cp-radius); }
+#view-contacts .contact-directory-toolbar .eyebrow { display: none; }
+#view-contacts .contact-directory-toolbar h2 { font-size: 18px; }
+#view-contacts .contact-directory-toolbar .muted { font-size: 12.5px; }
+#view-contacts .contact-search-box input { font-size: 12.5px; }
+#view-contacts .contact-directory-controls .filter-tab { font-size: 12.5px; padding: 8px 12px; }
+#view-contacts .client-results-count { font-size: 12px; }
+.contact-directory-controls .cp-sort { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+.contact-directory-controls .cp-sort select { min-height: 32px; padding: 0 28px 0 10px; font-size: 12px; border-radius: 8px; }
+#view-contacts .contact-card-grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; padding: 22px; }
+
+/* ---------- Directory card ---------- */
+.ct-card, .ct-profile, .ct-org-mono {
+  --cp-accent: hsl(var(--h) var(--cp-sat) var(--cp-light));
+  --cp-accent-soft: color-mix(in srgb, var(--cp-accent) 15%, transparent);
+  --cp-accent-line: color-mix(in srgb, var(--cp-accent) 38%, var(--border));
+  --cp-ink: color-mix(in srgb, var(--cp-accent) 55%, var(--text));
+}
+.ct-card {
+  position: relative; display: flex; flex-direction: column; min-width: 0; padding: 20px; overflow: hidden;
+  border: 1px solid var(--border); border-radius: var(--cp-radius); background: var(--surface);
+  transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+}
+.ct-card::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 70px; background: linear-gradient(180deg, color-mix(in srgb, var(--cp-accent) 13%, transparent), transparent); pointer-events: none; }
+.ct-card:hover, .ct-card:focus-within { border-color: var(--cp-accent-line); box-shadow: 0 14px 34px color-mix(in srgb, var(--cp-accent) 12%, transparent); transform: translateY(-2px); }
+.ct-card-head { position: relative; display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.ct-avatar {
+  display: grid; place-items: center; width: 54px; height: 54px; flex: 0 0 auto; border-radius: 50%;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--cp-accent) 92%, white 8%), color-mix(in srgb, var(--cp-accent) 68%, black 32%));
+  color: #fff; font: 800 18px Manrope, sans-serif; letter-spacing: .02em; text-shadow: 0 1px 2px rgba(0,0,0,.25);
+  box-shadow: 0 0 0 4px var(--surface), 0 0 0 5px var(--cp-accent-line);
+}
+.ct-avatar-xl { width: 104px; height: 104px; font-size: 36px; box-shadow: 0 0 0 6px var(--surface), 0 0 0 8px var(--cp-accent-line), 0 14px 30px color-mix(in srgb, var(--cp-accent) 28%, transparent); }
+.ct-role { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.ct-role.is-decision { background: var(--orange-soft); color: var(--orange); }
+.ct-role.is-project { background: var(--blue-soft); color: var(--blue); }
+.ct-role.is-client { background: var(--green-soft); color: var(--green); }
+.ct-role.is-partner { background: var(--violet-soft); color: var(--violet); }
+.ct-role.is-prospect { background: var(--surface-hover); color: var(--muted); }
+.ct-name { margin: 16px 0 3px; font: 700 17px/1.25 Manrope, sans-serif; letter-spacing: -.02em; overflow-wrap: anywhere; }
+.ct-link { all: unset; cursor: pointer; color: var(--text); }
+.ct-link::after { content: ""; position: absolute; inset: 0; z-index: 1; } /* whole card opens the profile; buttons sit above it */
+.ct-link:focus-visible { outline: none; }
+.ct-card:has(.ct-link:focus-visible) { outline: 2px solid var(--orange); outline-offset: 2px; }
+.ct-title { margin: 0; color: var(--muted); font-size: 13px; }
+.ct-org { display: flex; align-items: center; gap: 8px; margin: 12px 0 0; padding: 9px 12px; border-radius: 10px; background: var(--cp-accent-soft); color: var(--cp-ink); font-size: 13px; font-weight: 600; min-width: 0; }
+.ct-org > span { opacity: .8; }
+.ct-reach { position: relative; z-index: 2; display: flex; align-items: center; gap: 8px; margin-top: 14px; min-width: 0; }
+.ct-reach-btn { display: inline-grid; place-items: center; width: 34px; height: 34px; flex: 0 0 auto; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-raised); color: var(--text); font-size: 14px; transition: background .15s ease, border-color .15s ease, transform .15s ease; }
+a.ct-reach-btn:hover { background: var(--cp-accent-soft); border-color: var(--cp-accent-line); transform: translateY(-1px); }
+.ct-reach-btn.is-off { opacity: .35; }
+.ct-reach-text { min-width: 0; margin-left: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 12.5px; }
+.ct-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: auto; padding-top: 16px; }
+.ct-meta { color: var(--muted); font-size: 12.5px; }
+.ct-follow { display: inline-flex; flex-direction: column; font-size: 13px; font-weight: 700; color: var(--text); line-height: 1.2; }
+.ct-follow small { color: var(--muted-2); font-size: 11.5px; font-weight: 500; }
+.ct-follow.is-overdue { color: #e58a2c; }
+.ct-actions { position: relative; z-index: 2; }
+.ct-actions .row-action-button { font-size: 12px; padding: 6px 10px; }
+
+/* ---------- Profile ---------- */
+.ct-profile .cp-hero-main { align-items: end; }
+.ct-profile .cp-hero-id p { font-size: 15px; }
+.ct-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.ct-kpis .cp-kpi strong { font-size: 22px; overflow-wrap: anywhere; }
+.ct-reach-list { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.ct-reach-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 14px 16px; border: 1px solid var(--border-soft); border-radius: 14px; background: var(--surface-raised); transition: border-color .15s ease, background .15s ease, transform .15s ease; }
+.ct-reach-row:hover { border-color: var(--cp-accent-line); background: color-mix(in srgb, var(--cp-accent) 6%, var(--surface-raised)); transform: translateY(-1px); }
+.ct-reach-row:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+.ct-reach-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--cp-accent-soft); color: var(--cp-ink); font: 800 14px Manrope, sans-serif; }
+.ct-reach-row small { display: block; color: var(--muted); font-size: 12px; }
+.ct-reach-row strong { display: block; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+.ct-reach-go { color: var(--muted-2); font-size: 14px; }
+.ct-notes { margin: 0; color: var(--text); font-size: 14.5px; line-height: 1.7; max-width: 66ch; white-space: pre-wrap; }
+.ct-org-mono { width: 44px; height: 44px; border-radius: 13px; font-size: 14px; border-width: 2px; box-shadow: none; }
+.ct-managed { margin: 12px 0 0; font-size: 12.5px; }
+
+@media (max-width: 900px) {
+  #view-contacts .contacts-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #view-contacts .contacts-metrics > .contact-summary-card:nth-child(3) { border-left: 0; }
+  #view-contacts .contacts-metrics > .contact-summary-card:nth-child(n+3) { border-top: 1px solid var(--border-soft); }
+  .ct-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ct-kpis .cp-kpi:nth-child(3) { border-left: 0; }
+  .ct-kpis .cp-kpi:nth-child(n+3) { border-top: 1px solid var(--border-soft); }
+}
+@media (max-width: 640px) {
+  #view-contacts .contact-card-grid { grid-template-columns: minmax(0, 1fr); padding: 16px; }
+  .contact-directory-controls .cp-sort { margin-left: 0; }
+  .ct-avatar-xl { width: 84px; height: 84px; font-size: 28px; }
+  .ct-reach-list { grid-template-columns: minmax(0, 1fr); }
+}
