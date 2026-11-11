@@ -189,13 +189,17 @@ function toApiLeadPayload(lead) {
   };
 }
 
-async function loadApiLeads() {
+function linkClientProjectCounts() {
+  state.clients.forEach(client => { client.projects = state.projects.filter(p => p.clientId === String(client.id)).length; });
+}
+
+async function loadApiLeads({ render = true } = {}) {
   if (!LEADS_API_ENABLED) return;
   try {
     const response = await window.ZymaCrmApi.request("/leads");
     if (!Array.isArray(response)) throw new Error("The Leads API returned an unexpected response.");
     state.leads = response.map(mapApiLead);
-    renderAll();
+    if (render) renderAll();
   } catch (error) {
     console.error("Unable to load API-backed leads.", error);
     toast(`Could not load leads from the API. ${error.message || "Please try again."}`);
@@ -283,14 +287,14 @@ function toApiProjectPayload(project) {
     targetEndDateUtc: project.due ? new Date(`${project.due}T00:00:00Z`).toISOString() : null
   };
 }
-async function loadApiProjects() {
+async function loadApiProjects({ render = true } = {}) {
   if (!CLIENTS_API_ENABLED) return;
   try {
     const response = await window.ZymaCrmApi.request("/projects");
     if (!Array.isArray(response)) throw new Error("The Projects API returned an unexpected response.");
     state.projects = response.map(mapApiProject);
-    state.clients.forEach(client => { client.projects = state.projects.filter(p => p.clientId === String(client.id)).length; });
-    renderAll();
+    linkClientProjectCounts();
+    if (render) renderAll();
   } catch (error) {
     console.error("Unable to load API-backed projects.", error);
     toast(`Could not load projects from the API. ${error.message || "Please try again."}`);
@@ -306,13 +310,14 @@ async function deleteApiProject(project) {
   return window.ZymaCrmApi.request(`/projects/${encodeURIComponent(project.sourceId || project.id)}`, { method: "DELETE" });
 }
 
-async function loadApiClients() {
+async function loadApiClients({ render = true } = {}) {
   if (!CLIENTS_API_ENABLED) return;
   try {
     const response = await window.ZymaCrmApi.request("/clients");
     if (!Array.isArray(response)) throw new Error("The Clients API returned an unexpected response.");
     state.clients = response.map(mapApiClient);
-    renderAll();
+    linkClientProjectCounts();
+    if (render) renderAll();
   } catch (error) {
     console.error("Unable to load API-backed clients.", error);
     toast(`Could not load clients from the API. ${error.message || "Please try again."}`);
@@ -444,13 +449,13 @@ function toApiContactPayload(contact) {
   };
 }
 
-async function loadApiContacts() {
+async function loadApiContacts({ render = true } = {}) {
   if (!CONTACTS_API_ENABLED) return;
   try {
     const response = await window.ZymaCrmApi.request("/contacts");
     if (!Array.isArray(response)) throw new Error("The Contacts API returned an unexpected response.");
     state.contacts = response.map(mapApiContact);
-    renderAll();
+    if (render) renderAll();
 
     // One-time migration: move legacy extended fields from this browser into the API
     // only where the server does not already have a value. Server values always win.
@@ -618,6 +623,7 @@ function getDashboardWeekStart(date = new Date()) {
   return `${monday.getFullYear()}-${String(monday.getMonth()+1).padStart(2,"0")}-${String(monday.getDate()).padStart(2,"0")}`;
 }
 function renderMetricChangeBadges(metrics) {
+  if (!document.getElementById("metric-clients-change")) return;
   const key = "zyma-crm-dashboard-metric-history-v1";
   const week = getDashboardWeekStart();
   let history = [];
@@ -653,6 +659,7 @@ function renderMetricChangeBadges(metrics) {
     badge.setAttribute("aria-label", `${badge.textContent} compared with the previous week`);
   });
 }
+function setMetricText(selector, value) { const el = $(selector); if (el) el.textContent = value; }
 function updateMetrics() {
   const openLeads = state.leads.filter(lead => !["Won", "Lost"].includes(lead.stage)).length;
   const activeProjectsList = state.projects.filter(project => String(project.status).toLowerCase() !== "completed");
@@ -676,10 +683,10 @@ function updateMetrics() {
   if ($("#metric-completed-tasks")) $("#metric-completed-tasks").textContent = String(completedTasks).padStart(2, "0");
   if ($("#metric-overdue-tasks")) $("#metric-overdue-tasks").textContent = String(overdueTasks).padStart(2, "0");
   if ($("#metric-milestones")) $("#metric-milestones").textContent = String(activeMilestones).padStart(2, "0");
-  $("#metric-clients").textContent = String(state.clients.length).padStart(2, "0");
-  $("#metric-projects").textContent = String(activeProjects).padStart(2, "0");
-  $("#metric-leads").textContent = String(openLeads).padStart(2, "0");
-  $("#metric-tasks").textContent = String(openTasks).padStart(2, "0");
+  setMetricText("#metric-clients", String(state.clients.length).padStart(2, "0"));
+  setMetricText("#metric-projects", String(activeProjects).padStart(2, "0"));
+  setMetricText("#metric-leads", String(openLeads).padStart(2, "0"));
+  setMetricText("#metric-tasks", String(openTasks).padStart(2, "0"));
   renderMetricChangeBadges({ clients: state.clients.length, projects: activeProjects, leads: openLeads, tasks: openTasks });
   // Sidebar badges show the actionable in-progress task count, excluding archived projects.
   if ($("#lead-nav-count")) $("#lead-nav-count").textContent = state.leads.length;
@@ -702,6 +709,7 @@ function updateMetrics() {
 }
 
 function renderDashboardProjects() {
+  if (!$("#dashboard-projects")) return;
   $("#dashboard-projects").innerHTML = state.projects.filter(project => String(project.status).toLowerCase() !== "completed").slice(0, 4).map(project => `
     <div class="project-row">
       <div class="project-main">
@@ -729,6 +737,7 @@ function renderCompletedProjectArchive() {
 }
 
 function renderDashboardTasks() {
+  if (!$("#dashboard-tasks")) return;
   const activeProjectIds = new Set(state.projects.filter(project => String(project.status).toLowerCase() !== "completed").map(project => String(project.id)));
   const activeProjectNames = new Set(state.projects.filter(project => String(project.status).toLowerCase() !== "completed").map(project => String(project.name).toLowerCase()));
   $("#dashboard-tasks").innerHTML = state.tasks.filter(task => (activeProjectIds.has(String(task.projectId || "")) || (!task.projectId && activeProjectNames.has(String(task.project || "").toLowerCase()))) && !task.done).slice(0, 4).map(task => `
@@ -740,6 +749,7 @@ function renderDashboardTasks() {
 }
 
 function renderActivity() {
+  if (!$("#dashboard-activity")) return;
   $("#dashboard-activity").innerHTML = state.activities.slice(0, 5).map(activity => `
     <div class="activity-item">
       <span class="activity-icon ${esc(activity.color)}">${esc(activity.icon)}</span>
@@ -748,6 +758,7 @@ function renderActivity() {
 }
 
 function renderPipeline() {
+  if (!$("#pipeline-summary")) return;
   $("#pipeline-summary").innerHTML = LEAD_FLOW.filter(stage => stage.key !== "Lost").map(stage => {
     const count = state.leads.filter(lead => lead.stage === stage.key).length;
     return `<div class="pipeline-stage" style="--stage-color:${stage.hex}"><small>${esc(stage.label)}</small><strong>${count}</strong><span>${esc(stage.hint)}</span></div>`;
@@ -1684,7 +1695,7 @@ function renderAll() {
   renderDashboardTasks();
   renderActivity();
   renderPipeline();
-  renderDashboardCharts();
+  renderDashboard();
   renderLeads();
   renderClients();
   renderContacts();
@@ -2581,13 +2592,15 @@ function formatApiDate(value) {
   const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
   return date.toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" });
 }
+function fetchApiTasksAndMilestones() {
+  return Promise.allSettled([window.ZymaCrmApi.request("/tasks"), window.ZymaCrmApi.request("/milestones")]);
+}
 async function loadApiTasksAndMilestones() {
   if (!LEADS_API_ENABLED) return;
-  const api = window.ZymaCrmApi;
-  const [tasksResult, milestonesResult] = await Promise.allSettled([
-    api.request("/tasks"),
-    api.request("/milestones")
-  ]);
+  applyApiTasksAndMilestones(await fetchApiTasksAndMilestones());
+}
+// Maps already-fetched task and milestone responses. Needs state.projects to be loaded first (for project names).
+function applyApiTasksAndMilestones([tasksResult, milestonesResult]) {
   if (tasksResult.status === "fulfilled") {
     const response = tasksResult.value;
     if (!Array.isArray(response)) throw new Error("The Tasks API returned an unexpected response.");
@@ -2639,36 +2652,52 @@ async function loadApiTasksAndMilestones() {
 // made by this user or another authorised staff member. Successful CRUD handlers
 // already call renderAll(); this refresh catches changes made in other sessions.
 let apiRefreshInProgress = false;
-async function refreshApiBackedData() {
-  if (!LEADS_API_ENABLED || apiRefreshInProgress || document.visibilityState === "hidden") return;
+let lastApiRefresh = 0;
+const apiDataSignature = () => JSON.stringify([state.leads, state.clients, state.projects, state.contacts, state.tasks, state.milestones]);
+
+// Fetches every collection in parallel and renders once. The first call (initial) always renders;
+// later background refreshes only redraw when something actually changed.
+async function refreshApiBackedData({ initial = false } = {}) {
+  if (!LEADS_API_ENABLED || apiRefreshInProgress) return;
+  if (!initial && (document.visibilityState === "hidden" || Date.now() - lastApiRefresh < 15000)) return;
   apiRefreshInProgress = true;
   try {
-    await Promise.all([loadApiLeads(), loadApiClients()]);
-    await loadApiProjects();
-    await loadApiContacts();
-    await loadApiTasksAndMilestones();
-    // Recompute all dashboard and report visuals from the latest shared API state.
-    renderAll();
+    const before = initial ? "" : apiDataSignature();
+    const quiet = { render: false };
+    const results = await Promise.all([
+      loadApiLeads(quiet), loadApiClients(quiet), loadApiProjects(quiet), loadApiContacts(quiet), fetchApiTasksAndMilestones()
+    ]);
+    try { applyApiTasksAndMilestones(results[4]); } catch (error) { console.warn("Tasks and milestones could not be applied.", error); }
+    linkClientProjectCounts();
+    lastApiRefresh = Date.now();
+    if (initial || apiDataSignature() !== before) renderAll();
   } finally {
     apiRefreshInProgress = false;
   }
 }
 
 if (LEADS_API_ENABLED) {
-  refreshApiBackedData();
-  // Reload on the requested 30-minute cadence; focus/visibility refreshes remain immediate.
-  // Refresh promptly when returning to the tab after another user/session may have changed data.
-  window.addEventListener("focus", refreshApiBackedData);
+  // Pick up changes made by other staff when returning to the tab (throttled, and silent when nothing changed).
+  window.addEventListener("focus", () => refreshApiBackedData());
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") refreshApiBackedData();
   });
 }
 // Keep the CRM session fresh without the previous rapid polling/reload behaviour.
 window.setTimeout(() => window.location.reload(), 30 * 60 * 1000);
-const initialView = window.location.hash.replace("#", "");
-const [hashType, hashId] = initialView.split("/");
-if (hashId && recordCollections[hashType]) openRecordDetail(hashType, decodeURIComponent(hashId));
-else if (initialView && document.getElementById(`view-${initialView}`)) setView(initialView);
+async function startWorkspace() {
+  try {
+    if (LEADS_API_ENABLED) await refreshApiBackedData({ initial: true });
+  } catch (error) {
+    console.error("Initial data load failed.", error);
+  }
+  const initialView = window.location.hash.replace("#", "");
+  const [hashType, hashId] = initialView.split("/");
+  if (hashId && recordCollections[hashType]) openRecordDetail(hashType, decodeURIComponent(hashId));
+  else if (initialView && document.getElementById(`view-${initialView}`)) setView(initialView);
+  window.ZymaBoot?.done();
+}
+startWorkspace();
 
 
 /* Accessible scroll reveals + replayable chart entrance effects for dynamically rendered CRM content. */

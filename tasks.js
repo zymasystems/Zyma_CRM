@@ -154,20 +154,14 @@ async function loadApiState() {
   if (!window.ZymaCrmApi || !window.ZymaCrmApi.getToken()) return false;
   const api = window.ZymaCrmApi;
   try {
-    const [projects, tasks, milestones] = await Promise.all([
-      api.request("/projects"), api.request("/tasks"), api.request("/milestones")
+    // One round trip: every collection is requested at the same time. The counts are independent,
+    // so a non-essential endpoint failing cannot stop the task board from loading.
+    const [projects, tasks, milestones, ...countRequests] = await Promise.all([
+      api.request("/projects"), api.request("/tasks"), api.request("/milestones"),
+      ...["/leads", "/meetings", "/clients", "/contacts"].map(path => api.request(path).then(
+        value => ({ status: "fulfilled", value }), reason => ({ status: "rejected", reason })))
     ]);
     state = mapApiState(projects || [], tasks || [], milestones || []);
-
-    // Load sidebar counts from the same live CRM API as the main workspace.
-    // Keep these requests independent so a non-essential count endpoint cannot
-    // prevent the task board from loading.
-    const countRequests = await Promise.allSettled([
-      api.request("/leads"),
-      api.request("/meetings"),
-      api.request("/clients"),
-      api.request("/contacts")
-    ]);
     const countValue = result => result.status === "fulfilled" && Array.isArray(result.value)
       ? result.value.length : 0;
     // Keep count collections as arrays: sidebar rendering and other views use .length.
@@ -1093,14 +1087,14 @@ async function refresh() {
     if (tab === "timeline") void loadProjectTimeline();
   } else renderPicker();
 }
-window.addEventListener("pageshow", () => { void refresh(); });
+window.addEventListener("pageshow", event => { if (event.persisted) void refresh(); }); // only when restored from the back/forward cache; the first load is handled below
 window.addEventListener("storage", e => {
   if (!apiMode && (e.key === CRM_KEY || e.key === MILESTONE_KEY)) refresh();
 });
 
-renderPicker();
-void refresh();
-// Deep-link into a specific project from the CRM project detail view.
+// Deep-link into a specific project from the CRM project detail view (runs once the data has loaded).
+function openRequestedProject() {
+
 try {
   const requestedProject = new URLSearchParams(window.location.search).get("project");
   if (requestedProject) {
@@ -1108,6 +1102,8 @@ try {
     if (match && !isCompletedProject(match)) openProject(match.id);
   }
 } catch { /* no query string support needed for the picker */ }
+}
+void refresh().then(openRequestedProject).finally(() => window.ZymaBoot?.done());
 })();
 
 

@@ -20,14 +20,14 @@
     } else if (record.attributeName === "data-record-id") { freshen(section); countAll(section); }
   }));
   sections.forEach(section => viewObserver.observe(section, { attributes: true, attributeOldValue: true, attributeFilter: ["class", "data-record-id"] }));
-  const initial = document.querySelector(".view-section.active");
-  if (initial) requestAnimationFrame(() => { freshen(initial); countAll(initial); });
+  const startMotion = () => { const initial = document.querySelector(".view-section.active"); if (initial) requestAnimationFrame(() => { freshen(initial); countAll(initial); }); };
+  if (document.documentElement.classList.contains("zy-booting")) window.addEventListener("zyma:ready", startMotion, { once: true }); else startMotion();
 
   /* 2. Count numbers up (04, 30%, 12) when they appear or change. */
-  const COUNT_SELECTOR = ".metric-value, .pj-stat strong, .cp-kpi strong, .pipeline-stage strong, .lp-funnel strong, .client-summary-card .metric-value, .lp-kpi strong";
+  const COUNT_SELECTOR = ".metric-value, .pj-stat strong, .cp-kpi strong, .pipeline-stage strong, .lp-funnel strong, .client-summary-card .metric-value, .lp-kpi strong, .dx-kpi-value";
   const ease = t => 1 - Math.pow(1 - t, 3);
   function countUp(el) {
-    if (reduce || el.__moBusy || !el.offsetParent) return;
+    if (reduce || el.__moBusy || !el.offsetParent || document.documentElement.classList.contains("zy-booting")) return;
     const match = /^(\d+)(%?)$/.exec(el.textContent.trim());
     if (!match) return;
     const target = parseInt(match[1], 10), width = match[1].length, suffix = match[2];
