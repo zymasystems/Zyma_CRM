@@ -2,9 +2,7 @@
 (() => {
   "use strict";
 
-  const API_BASE_URL = "https://pay.zyma.co.za/api";
   const REFRESH_INTERVAL_MS = 60_000;
-  const MAX_PAYMENT_RECORDS = 100;
   let lastLoadedAt = 0;
   let loading = false;
   let summary = null;
@@ -42,17 +40,16 @@
     return undefined;
   }
 
-  async function get(path, signal) {
-    const response = await fetch(`${API_BASE_URL}${path}`, {
+  async function getDashboard(signal) {
+    if (!window.ZymaCrmApi || typeof window.ZymaCrmApi.request !== "function") {
+      throw new Error("The CRM API client is unavailable. Reload the workspace and try again.");
+    }
+    // Financial data is fetched by the authenticated CRM backend. The browser
+    // never receives Zyma Pay credentials or a Zyma Pay session cookie.
+    return window.ZymaCrmApi.request("/zyma-pay/dashboard", {
       method: "GET",
-      credentials: "include",
-      headers: { Accept: "application/json" },
       signal
     });
-    if (response.status === 401) throw new Error("Sign in to Zyma Pay to view financial records.");
-    if (response.status === 403) throw new Error("Your Zyma Pay account does not have permission to view these records.");
-    if (!response.ok) throw new Error(`Zyma Pay could not load records (HTTP ${response.status}).`);
-    return response.json();
   }
 
   function normalizePayment(payment) {
@@ -178,15 +175,12 @@
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 15_000);
     try {
-      const [invoicesPayload, paymentsPayload] = await Promise.all([
-        get("/invoices", controller.signal),
-        get(`/payments?pageSize=${MAX_PAYMENT_RECORDS}`, controller.signal)
-      ]);
-      const invoiceRecords = getRecords(invoicesPayload, "invoices").map(normalizeInvoice);
-      const paymentRecords = getRecords(paymentsPayload, "payments").map(normalizePayment);
+      const payload = await getDashboard(controller.signal);
+      const invoiceRecords = getRecords(payload, "invoiceRecords").map(normalizeInvoice);
+      const paymentRecords = getRecords(payload, "paymentRecords").map(normalizePayment);
       summary = {
-        invoices: invoicesPayload && !Array.isArray(invoicesPayload) ? invoicesPayload : {},
-        payments: paymentsPayload && !Array.isArray(paymentsPayload) ? paymentsPayload : {},
+        invoices: payload?.invoices || {},
+        payments: payload?.payments || {},
         invoiceRecords: invoiceRecords.sort((a, b) => dateValue(b.date) - dateValue(a.date)),
         paymentRecords: paymentRecords.sort((a, b) => dateValue(b.date) - dateValue(a.date))
       };
@@ -195,7 +189,7 @@
       loadError = error.name === "AbortError"
         ? new Error("Zyma Pay took too long to respond. Try again.")
         : error instanceof TypeError
-          ? new Error("Could not reach Zyma Pay from this CRM origin. Check the Pay API CORS allow-list and your Zyma Pay sign-in.")
+          ? new Error("Could not reach the CRM financial integration. Check your connection and try again.")
           : error;
     } finally {
       window.clearTimeout(timeout);
