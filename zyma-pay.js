@@ -54,21 +54,9 @@
 
   function normalizePayment(payment) {
     return {
-      client: read(payment, "clientName", "client_name") ?? "Unknown client",
-      reference: read(payment, "invoiceNumber", "invoice_number") ?? "—",
       date: read(payment, "paymentDate", "payment_date", "createdAt", "created_at") ?? "",
       amount: amount(read(payment, "amount")),
       status: getStatus(read(payment, "status"))
-    };
-  }
-
-  function normalizeInvoice(invoice) {
-    return {
-      client: read(invoice, "clientName", "client_name") ?? "Unknown client",
-      reference: read(invoice, "invoiceNumber", "invoice_number", "number") ?? "—",
-      date: read(invoice, "invoiceDate", "invoice_date", "createdAt", "created_at", "dueDate", "due_date") ?? "",
-      amount: amount(read(invoice, "amount", "total")),
-      status: getStatus(read(invoice, "status"))
     };
   }
 
@@ -87,6 +75,10 @@
     return new Intl.NumberFormat("en-ZA", { style: "currency", currency: "ZAR", maximumFractionDigits: 2 }).format(value);
   }
 
+  function formatChartMoney(value) {
+    return `R ${new Intl.NumberFormat("en-ZA", { notation: "compact", maximumFractionDigits: 1 }).format(value)}`;
+  }
+
   function element(tag, className, text) {
     const node = document.createElement(tag);
     if (className) node.className = className;
@@ -100,25 +92,61 @@
     container.append(card);
   }
 
-  function appendRecords(container, title, records, emptyText) {
-    const section = element("section", "dx-pay-records");
-    section.append(element("h3", "", title));
-    if (!records.length) {
-      section.append(element("p", "dx-empty", emptyText));
+  function svgElement(tag, attributes = {}) {
+    const node = document.createElementNS("http://www.w3.org/2000/svg", tag);
+    for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, value);
+    return node;
+  }
+
+  function appendPaymentChart(container, records) {
+    const section = element("section", "dx-pay-chart");
+    section.append(element("h3", "", "Recent paid amounts"));
+    const paid = records.filter(record => record.status === "Paid" && dateValue(record.date)).slice(0, 6).reverse();
+    if (!paid.length) {
+      section.append(element("p", "dx-pay-chart-empty", "Paid payment history will appear here when available."));
       container.append(section);
       return;
     }
-    const list = element("ul", "dx-pay-list");
-    records.slice(0, 5).forEach(record => {
-      const row = element("li", "dx-pay-row");
-      const detail = element("span", "dx-pay-record-main");
-      detail.append(element("strong", "", record.client), element("small", "", `${record.reference} · ${formatDate(record.date)}`));
-      const status = element("span", "dx-pay-record-status", record.status);
-      const value = element("strong", "dx-pay-record-amount", formatMoney(record.amount));
-      row.append(detail, status, value);
-      list.append(row);
+
+    const width = 560;
+    const height = 190;
+    const left = 64;
+    const right = 12;
+    const top = 16;
+    const bottom = 34;
+    const chartHeight = height - top - bottom;
+    const chartWidth = width - left - right;
+    const maxAmount = Math.max(1, ...paid.map(record => record.amount));
+    const svg = svgElement("svg", {
+      viewBox: `0 0 ${width} ${height}`,
+      role: "img",
+      "aria-label": `Recent paid amounts: ${paid.map(record => `${formatDate(record.date)}, ${formatMoney(record.amount)}`).join("; ")}`
     });
-    section.append(list);
+
+    for (let tick = 0; tick <= 2; tick += 1) {
+      const y = top + chartHeight * tick / 2;
+      const grid = svgElement("line", { x1: left, x2: width - right, y1: y, y2: y, class: "dx-pay-grid" });
+      const label = svgElement("text", { x: left - 8, y: y + 4, "text-anchor": "end", class: "dx-pay-axis" });
+      label.textContent = formatMoney(maxAmount * (1 - tick / 2));
+      svg.append(grid, label);
+    }
+
+    const slot = chartWidth / paid.length;
+    const barWidth = Math.min(42, slot * 0.58);
+    paid.forEach((record, index) => {
+      const barHeight = Math.max(2, chartHeight * record.amount / maxAmount);
+      const x = left + slot * index + (slot - barWidth) / 2;
+      const y = top + chartHeight - barHeight;
+      const group = svgElement("g", { role: "img", "aria-label": `${formatDate(record.date)}: ${formatMoney(record.amount)}` });
+      group.append(svgElement("rect", { x, y, width: barWidth, height: barHeight, class: "dx-pay-bar" }));
+      const value = svgElement("text", { x: x + barWidth / 2, y: Math.max(top + 10, y - 5), "text-anchor": "middle", class: "dx-pay-bar-label" });
+      value.textContent = formatChartMoney(record.amount);
+      const date = svgElement("text", { x: x + barWidth / 2, y: height - 11, "text-anchor": "middle", class: "dx-pay-axis" });
+      date.textContent = new Intl.DateTimeFormat("en-ZA", { day: "numeric", month: "short" }).format(new Date(record.date));
+      group.append(value, date);
+      svg.append(group);
+    });
+    section.append(svg);
     container.append(section);
   }
 
@@ -141,30 +169,18 @@
 
     status.textContent = `Read-only data · Refreshed ${new Intl.DateTimeFormat("en-ZA", { hour: "2-digit", minute: "2-digit" }).format(new Date(lastLoadedAt))}`;
     const metrics = element("div", "dx-pay-metrics");
-    const invoiceTotal = read(summary.invoices, "totalCount");
-    const invoiceCount = invoiceTotal != null && Number.isFinite(Number(invoiceTotal))
-      ? Number(invoiceTotal)
-      : summary.invoiceRecords.length;
-    const paymentTotal = read(summary.payments, "totalCount");
-    const paymentCount = paymentTotal != null && Number.isFinite(Number(paymentTotal))
-      ? Number(paymentTotal)
-      : summary.paymentRecords.length;
     const receivedThisMonth = read(summary.payments, "receivedThisMonth");
     const paidValue = receivedThisMonth != null
       ? amount(receivedThisMonth)
       : summary.paymentRecords.filter(record => record.status === "Paid").reduce((total, record) => total + record.amount, 0);
     const paidNote = receivedThisMonth != null
       ? "Received this month"
-      : "Paid records in loaded results";
-
-    appendSummaryMetric(metrics, "Invoices", invoiceCount.toLocaleString("en-ZA"), "In Zyma Pay");
-    appendSummaryMetric(metrics, "Payments", paymentCount.toLocaleString("en-ZA"), "In Zyma Pay");
+      : "Paid records in recent results";
+    appendSummaryMetric(metrics, "Received", formatMoney(paidValue), paidNote);
     const awaitingCount = read(summary.payments, "awaitingReflectionCount");
     appendSummaryMetric(metrics, "Awaiting reflection", Number(awaitingCount ?? summary.paymentRecords.filter(record => record.status === "Awaiting").length).toLocaleString("en-ZA"), "Payment records");
-    appendSummaryMetric(metrics, "Paid value", formatMoney(paidValue), paidNote);
     host.append(metrics);
-    appendRecords(host, "Recent invoices", summary.invoiceRecords, "No invoices found in Zyma Pay.");
-    appendRecords(host, "Recent payments", summary.paymentRecords, "No payments found in Zyma Pay.");
+    appendPaymentChart(host, summary.paymentRecords);
   }
 
   async function load(force = false) {
@@ -176,12 +192,9 @@
     const timeout = window.setTimeout(() => controller.abort(), 15_000);
     try {
       const payload = await getDashboard(controller.signal);
-      const invoiceRecords = getRecords(payload, "invoiceRecords").map(normalizeInvoice);
       const paymentRecords = getRecords(payload, "paymentRecords").map(normalizePayment);
       summary = {
-        invoices: payload?.summary?.invoices || payload?.invoices || {},
         payments: payload?.summary?.payments || payload?.payments || {},
-        invoiceRecords: invoiceRecords.sort((a, b) => dateValue(b.date) - dateValue(a.date)),
         paymentRecords: paymentRecords.sort((a, b) => dateValue(b.date) - dateValue(a.date))
       };
       lastLoadedAt = Date.now();

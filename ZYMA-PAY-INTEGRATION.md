@@ -52,4 +52,4 @@ The endpoint should return a bounded recent-record list (for example, 5–10 rec
 - Calls the CRM API only, via `ZymaCrmApi.request`.
 - Uses the existing CRM bearer-token session.
 - Does not send cookies to Zyma Pay.
-- Dashboard financial widget remains read-only.
+- Dashboard financial widget remains read-only and shows a compact payment snapshot with a chart of recent paid amounts instead of invoice and payment lists.

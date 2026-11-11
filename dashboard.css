@@ -77,20 +77,19 @@
 .dx-pay-status { margin-top: 6px !important; }
 .dx-pay-status.is-error { color: var(--red); }
 .dx-pay-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.dx-pay-content { display: grid; gap: 18px; }
-.dx-pay-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.dx-pay-content { display: grid; grid-template-columns: minmax(220px, .7fr) minmax(0, 1.3fr); gap: 18px; align-items: stretch; }
+.dx-pay-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; align-content: start; }
 .dx-pay-metric { display: grid; gap: 5px; padding: 14px; border: 1px solid var(--border-soft); border-radius: 12px; background: var(--surface-raised); }
 .dx-pay-metric > span, .dx-pay-metric > small { color: var(--muted); font-size: 11px; }
 .dx-pay-metric > strong { font: 800 18px/1.2 Manrope, sans-serif; font-variant-numeric: tabular-nums; }
-.dx-pay-records { display: grid; gap: 8px; }
-.dx-pay-records h3 { margin: 0; font: 700 14px Manrope, sans-serif; }
-.dx-pay-list { list-style: none; margin: 0; padding: 0; display: grid; }
-.dx-pay-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 14px; padding: 10px 4px; border-bottom: 1px solid var(--border-soft); }
-.dx-pay-record-main { min-width: 0; display: grid; gap: 3px; }
-.dx-pay-record-main strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
-.dx-pay-record-main small { color: var(--muted); font-size: 11px; }
-.dx-pay-record-status { display: inline-block; color: var(--muted); font-size: 11px; }
-.dx-pay-record-amount { white-space: nowrap; font-size: 13px; font-variant-numeric: tabular-nums; }
+.dx-pay-chart { min-width: 0; padding: 12px 14px 8px; border: 1px solid var(--border-soft); border-radius: 12px; background: var(--surface-raised); }
+.dx-pay-chart h3 { margin: 0 0 4px; font: 700 13px Manrope, sans-serif; }
+.dx-pay-chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.dx-pay-chart .dx-pay-grid { stroke: var(--border); stroke-width: 1; }
+.dx-pay-chart .dx-pay-axis { fill: var(--muted); font-size: 10px; }
+.dx-pay-chart .dx-pay-bar { fill: var(--dx-3); rx: 4; }
+.dx-pay-chart .dx-pay-bar-label { fill: var(--text); font-size: 10px; font-weight: 700; }
+.dx-pay-chart .dx-pay-chart-empty { margin: 0; padding: 34px 8px; color: var(--muted); font-size: 13px; text-align: center; }
 
 /* donut */
 .dx-donut { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; justify-content: center; }
@@ -165,11 +164,8 @@
   .dx-hero .heading-actions .button { flex: 1; justify-content: center; }
   .dx-row { gap: 10px; padding: 9px 6px; }
   .dx-chip { min-width: 0; }
-  .dx-pay-panel .dx-panel-head { flex-direction: column; }
+  .dx-pay-content { grid-template-columns: 1fr; }
   .dx-pay-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .dx-pay-row { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
-  .dx-pay-status { grid-column: 2; grid-row: 1; }
-  .dx-pay-record-amount { grid-column: 2; }
 }
 @media (prefers-reduced-motion: reduce) { .dx-funnel-bar, .dx-bar-track i, .dx-col rect, .dx-arc { animation: none !important; } }
 @media (max-width: 640px) { .dx-focus { display: grid; gap: 4px; } .dx-sep { display: none; } }
