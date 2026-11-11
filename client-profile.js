@@ -128,6 +128,192 @@ function cpCard(title, body, { action = "", id = "", className = "" } = {}) {
   return `<section class="cp-card-panel ${className}" ${id}><header><h2>${esc(title)}</h2>${action}</header>${body}</section>`;
 }
 
+
+/* ---------- Zyma Pay: client financials ---------- */
+function cpFinancialsPanel(client) {
+  return cpCard("Financial overview", `
+    <div class="cp-financials" data-cp-financials="${esc(client.id)}">
+      <div class="cp-financial-loading">
+        <span class="cp-financial-spinner" aria-hidden="true"></span>
+        <span>Financial records will load when this tab is opened.</span>
+      </div>
+    </div>
+  `);
+}
+
+function cpFinancialMoney(value) {
+  const amount = Number(value);
+  return new Intl.NumberFormat("en-ZA", {
+    style: "currency",
+    currency: "ZAR",
+    minimumFractionDigits: 2
+  }).format(Number.isFinite(amount) ? amount : 0);
+}
+
+function cpFinancialDate(value) {
+  if (!value) return "Date not set";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "Date not set"
+    : date.toLocaleDateString("en-ZA", {
+        day: "numeric", month: "short", year: "numeric"
+      });
+}
+
+function cpFinancialStatus(value) {
+  const status = String(value || "Unknown").trim();
+  const normalized = status.toLowerCase();
+  const tone = normalized === "paid" ? "is-paid"
+    : normalized.includes("awaiting") ? "is-pending"
+    : normalized.includes("cancel") ? "is-cancelled"
+    : "is-neutral";
+  return `<span class="cp-financial-status ${tone}">${esc(status)}</span>`;
+}
+
+function cpFinancialTable(records, columns, emptyText) {
+  if (!records.length) return `<p class="cp-empty">${esc(emptyText)}</p>`;
+  return `
+    <div class="cp-financial-table-wrap">
+      <table class="cp-financial-table">
+        <thead><tr>${columns.map(c => `<th>${esc(c.label)}</th>`).join("")}</tr></thead>
+        <tbody>
+          ${records.map(record => `<tr>${columns.map(c =>
+            `<td>${c.render ? c.render(record) : esc(record[c.key] ?? "—")}</td>`
+          ).join("")}</tr>`).join("")}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function cpRenderFinancials(host, data) {
+  if (!host) return;
+
+  const invoices = Array.isArray(data.invoices) ? data.invoices : [];
+  const payments = Array.isArray(data.payments) ? data.payments : [];
+  const receipts = Array.isArray(data.receipts) ? data.receipts : [];
+
+  const paid = payments
+    .filter(p => String(p.status || "").toLowerCase() === "paid")
+    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+
+  const invoiceTotal = invoices.reduce(
+    (sum, item) => sum + (Number(item.amount) || 0), 0
+  );
+
+  host.innerHTML = `
+    <div class="cp-financial-summary">
+      <div class="cp-financial-stat">
+        <span>Total invoiced</span>
+        <strong>${cpFinancialMoney(invoiceTotal)}</strong>
+        <small>${invoices.length} ${invoices.length === 1 ? "invoice" : "invoices"}</small>
+      </div>
+      <div class="cp-financial-stat">
+        <span>Payments received</span>
+        <strong>${cpFinancialMoney(paid)}</strong>
+        <small>${payments.length} ${payments.length === 1 ? "payment" : "payments"}</small>
+      </div>
+      <div class="cp-financial-stat">
+        <span>Sales receipts</span>
+        <strong>${receipts.length}</strong>
+        <small>Recorded in Zyma Pay</small>
+      </div>
+    </div>
+
+    <section class="cp-financial-section">
+      <div class="cp-financial-heading">
+        <h3>Invoices</h3><span>${invoices.length}</span>
+      </div>
+      ${cpFinancialTable(invoices, [
+        {label:"Invoice", key:"invoiceNumber"},
+        {label:"Invoice date", render:r=>esc(cpFinancialDate(r.invoiceDate))},
+        {label:"Due date", render:r=>esc(cpFinancialDate(r.dueDate))},
+        {label:"Amount", render:r=>`<strong>${cpFinancialMoney(r.amount)}</strong>`},
+        {label:"Status", render:r=>cpFinancialStatus(r.status)}
+      ], "No invoices are linked to this client's email address.")}
+    </section>
+
+    <section class="cp-financial-section">
+      <div class="cp-financial-heading">
+        <h3>Payments</h3><span>${payments.length}</span>
+      </div>
+      ${cpFinancialTable(payments, [
+        {label:"Invoice", key:"invoiceNumber"},
+        {label:"Receipt", key:"receiptNumber"},
+        {label:"Payment date", render:r=>esc(cpFinancialDate(r.paymentDate))},
+        {label:"Method", key:"paymentMethod"},
+        {label:"Amount", render:r=>`<strong>${cpFinancialMoney(r.amount)}</strong>`},
+        {label:"Status", render:r=>cpFinancialStatus(r.status)}
+      ], "No payments are linked to this client's email address.")}
+    </section>
+
+    <section class="cp-financial-section">
+      <div class="cp-financial-heading">
+        <h3>Sales receipts</h3><span>${receipts.length}</span>
+      </div>
+      ${cpFinancialTable(receipts, [
+        {label:"Receipt", key:"receiptNumber"},
+        {label:"Reference", key:"reference"},
+        {label:"Date", render:r=>esc(cpFinancialDate(r.receiptDate))},
+        {label:"Payment mode", key:"paymentMode"},
+        {label:"Amount", render:r=>`<strong>${cpFinancialMoney(r.amount)}</strong>`}
+      ], "No sales receipts are linked to this client's email address.")}
+    </section>
+    <p class="cp-financial-footnote">Read-only financial information synchronised from Zyma Pay.</p>
+  `;
+}
+
+const CP_FINANCIAL_REQUESTS = new Map();
+
+async function cpLoadFinancials(clientId, force = false) {
+  const host = document.querySelector(`[data-cp-financials="${CSS.escape(String(clientId))}"]`);
+  if (!host) return;
+
+  if (!force && host.dataset.loaded === "true") return;
+  if (CP_FINANCIAL_REQUESTS.has(String(clientId))) return;
+
+  if (!window.ZymaCrmApi?.request) {
+    host.innerHTML = `<p class="cp-financial-error">The CRM API client is unavailable. Reload the workspace and try again.</p>`;
+    return;
+  }
+
+  host.innerHTML = `<div class="cp-financial-loading"><span class="cp-financial-spinner"></span><span>Loading financial records...</span></div>`;
+
+  const request = (async () => {
+    try {
+      const data = await window.ZymaCrmApi.request(
+        `/zyma-pay/clients/${encodeURIComponent(clientId)}/financials`,
+        { method: "GET" }
+      );
+
+      const currentHost = document.querySelector(`[data-cp-financials="${CSS.escape(String(clientId))}"]`);
+      if (!currentHost) return;
+
+      if (data?.matched === false) {
+        currentHost.innerHTML = `<div class="cp-financial-notice"><strong>No financial match</strong><p>This client does not have an email address that can be matched to Zyma Pay records.</p></div>`;
+        currentHost.dataset.loaded = "true";
+        return;
+      }
+
+      cpRenderFinancials(currentHost, data || {});
+      currentHost.dataset.loaded = "true";
+    } catch (error) {
+      const currentHost = document.querySelector(`[data-cp-financials="${CSS.escape(String(clientId))}"]`);
+      if (!currentHost) return;
+      currentHost.innerHTML = `
+        <div class="cp-financial-error">
+          <strong>Unable to load financial records</strong>
+          <p>${esc(error.message || "An unexpected error occurred.")}</p>
+          <button type="button" class="button button-secondary button-small" data-cp-financial-retry="${esc(clientId)}">Try again</button>
+        </div>`;
+    } finally {
+      CP_FINANCIAL_REQUESTS.delete(String(clientId));
+    }
+  })();
+
+  CP_FINANCIAL_REQUESTS.set(String(clientId), request);
+  await request;
+}
+
 function cpProjectRow(project) {
   const pct = calculatedProjectProgress(project);
   const days = CP_DONE_STATUSES.includes(project.status) ? null : cpDaysFromToday(project.due);
@@ -239,7 +425,7 @@ function renderClientProfile(client) {
     </section>
 
     <div class="cp-tabs" role="tablist" aria-label="Client sections">
-      ${tab("overview", "Overview")}${tab("projects", "Projects", rel.projects.length)}${tab("people", "People", rel.contacts.length)}${tab("activity", "Activity", rel.comms.length + rel.meetings.length)}
+      ${tab("overview", "Overview")}${tab("projects", "Projects", rel.projects.length)}${tab("people", "People", rel.contacts.length)}${tab("activity", "Activity", rel.comms.length + rel.meetings.length)}${tab("financials", "Financials")}
     </div>
 
     <div class="cp-layout">
@@ -252,6 +438,7 @@ function renderClientProfile(client) {
         ${panel("projects", cpCard("Projects", projectsList))}
         ${panel("people", cpCard("People at " + client.name, peopleList))}
         ${panel("activity", cpCard("Conversations and meetings", cpTimeline(client, rel)) + cpCard("Record changes", activityList))}
+        ${panel("financials", cpFinancialsPanel(client))}
       </div>
 
       <aside class="cp-side">
@@ -314,7 +501,18 @@ document.addEventListener("click", event => {
   cpSetTab(trigger.dataset.cpTab);
   if (trigger.classList.contains("cp-tab")) trigger.focus();
   else $(".cp-tabs")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+
+  if (trigger.dataset.cpTab === "financials") {
+    const clientId = $("#view-record-detail")?.dataset.recordId;
+    if (clientId) void cpLoadFinancials(clientId);
+  }
 });
+document.addEventListener("click", event => {
+  const retry = event.target.closest("[data-cp-financial-retry]");
+  if (!retry) return;
+  void cpLoadFinancials(retry.dataset.cpFinancialRetry, true);
+});
+
 document.addEventListener("keydown", event => {
   const tab = event.target.closest?.(".cp-tab[data-cp-tab]");
   if (!tab || !["ArrowRight", "ArrowLeft", "Home", "End"].includes(event.key)) return;

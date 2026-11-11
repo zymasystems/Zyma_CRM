@@ -179,8 +179,8 @@
       const invoiceRecords = getRecords(payload, "invoiceRecords").map(normalizeInvoice);
       const paymentRecords = getRecords(payload, "paymentRecords").map(normalizePayment);
       summary = {
-        invoices: payload?.invoices || {},
-        payments: payload?.payments || {},
+        invoices: payload?.summary?.invoices || payload?.invoices || {},
+        payments: payload?.summary?.payments || payload?.payments || {},
         invoiceRecords: invoiceRecords.sort((a, b) => dateValue(b.date) - dateValue(a.date)),
         paymentRecords: paymentRecords.sort((a, b) => dateValue(b.date) - dateValue(a.date))
       };

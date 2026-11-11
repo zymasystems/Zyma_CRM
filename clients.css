@@ -316,3 +316,43 @@
   .cp-card, .cp-card:hover { transition: none; transform: none; }
   .cp-ring-value { transition: none; }
 }
+
+
+/* ---------- Zyma Pay client financials ---------- */
+.cp-financials { display: grid; gap: 24px; min-width: 0; }
+.cp-financial-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.cp-financial-stat { display: grid; gap: 7px; padding: 18px; border: 1px solid var(--border-soft); border-radius: 14px; background: var(--surface-raised); min-width: 0; }
+.cp-financial-stat > span { color: var(--muted); font-size: 12px; font-weight: 600; }
+.cp-financial-stat strong { color: var(--text); font: 800 21px/1.2 Manrope, sans-serif; letter-spacing: -.035em; overflow-wrap: anywhere; }
+.cp-financial-stat small { color: var(--muted-2); font-size: 12px; }
+.cp-financial-section { display: grid; gap: 12px; min-width: 0; }
+.cp-financial-heading { display: flex; align-items: center; gap: 10px; }
+.cp-financial-heading h3 { margin: 0; font: 700 14px Manrope, sans-serif; }
+.cp-financial-heading > span { display: inline-grid; place-items: center; min-width: 23px; height: 23px; padding: 0 6px; border-radius: 99px; background: var(--surface-hover); color: var(--muted); font-size: 11px; font-weight: 700; }
+.cp-financial-table-wrap { width: 100%; overflow-x: auto; border: 1px solid var(--border-soft); border-radius: 12px; }
+.cp-financial-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 12.5px; white-space: nowrap; }
+.cp-financial-table th { padding: 12px 14px; background: var(--surface-raised); color: var(--muted); font-size: 11px; font-weight: 700; }
+.cp-financial-table td { padding: 13px 14px; border-top: 1px solid var(--border-soft); color: var(--text); }
+.cp-financial-table td strong { font-weight: 700; font-variant-numeric: tabular-nums; }
+.cp-financial-status { display: inline-flex; padding: 4px 9px; border-radius: 99px; background: var(--surface-hover); color: var(--muted); font-size: 11px; font-weight: 700; }
+.cp-financial-status.is-paid { background: var(--green-soft); color: var(--green); }
+.cp-financial-status.is-pending { background: rgba(242,150,60,.14); color: #e58a2c; }
+.cp-financial-status.is-cancelled { background: var(--red-soft); color: var(--red); }
+.cp-financial-notice, .cp-financial-error { padding: 18px; border: 1px solid var(--border-soft); border-radius: 13px; background: var(--surface-raised); }
+.cp-financial-notice strong, .cp-financial-error strong { display: block; font-size: 13px; }
+.cp-financial-notice p, .cp-financial-error p { margin: 6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.cp-financial-error { border-color: color-mix(in srgb, var(--red) 35%, var(--border)); }
+.cp-financial-error .button { margin-top: 14px; }
+.cp-financial-loading { display: flex; align-items: center; gap: 12px; padding: 18px 4px; color: var(--muted); font-size: 13px; }
+.cp-financial-spinner { width: 17px; height: 17px; flex: 0 0 auto; border: 2px solid var(--border); border-top-color: var(--cp-accent); border-radius: 50%; animation: cp-financial-spin .75s linear infinite; }
+@keyframes cp-financial-spin { to { transform: rotate(360deg); } }
+.cp-financial-footnote { margin: -8px 0 0; color: var(--muted-2); font-size: 11.5px; }
+
+@media (max-width: 640px) {
+  .cp-financial-summary { grid-template-columns: 1fr; }
+  .cp-financial-stat { padding: 15px; }
+  .cp-financial-stat strong { font-size: 19px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cp-financial-spinner { animation: none; }
+}
