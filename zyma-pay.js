@@ -100,27 +100,38 @@
 
   function appendPaymentChart(container, records) {
     const section = element("section", "dx-pay-chart");
-    section.append(element("h3", "", "Recent paid amounts"));
-    const paid = records.filter(record => record.status === "Paid" && dateValue(record.date)).slice(0, 6).reverse();
+    const paidRecords = records.filter(record => record.status === "Paid" && dateValue(record.date)).slice(0, 10).reverse();
+    const dailyTotals = new Map();
+    paidRecords.forEach(record => {
+      const date = String(record.date).slice(0, 10);
+      const daily = dailyTotals.get(date) || { date: record.date, amount: 0, count: 0 };
+      daily.amount += record.amount;
+      daily.count += 1;
+      dailyTotals.set(date, daily);
+    });
+    const paid = [...dailyTotals.values()].slice(-6);
+    const chartHead = element("div", "dx-pay-chart-head");
+    chartHead.append(element("h3", "", "Daily receipts"), element("span", "", paid.length ? "Recent paid activity" : "Paid history"));
+    section.append(chartHead);
     if (!paid.length) {
       section.append(element("p", "dx-pay-chart-empty", "Paid payment history will appear here when available."));
       container.append(section);
       return;
     }
 
-    const width = 560;
-    const height = 190;
-    const left = 64;
-    const right = 12;
-    const top = 16;
-    const bottom = 34;
+    const width = 480;
+    const height = 174;
+    const left = 56;
+    const right = 8;
+    const top = 18;
+    const bottom = 30;
     const chartHeight = height - top - bottom;
     const chartWidth = width - left - right;
     const maxAmount = Math.max(1, ...paid.map(record => record.amount));
     const svg = svgElement("svg", {
       viewBox: `0 0 ${width} ${height}`,
       role: "img",
-      "aria-label": `Recent paid amounts: ${paid.map(record => `${formatDate(record.date)}, ${formatMoney(record.amount)}`).join("; ")}`
+      "aria-label": `Daily paid amounts: ${paid.map(record => `${formatDate(record.date)}, ${formatMoney(record.amount)}`).join("; ")}`
     });
 
     for (let tick = 0; tick <= 2; tick += 1) {
@@ -138,11 +149,16 @@
       const x = left + slot * index + (slot - barWidth) / 2;
       const y = top + chartHeight - barHeight;
       const group = svgElement("g", { role: "img", "aria-label": `${formatDate(record.date)}: ${formatMoney(record.amount)}` });
+      if (record.count > 1) group.setAttribute("aria-label", `${formatDate(record.date)}: ${formatMoney(record.amount)} across ${record.count} payments`);
       group.append(svgElement("rect", { x, y, width: barWidth, height: barHeight, class: "dx-pay-bar" }));
+      const tooltip = svgElement("title");
+      tooltip.textContent = `${formatDate(record.date)}: ${formatMoney(record.amount)}${record.count > 1 ? ` · ${record.count} payments` : ""}`;
+      group.append(tooltip);
       const value = svgElement("text", { x: x + barWidth / 2, y: Math.max(top + 10, y - 5), "text-anchor": "middle", class: "dx-pay-bar-label" });
       value.textContent = formatChartMoney(record.amount);
       const date = svgElement("text", { x: x + barWidth / 2, y: height - 11, "text-anchor": "middle", class: "dx-pay-axis" });
       date.textContent = new Intl.DateTimeFormat("en-ZA", { day: "numeric", month: "short" }).format(new Date(record.date));
+      if (record.count > 1) date.textContent += ` ·${record.count}`;
       group.append(value, date);
       svg.append(group);
     });
@@ -176,9 +192,14 @@
     const paidNote = receivedThisMonth != null
       ? "Received this month"
       : "Paid records in recent results";
-    appendSummaryMetric(metrics, "Received", formatMoney(paidValue), paidNote);
     const awaitingCount = read(summary.payments, "awaitingReflectionCount");
+    const paymentTotal = read(summary.payments, "totalCount");
+    const paymentCount = paymentTotal != null && Number.isFinite(Number(paymentTotal))
+      ? Number(paymentTotal)
+      : summary.paymentRecords.length;
+    appendSummaryMetric(metrics, "Received", formatMoney(paidValue), paidNote);
     appendSummaryMetric(metrics, "Awaiting reflection", Number(awaitingCount ?? summary.paymentRecords.filter(record => record.status === "Awaiting").length).toLocaleString("en-ZA"), "Payment records");
+    appendSummaryMetric(metrics, "Payments", paymentCount.toLocaleString("en-ZA"), "In Zyma Pay");
     host.append(metrics);
     appendPaymentChart(host, summary.paymentRecords);
   }
