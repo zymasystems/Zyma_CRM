@@ -160,8 +160,28 @@ function cpFinancialDate(value) {
       });
 }
 
+function cpFinancialStatusLabel(value) {
+  const raw = String(value ?? "").trim();
+  const normalized = raw.toLowerCase();
+
+  // Zyma Pay's payment API currently serializes its status enum as an integer.
+  // Keep compatibility with both numeric enum values and text responses.
+  const enumLabels = {
+    "0": "Awaiting",
+    "1": "Paid",
+    "2": "Cancelled"
+  };
+  if (Object.prototype.hasOwnProperty.call(enumLabels, normalized)) {
+    return enumLabels[normalized];
+  }
+  if (["paymentconfirmed", "payment confirmed"].includes(normalized)) return "Paid";
+  if (["awaitingreflection", "awaiting reflection", "awaiting_reflection"].includes(normalized)) return "Awaiting";
+  if (["canceled"].includes(normalized)) return "Cancelled";
+  return raw || "Unknown";
+}
+
 function cpFinancialStatus(value) {
-  const status = String(value || "Unknown").trim();
+  const status = cpFinancialStatusLabel(value);
   const normalized = status.toLowerCase();
   const tone = normalized === "paid" ? "is-paid"
     : normalized.includes("awaiting") ? "is-pending"
@@ -193,7 +213,7 @@ function cpRenderFinancials(host, data) {
   const receipts = Array.isArray(data.receipts) ? data.receipts : [];
 
   const paid = payments
-    .filter(p => String(p.status || "").toLowerCase() === "paid")
+    .filter(p => cpFinancialStatusLabel(p.status) === "Paid")
     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
   const invoiceTotal = invoices.reduce(
@@ -229,7 +249,7 @@ function cpRenderFinancials(host, data) {
         {label:"Due date", render:r=>esc(cpFinancialDate(r.dueDate))},
         {label:"Amount", render:r=>`<strong>${cpFinancialMoney(r.amount)}</strong>`},
         {label:"Status", render:r=>cpFinancialStatus(r.status)}
-      ], "No invoices are linked to this client's email address.")}
+      ], "No invoices are currently associated with this client.")}
     </section>
 
     <section class="cp-financial-section">
@@ -243,7 +263,7 @@ function cpRenderFinancials(host, data) {
         {label:"Method", key:"paymentMethod"},
         {label:"Amount", render:r=>`<strong>${cpFinancialMoney(r.amount)}</strong>`},
         {label:"Status", render:r=>cpFinancialStatus(r.status)}
-      ], "No payments are linked to this client's email address.")}
+      ], "No payments are currently associated with this client.")}
     </section>
 
     <section class="cp-financial-section">
@@ -256,7 +276,7 @@ function cpRenderFinancials(host, data) {
         {label:"Date", render:r=>esc(cpFinancialDate(r.receiptDate))},
         {label:"Payment mode", key:"paymentMode"},
         {label:"Amount", render:r=>`<strong>${cpFinancialMoney(r.amount)}</strong>`}
-      ], "No sales receipts are linked to this client's email address.")}
+      ], "No sales receipts are currently associated with this client.")}
     </section>
     <p class="cp-financial-footnote">Read-only financial information synchronised from Zyma Pay.</p>
   `;
@@ -289,7 +309,7 @@ async function cpLoadFinancials(clientId, force = false) {
       if (!currentHost) return;
 
       if (data?.matched === false) {
-        currentHost.innerHTML = `<div class="cp-financial-notice"><strong>No financial match</strong><p>This client does not have an email address that can be matched to Zyma Pay records.</p></div>`;
+        currentHost.innerHTML = `<div class="cp-financial-notice"><strong>No financial match</strong><p>No matching Zyma Pay client association was found. Check the client sync before linking financial records.</p></div>`;
         currentHost.dataset.loaded = "true";
         return;
       }
