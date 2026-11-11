@@ -18,11 +18,11 @@
 .dx-sep { width: 4px; height: 4px; border-radius: 50%; background: var(--muted-2); margin: 0 12px; }
 
 /* KPI strip */
-.dx-kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
+.dx-kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; }
 .dx-kpi { --k: var(--orange); position: relative; text-align: left; display: grid; gap: 6px; align-content: start; padding: 18px 18px 16px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); cursor: pointer; overflow: hidden; transition: transform .2s, border-color .2s, background .2s; }
 .dx-kpi::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--k); opacity: .9; }
 .dx-kpi:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--k) 55%, var(--border)); }
-.dx-kpi.dx-orange { --k: var(--dx-2); } .dx-kpi.dx-green { --k: var(--dx-3); } .dx-kpi.dx-blue { --k: var(--dx-1); } .dx-kpi.dx-violet { --k: var(--dx-4); } .dx-kpi.dx-red { --k: var(--red); }
+.dx-kpi.dx-orange { --k: var(--dx-2); } .dx-kpi.dx-green { --k: var(--dx-3); } .dx-kpi.dx-blue { --k: var(--dx-1); } .dx-kpi.dx-violet { --k: var(--dx-4); } .dx-kpi.dx-red { --k: var(--red); } .dx-kpi.dx-amber { --k: var(--dx-5); }
 .dx-kpi-label { color: var(--muted); font-size: 12px; font-weight: 600; }
 .dx-kpi-value { font: 800 clamp(26px, 2.6vw, 34px)/1.05 Manrope, sans-serif; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
 .dx-kpi small { color: var(--muted); font-size: 12px; }
@@ -66,6 +66,13 @@
 .dx-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--muted); font-size: 12px; }
 .dx-legend li { display: flex; align-items: center; gap: 6px; }
 .dx-legend i { width: 9px; height: 9px; border-radius: 3px; }
+.dx-trend-summary { display: flex; align-items: baseline; gap: 10px; }
+.dx-trend-summary strong { font: 800 24px/1 Manrope, sans-serif; font-variant-numeric: tabular-nums; }
+.dx-trend-summary span { color: var(--muted); font-size: 12px; }
+.dx-trend-area { fill: color-mix(in srgb, var(--dx-1) 13%, transparent); }
+.dx-trend-line { fill: none; stroke: var(--dx-1); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.dx-trend-point { fill: var(--surface); stroke: var(--dx-1); stroke-width: 2.5; }
+.dx-trend-svg { overflow: visible; }
 
 /* donut */
 .dx-donut { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; justify-content: center; }

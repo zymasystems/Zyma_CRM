@@ -79,12 +79,18 @@ function dxKpis(d) {
   const winRate = closed ? Math.round(won / closed * 100) : null;
   const totalTasks = d.openTasks.length + d.doneTasks.length;
   const completion = totalTasks ? Math.round(d.doneTasks.length / totalTasks * 100) : 0;
+  const weekEnd = new Date(d.today.getTime() + 7 * DX_DAY);
+  const meetingsThisWeek = state.meetings.filter(meeting => {
+    const date = dxDate(meeting.date);
+    return date && date >= d.today && date < weekEnd && !["Completed", "Cancelled"].includes(meeting.status);
+  }).length;
   const tiles = [
     { label: "Pipeline value", value: dxCompact(pipelineValue), raw: true, note: `${d.openLeads.length} open lead${d.openLeads.length === 1 ? "" : "s"}`, view: "leads", tone: "orange" },
     { label: "Win rate", value: winRate == null ? "—" : `${winRate}`, suffix: winRate == null ? "" : "%", raw: winRate == null, note: closed ? `${won} won · ${lost} lost` : "No closed leads yet", view: "leads", tone: "green" },
     { label: "Active projects", value: d.activeProjects.length, note: `${state.clients.length} client${state.clients.length === 1 ? "" : "s"}`, view: "projects", tone: "blue" },
     { label: "Task completion", value: completion, suffix: "%", note: `${d.doneTasks.length} of ${totalTasks} done`, view: "tasks", tone: "violet" },
-    { label: "Overdue", value: d.overdueTasks.length, note: d.overdueTasks.length ? "Needs attention" : "All on track", view: "tasks", tone: d.overdueTasks.length ? "red" : "green", attention: d.overdueTasks.length > 0 }
+    { label: "Overdue", value: d.overdueTasks.length, note: d.overdueTasks.length ? "Needs attention" : "All on track", view: "tasks", tone: d.overdueTasks.length ? "red" : "green", attention: d.overdueTasks.length > 0 },
+    { label: "Meetings this week", value: meetingsThisWeek, note: "Scheduled sessions", view: "meetings", tone: "amber" }
   ];
   return `<div class="dx-kpis">${tiles.map(tile => `<button type="button" class="dx-kpi dx-${tile.tone}${tile.attention ? " is-attention" : ""}" data-view-link="${tile.view}">
       <span class="dx-kpi-label">${esc(tile.label)}</span>
@@ -208,6 +214,57 @@ function dxIndustry() {
   return dxPanel({ title: "Client mix", sub: "Clients by industry", body, cls: "dx-span-4" });
 }
 
+/* ---------- lead growth from recorded weekly snapshots ---------- */
+function dxLeadTrend() {
+  const history = recordLeadTrendSnapshot().slice(-8);
+  const values = history.map(item => Number(item.total));
+  const latest = values[values.length - 1] || 0;
+  const previous = values.length > 1 ? values[values.length - 2] : null;
+  const change = previous == null ? null : latest - previous;
+  const changeLabel = change == null ? "Tracking starts this week" : `${change > 0 ? "+" : ""}${change} vs last week`;
+  if (!history.length) return dxPanel({ title: "Lead growth", sub: "Weekly lead totals", body: dxEmpty("Weekly lead tracking will appear here once a snapshot is recorded."), cls: "dx-span-7" });
+
+  const W = 480, H = 190, left = 30, right = 12, top = 16, bottom = 32;
+  const max = Math.max(4, ...values) * 1.15;
+  const plotHeight = H - top - bottom;
+  const x = index => history.length === 1 ? (W + left - right) / 2 : left + index * (W - left - right) / (history.length - 1);
+  const y = value => top + plotHeight * (1 - value / max);
+  const points = values.map((value, index) => ({ x: x(index), y: y(value), value }));
+  const line = points.map((point, index) => `${index ? "L" : "M"} ${point.x} ${point.y}`).join(" ");
+  const area = `${line} L ${points[points.length - 1].x} ${H - bottom} L ${points[0].x} ${H - bottom} Z`;
+  const ticks = [0, Math.round(max / 2), Math.ceil(max)];
+  const grid = ticks.map(value => `<line x1="${left}" x2="${W - right}" y1="${y(value)}" y2="${y(value)}" class="dx-grid"/><text x="${left - 7}" y="${y(value) + 3.5}" text-anchor="end" class="dx-axis">${value}</text>`).join("");
+  const formatDate = value => dxNiceDate(dxDate(value));
+  const marks = points.map((point, index) => `<circle cx="${point.x}" cy="${point.y}" r="${index === points.length - 1 ? 4.5 : 3.5}" class="dx-trend-point"><title>Week of ${esc(formatDate(history[index].date))}: ${point.value} leads</title></circle>`).join("");
+  const body = `<div class="dx-trend-summary"><strong>${latest}</strong><span>${esc(changeLabel)}</span></div>
+    <svg class="dx-svg dx-trend-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Weekly lead totals for ${history.length} recorded snapshots">
+      ${grid}<path d="${area}" class="dx-trend-area"/><path d="${line}" class="dx-trend-line"/>${marks}
+      <text x="${points[0].x}" y="${H - 10}" text-anchor="middle" class="dx-axis">${esc(formatDate(history[0].date))}</text>
+      <text x="${points[points.length - 1].x}" y="${H - 10}" text-anchor="middle" class="dx-axis">${esc(formatDate(history[history.length - 1].date))}</text>
+    </svg>
+    <p class="dx-foot">Weekly snapshots are recorded by this CRM; earlier history begins when tracking starts.</p>`;
+  return dxPanel({ title: "Lead growth", sub: "Weekly lead totals", body, cls: "dx-span-7" });
+}
+
+/* ---------- upcoming meetings ---------- */
+function dxMeetings(d) {
+  const meetings = state.meetings
+    .filter(meeting => !["Completed", "Cancelled"].includes(meeting.status))
+    .map(meeting => ({ meeting, date: dxDate(meeting.date) }))
+    .sort((a, b) => (a.date?.getTime() ?? Infinity) - (b.date?.getTime() ?? Infinity))
+    .slice(0, 5);
+  const body = meetings.length ? `<ul class="dx-list">${meetings.map(({ meeting, date }) => {
+    const days = date ? dxDays(date, d.today) : null;
+    const label = days == null ? "No date" : days < 0 ? "Past date" : days === 0 ? "Today" : days === 1 ? "Tomorrow" : dxNiceDate(date);
+    const chipClass = days != null && days < 0 ? "is-bad" : days === 0 ? "is-warn" : "";
+    return `<li><button type="button" class="dx-row" data-open-record="meeting" data-record-id="${esc(meeting.id)}">
+      <span class="dx-chip ${chipClass}">${esc(meeting.type || "Meeting")}</span>
+      <span class="dx-row-main"><strong>${esc(meeting.title || "Untitled meeting")}</strong><small>${esc(meeting.lead || "Lead not linked")}</small></span>
+      <span class="dx-row-end ${days != null && days < 0 ? "is-bad" : ""}">${esc(label)}</span></button></li>`;
+  }).join("")}</ul>` : dxEmpty("No scheduled meetings. Add one from the Meetings workspace.");
+  return dxPanel({ title: "Upcoming meetings", sub: "Open sessions, with past dates flagged", body, cls: "dx-span-5", action: `<button class="text-link" data-view-link="meetings">All meetings <span>↗</span></button>` });
+}
+
 /* ---------- needs attention ---------- */
 function dxAttention(d) {
   const items = [];
@@ -261,7 +318,7 @@ function renderDashboard() {
   const root = document.getElementById("dash-root");
   if (!root) return;
   const d = dxCollect();
-  const html = [dxHero(d), dxKpis(d), `<div class="dx-grid-wrap">`, dxPipeline(d), dxDueLoad(d), dxAttention(d), dxProjects(d), dxTaskDonut(d), dxWorkload(d), dxIndustry(), dxActivity(), dxCompleted(), `</div>`,
+  const html = [dxHero(d), dxKpis(d), `<div class="dx-grid-wrap">`, dxPipeline(d), dxDueLoad(d), dxAttention(d), dxProjects(d), dxTaskDonut(d), dxWorkload(d), dxIndustry(), dxActivity(), dxCompleted(), dxLeadTrend(), dxMeetings(d), `</div>`,
     `<p class="demo-note" id="dx-note" ${window.ZymaCrmApi && typeof LEADS_API_ENABLED !== "undefined" && LEADS_API_ENABLED ? "hidden" : ""}><span>ⓘ</span> Workspace records are currently stored in this browser. Shared storage will be connected through the Zyma API.</p>`].join("");
   /* Skip the DOM swap when nothing changed, so background refreshes never flicker. */
   if (root.dataset.sig === html) return;
