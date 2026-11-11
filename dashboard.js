@@ -318,13 +318,18 @@ function renderDashboard() {
   const root = document.getElementById("dash-root");
   if (!root) return;
   const d = dxCollect();
-  const html = [dxHero(d), dxKpis(d), `<div class="dx-grid-wrap">`, dxPipeline(d), dxDueLoad(d), dxAttention(d), dxProjects(d), dxTaskDonut(d), dxWorkload(d), dxIndustry(), dxActivity(), dxCompleted(), dxLeadTrend(), dxMeetings(d), `</div>`,
+  const payPanel = `<section class="dx-panel dx-span-12 dx-pay-panel"><header class="dx-panel-head"><div><h2>Zyma Pay</h2><p>Invoices and payment activity · read-only</p><p id="dx-pay-status" class="dx-pay-status" role="status" aria-live="polite">Connecting to Zyma Pay…</p></div><div class="dx-pay-actions"><button type="button" class="button button-secondary button-small" data-pay-refresh>Refresh</button><a class="button button-secondary button-small" href="https://payments.zyma.co.za/" target="_blank" rel="noopener noreferrer">Open Zyma Pay ↗</a></div></header><div id="dx-pay-content" class="dx-pay-content"></div></section>`;
+  const html = [dxHero(d), dxKpis(d), `<div class="dx-grid-wrap">`, payPanel, dxPipeline(d), dxDueLoad(d), dxAttention(d), dxProjects(d), dxTaskDonut(d), dxWorkload(d), dxIndustry(), dxActivity(), dxCompleted(), dxLeadTrend(), dxMeetings(d), `</div>`,
     `<p class="demo-note" id="dx-note" ${window.ZymaCrmApi && typeof LEADS_API_ENABLED !== "undefined" && LEADS_API_ENABLED ? "hidden" : ""}><span>ⓘ</span> Workspace records are currently stored in this browser. Shared storage will be connected through the Zyma API.</p>`].join("");
   /* Skip the DOM swap when nothing changed, so background refreshes never flicker. */
-  if (root.dataset.sig === html) return;
+  if (root.dataset.sig === html) {
+    if (typeof renderZymaPayDashboard === "function") renderZymaPayDashboard();
+    return;
+  }
   root.dataset.sig = html;
   root.innerHTML = html;
   if (typeof renderDashboardCharts === "function") renderDashboardCharts(); /* fills the greeting and date */
+  if (typeof renderZymaPayDashboard === "function") renderZymaPayDashboard();
 }
 
 /* ---------- tooltip (one shared element) ---------- */

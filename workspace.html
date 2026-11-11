@@ -314,7 +314,7 @@
               </section>
               <section class="panel settings-section" id="settings-integrations">
                 <div class="settings-section-heading"><div><p class="eyebrow">CONNECTED SERVICES</p><h2>Integrations</h2><p>Review planned connections for your CRM workspace.</p></div><span class="settings-section-symbol">⌘</span></div>
-                <div class="integration-row"><div class="integration-brand integration-brand-zyma">Z</div><div class="integration-copy"><strong>Zyma Pay</strong><p>Invoice and payment status visibility from your payment system.</p><small>Target service: payment.zyma.co.za</small></div><span class="settings-status-pill settings-status-planned">Planned</span></div>
+                <div class="integration-row"><div class="integration-brand integration-brand-zyma">Z</div><div class="integration-copy"><strong>Zyma Pay</strong><p>Read-only invoice and payment visibility using your separate Zyma Pay sign-in.</p><small>Requires the Pay API to allow the CRM origin in its credentialed CORS policy.</small></div><span class="settings-status-pill settings-status-planned">Read-only setup</span></div>
                 <div class="integration-row"><div class="integration-brand">✉</div><div class="integration-copy"><strong>Email provider</strong><p>Send and receive client correspondence from the CRM.</p><small>Requires provider credentials and backend configuration.</small></div><span class="settings-status-pill">Not connected</span></div>
                 <div class="integration-row"><div class="integration-brand">◷</div><div class="integration-copy"><strong>Microsoft Teams</strong><p>Store meeting links and associate meetings with CRM records.</p><small>Meeting links can be recorded; automatic calendar sync is not enabled.</small></div><span class="settings-status-pill settings-status-planned">Manual links</span></div>
                 <p class="settings-info-note"><span>i</span> Integrations are informational in this preview. No credentials or API keys should be entered here until secure backend settings are available.</p>
@@ -346,6 +346,7 @@
 
   <script src="auth-session.js"></script>
   <script src="crm-api.js"></script>
+  <script src="zyma-pay.js?v=20261111-readonly"></script>
   <script src="dashboard.js?v=20261111-dash"></script>
   <script src="client-profile.js?v=20261110-client-redesign"></script>
   <script src="projects.js?v=20261110-projects"></script>

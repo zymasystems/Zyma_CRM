@@ -16,6 +16,12 @@ This package is the standalone internal CRM frontend. It does not include Zyma P
 
 The current persistence is browser-local only. It is not authentication, authorization, shared storage, or a substitute for PostgreSQL. Do not put confidential production client records in the preview. The authenticated request helper is used for Leads CRUD against the implemented ASP.NET Core endpoints. Clients, contacts, projects, tasks, meetings, communications and extended lead workspace fields remain browser-local until matching backend endpoints and fields are implemented and tested.
 
+## Zyma Pay read-only dashboard
+
+The CRM dashboard can request `GET https://pay.zyma.co.za/api/invoices` and `GET https://pay.zyma.co.za/api/payments?pageSize=100` directly from the browser. Requests use `credentials: "include"` so the browser sends Zyma Pay's existing HttpOnly session cookie; the CRM does not copy, store, or request payment credentials. Users must sign in separately at `https://payments.zyma.co.za/`.
+
+The Pay API must allow the exact CRM origin `https://crm.zyma.co.za` in its credentialed CORS policy and allow the required GET requests. Do not use wildcard origins with credentials. Until the Pay API server is updated, the browser will block CRM-origin reads; the CRM UI reports this as a connection/CORS error. The API must continue to authorize each read using the Zyma Pay session. This integration is read-only and does not create invoices, modify payment statuses, or cache financial records in local storage.
+
 ## Recommended API contract
 
 Use a versioned API base such as `https://api.zyma.co.za/api/v1` (confirm the final host before deployment). Keep the frontend static on GitHub Pages and configure the API origin through a small deployment config rather than hard-coding environment-specific URLs into business logic.
